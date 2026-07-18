@@ -1,10 +1,68 @@
 import React, { useState } from 'react';
-import { User, Lock, Laptop } from 'lucide-react';
+import { User, Lock, Laptop, Loader2, Eye, EyeOff } from 'lucide-react';
 import loginImage from '../assets/WhatsApp Image 2026-07-14 at 10.27.47 PM.jpeg';
+import { api } from '../api/client';
+import { NetworkError, ServerError, NotFoundError, EmptyState } from '../components/errors/ErrorStates';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorState, setErrorState] = useState<'network' | 'server' | 'notFound' | 'empty' | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setErrorState(null);
+
+    try {
+      // The backend route is /api/auth/login/
+      const response = await api.post('/auth/login/', { email, password });
+      
+      // Store auth tokens and user data
+      const { access, refresh, user } = response.data;
+      if (access) {
+        localStorage.setItem('accessToken', access);
+        localStorage.setItem('refreshToken', refresh);
+        localStorage.setItem('user', JSON.stringify(user));
+      }
+
+      console.log('Login successful:', response.data);
+      alert('Login Successful! Welcome, ' + user.full_name);
+      // TODO: Navigate to dashboard or next page here
+    } catch (error: any) {
+      console.error('Login failed:', error);
+      
+      if (!error.response) {
+        setErrorState('network');
+      } else if (error.response.status >= 500) {
+        setErrorState('server');
+      } else if (error.response.status === 404) {
+        setErrorState('notFound');
+      } else {
+        alert("Invalid email or password"); // Basic fallback for 400 errors
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (errorState === 'network') {
+    return <NetworkError actionButton={{ label: 'Try Again', onClick: () => setErrorState(null) }} />;
+  }
+
+  if (errorState === 'server') {
+    return <ServerError actionButton={{ label: 'Go Back', onClick: () => setErrorState(null) }} />;
+  }
+
+  if (errorState === 'notFound') {
+    return <NotFoundError actionButton={{ label: 'Go Back', onClick: () => setErrorState(null) }} />;
+  }
+
+  if (errorState === 'empty') {
+    return <EmptyState actionButton={{ label: 'Go Back', onClick: () => setErrorState(null) }} />;
+  }
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-[#f4f7f9] font-sans overflow-hidden">
@@ -34,7 +92,7 @@ export default function LoginPage() {
             <p className="hidden md:block mt-3 text-slate-500 font-medium">Welcome back! Please enter your details.</p>
           </div>
 
-          <form className="space-y-4 md:space-y-5" onSubmit={(e) => e.preventDefault()}>
+          <form className="space-y-4 md:space-y-5" onSubmit={handleLogin}>
             {/* Email Input */}
             <div className="group relative flex items-center bg-white rounded-2xl px-5 py-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] focus-within:shadow-[0_4px_25px_rgb(0,0,0,0.06)] focus-within:ring-2 focus-within:ring-[#2b5c8f]/20 transition-all duration-300">
               <User className="w-[22px] h-[22px] text-slate-600 mr-4 group-focus-within:text-[#2b5c8f] transition-colors" strokeWidth={2} />
@@ -51,27 +109,30 @@ export default function LoginPage() {
             <div className="group relative flex items-center bg-white rounded-2xl px-5 py-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] focus-within:shadow-[0_4px_25px_rgb(0,0,0,0.06)] focus-within:ring-2 focus-within:ring-[#2b5c8f]/20 transition-all duration-300">
               <Lock className="w-[22px] h-[22px] text-slate-600 mr-4 group-focus-within:text-[#2b5c8f] transition-colors" strokeWidth={2} />
               <input 
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder="Password"
-                className="flex-1 bg-transparent outline-none text-slate-800 placeholder-slate-400/80 font-medium text-[16px]"
+                className="flex-1 bg-transparent outline-none text-slate-800 placeholder-slate-400/80 font-medium text-[16px] pr-10"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-5 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
 
             {/* Buttons */}
-            <div className="flex gap-4 mt-8 md:mt-10 pt-2">
+            <div className="mt-8 md:mt-10 pt-2">
               <button 
-                type="button"
-                className="flex-1 border border-[#1e293b] bg-transparent rounded-2xl py-3.5 md:py-4 text-[#1e293b] font-semibold text-[16px] hover:bg-[#1e293b] hover:text-white transition-all duration-300 active:scale-[0.98]"
+                type="submit"
+                disabled={isLoading}
+                className="w-full flex items-center justify-center bg-[#2b5c8f] rounded-2xl py-3.5 md:py-4 text-white font-semibold text-[16px] hover:bg-[#1f456e] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
               >
-                login
-              </button>
-              <button 
-                type="button"
-                className="flex-1 bg-[#2b5c8f] rounded-2xl py-3.5 md:py-4 text-white font-semibold text-[16px] hover:bg-[#1f456e] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 active:scale-[0.98]"
-              >
-                Signup
+                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Login'}
               </button>
             </div>
           </form>
