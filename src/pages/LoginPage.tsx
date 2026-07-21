@@ -3,48 +3,41 @@ import { User, Lock, Laptop, Loader2, Eye, EyeOff } from 'lucide-react';
 import loginImage from '../assets/WhatsApp Image 2026-07-14 at 10.27.47 PM.jpeg';
 import { api } from '../api/client';
 import { NetworkError, ServerError, NotFoundError, EmptyState } from '../components/errors/ErrorStates';
+import { useDispatch, useSelector } from 'react-redux';
+import { loginUser } from '../store/slices/authSlice';
+import { useNavigate } from 'react-router-dom';
+import type { AppDispatch, RootState } from '../store';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [errorState, setErrorState] = useState<'network' | 'server' | 'notFound' | 'empty' | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
+  const isLoading = useSelector((state: RootState) => state.auth.isLoading);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setErrorState(null);
 
     try {
-      // The backend route is /api/auth/login/
-      const response = await api.post('/auth/login/', { email, password });
-      
-      // Store auth tokens and user data
-      const { access, refresh, user } = response.data;
-      if (access) {
-        localStorage.setItem('accessToken', access);
-        localStorage.setItem('refreshToken', refresh);
-        localStorage.setItem('user', JSON.stringify(user));
-      }
+      const resultAction = await dispatch(loginUser({ email, password })).unwrap();
 
-      console.log('Login successful:', response.data);
-      alert('Login Successful! Welcome, ' + user.full_name);
-      // TODO: Navigate to dashboard or next page here
+      console.log('Login successful:', resultAction);
+      navigate('/dashboard', { replace: true });
     } catch (error: any) {
       console.error('Login failed:', error);
       
-      if (!error.response) {
+      if (error.status === 0) {
         setErrorState('network');
-      } else if (error.response.status >= 500) {
+      } else if (error.status >= 500) {
         setErrorState('server');
-      } else if (error.response.status === 404) {
+      } else if (error.status === 404) {
         setErrorState('notFound');
       } else {
         alert("Invalid email or password"); // Basic fallback for 400 errors
       }
-    } finally {
-      setIsLoading(false);
     }
   };
 
