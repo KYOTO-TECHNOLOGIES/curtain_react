@@ -89,25 +89,27 @@ export default function RolesPage() {
 
   return (
     <div className="space-y-6 animate-page-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-8 mt-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Roles</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Define user roles and assign permissions</p>
+          <h1 className="text-[32px] md:text-[42px] font-bold text-[#1e293b] tracking-tight leading-none">Roles</h1>
+          <p className="mt-3 text-slate-500 font-medium text-[16px]">Define user roles and assign permissions</p>
         </div>
-        <button onClick={openCreate} className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2b5c8f] text-white text-sm font-medium rounded-xl hover:bg-[#1f456e] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
-          <Plus className="w-4 h-4" /> Add Role
+        <button onClick={openCreate} className="inline-flex items-center justify-center gap-2 px-8 py-3.5 md:py-4 bg-[#2b5c8f] text-white text-[16px] font-semibold rounded-2xl hover:bg-[#1f456e] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 active:scale-[0.98]">
+          <Plus className="w-5 h-5" /> Add Role
         </button>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Search roles…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full sm:w-80 pl-11 pr-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all"
-        />
+      <div className="relative mb-6 group">
+        <div className="flex items-center bg-white rounded-2xl px-5 py-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] focus-within:shadow-[0_4px_25px_rgb(0,0,0,0.06)] focus-within:ring-2 focus-within:ring-[#2b5c8f]/20 transition-all duration-300 w-full sm:w-[400px]">
+          <Search className="w-[22px] h-[22px] text-slate-600 mr-4 group-focus-within:text-[#2b5c8f] transition-colors" strokeWidth={2} />
+          <input
+            type="text"
+            placeholder="Search roles..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="flex-1 bg-transparent outline-none text-slate-800 placeholder-slate-400/80 font-medium text-[16px]"
+          />
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -156,14 +158,18 @@ export default function RolesPage() {
       </div>
 
       <Modal open={formOpen} onClose={() => setFormOpen(false)} title={editingRole ? 'Edit Role' : 'Create Role'} maxWidth="max-w-md">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Role Name *</label>
-            <input type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
+            <label className="block text-[15px] font-bold text-[#1e293b] mb-2">Role Name <span className="text-red-500">*</span></label>
+            <div className="group relative flex items-center bg-white rounded-2xl px-5 py-3.5 border border-slate-200 shadow-sm focus-within:shadow-[0_4px_25px_rgb(0,0,0,0.06)] focus-within:ring-2 focus-within:ring-[#2b5c8f]/20 focus-within:border-[#2b5c8f] transition-all duration-300">
+              <input type="text" required placeholder="e.g. Administrator" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="flex-1 bg-transparent outline-none text-slate-800 placeholder-slate-400/80 font-medium text-[16px]" />
+            </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Description</label>
-            <textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm resize-none" />
+            <label className="block text-[15px] font-bold text-[#1e293b] mb-2">Description</label>
+            <div className="group relative flex items-start bg-white rounded-2xl px-5 py-3.5 border border-slate-200 shadow-sm focus-within:shadow-[0_4px_25px_rgb(0,0,0,0.06)] focus-within:ring-2 focus-within:ring-[#2b5c8f]/20 focus-within:border-[#2b5c8f] transition-all duration-300">
+              <textarea rows={2} placeholder="Role description..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="flex-1 bg-transparent outline-none text-slate-800 placeholder-slate-400/80 font-medium text-[16px] resize-none" />
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Permissions</label>
@@ -179,9 +185,9 @@ export default function RolesPage() {
               ))}
             </div>
           </div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={() => setFormOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors">Cancel</button>
-            <button type="submit" disabled={saving} className="flex-1 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white font-medium text-sm hover:bg-[#1f456e] transition-colors disabled:opacity-60">{saving ? 'Saving…' : editingRole ? 'Update' : 'Create'}</button>
+          <div className="flex gap-4 pt-4 mt-8">
+            <button type="button" onClick={() => setFormOpen(false)} className="flex-1 px-6 py-4 rounded-2xl border-2 border-slate-200 text-slate-600 font-semibold text-[16px] hover:bg-slate-50 hover:text-slate-800 transition-colors active:scale-[0.98]">Cancel</button>
+            <button type="submit" disabled={saving} className="flex-1 flex items-center justify-center px-6 py-4 rounded-2xl bg-[#2b5c8f] text-white font-semibold text-[16px] hover:bg-[#1f456e] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0">{saving ? <Loader2 className="w-5 h-5 animate-spin" /> : editingRole ? 'Update Role' : 'Create Role'}</button>
           </div>
         </form>
       </Modal>

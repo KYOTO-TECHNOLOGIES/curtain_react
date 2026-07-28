@@ -1,9 +1,22 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, Pencil, Trash2, Loader2, Phone, Mail, MapPin } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Plus, Search, Pencil, Trash2, Loader2, Phone, Mail, MapPin, AlertCircle } from 'lucide-react';
 import { customersApi } from '../../api/customers';
-import type { Customer, CreateCustomerRequest, UpdateCustomerRequest } from '../../types';
+import type { Customer, UpdateCustomerRequest } from '../../types';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
+import { customerSchema, type CustomerFormValues } from '../../lib/validationSchemas';
+
+const inputCls = (hasError?: boolean) =>
+  `w-full px-4 py-2.5 rounded-xl border ${hasError ? 'border-red-400 bg-red-50' : 'border-slate-200'} outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm`;
+
+const ErrorMsg = ({ message }: { message?: string }) =>
+  message ? (
+    <p className="flex items-center gap-1 text-red-500 text-xs mt-1.5 font-medium">
+      <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {message}
+    </p>
+  ) : null;
 
 export default function CustomersPage() {
   const { showToast } = useToast();
@@ -11,25 +24,30 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  // Modal state
   const [formOpen, setFormOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Form fields
-  const [form, setForm] = useState<CreateCustomerRequest>({
-    first_name: '', last_name: '', email: '', phone_number: '', company_name: '',
-    address_line_1: '', city: '', country: '', notes: ''
+  const form = useForm<CustomerFormValues>({
+    resolver: zodResolver(customerSchema),
+    defaultValues: {
+      first_name: '', last_name: '', email: '', phone_number: '',
+      company_name: '', address_line_1: '', city: '', country: '', notes: ''
+    }
   });
+
+  const { register, handleSubmit, reset, formState: { errors } } = form;
 
   const load = async () => {
     setLoading(true);
     try {
       const res = await customersApi.list();
       setCustomers(res.data);
-    } catch { showToast('Failed to load customers', 'error'); }
+    } catch {
+      showToast('Failed to load customers', 'error');
+    }
     setLoading(false);
   };
 
@@ -37,33 +55,37 @@ export default function CustomersPage() {
 
   const openCreate = () => {
     setEditingCustomer(null);
-    setForm({
-      first_name: '', last_name: '', email: '', phone_number: '', company_name: '',
-      address_line_1: '', city: '', country: '', notes: ''
+    reset({
+      first_name: '', last_name: '', email: '', phone_number: '',
+      company_name: '', address_line_1: '', city: '', country: '', notes: ''
     });
     setFormOpen(true);
   };
 
   const openEdit = (c: Customer) => {
     setEditingCustomer(c);
-    setForm({
-      first_name: c.first_name, last_name: c.last_name, email: c.email || '', 
-      phone_number: c.phone_number || '', company_name: c.company_name || '',
-      address_line_1: c.address_line_1 || '', city: c.city || '', 
-      country: c.country || '', notes: c.notes || ''
+    reset({
+      first_name: c.first_name,
+      last_name: c.last_name,
+      email: c.email || '',
+      phone_number: c.phone_number || '',
+      company_name: c.company_name || '',
+      address_line_1: c.address_line_1 || '',
+      city: c.city || '',
+      country: c.country || '',
+      notes: c.notes || ''
     });
     setFormOpen(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (data: CustomerFormValues) => {
     setSaving(true);
     try {
       if (editingCustomer) {
-        await customersApi.update(editingCustomer.id, form as UpdateCustomerRequest);
+        await customersApi.update(editingCustomer.id, data as UpdateCustomerRequest);
         showToast('Customer updated successfully');
       } else {
-        await customersApi.create(form);
+        await customersApi.create(data);
         showToast('Customer created successfully');
       }
       setFormOpen(false);
@@ -82,7 +104,9 @@ export default function CustomersPage() {
       showToast('Customer deleted');
       setDeleteTarget(null);
       load();
-    } catch { showToast('Failed to delete customer', 'error'); }
+    } catch {
+      showToast('Failed to delete customer', 'error');
+    }
     setDeleting(false);
   };
 
@@ -137,7 +161,6 @@ export default function CustomersPage() {
                 <button onClick={() => setDeleteTarget(c)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             </div>
-            
             <div className="space-y-2 mt-auto text-sm text-slate-600">
               {c.email && <div className="flex items-center gap-2"><Mail className="w-4 h-4 text-slate-400" /><span className="truncate">{c.email}</span></div>}
               {c.phone_number && <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-slate-400" /><span>{c.phone_number}</span></div>}
@@ -147,45 +170,51 @@ export default function CustomersPage() {
         ))}
       </div>
 
+      {/* Form Modal */}
       <Modal open={formOpen} onClose={() => setFormOpen(false)} title={editingCustomer ? 'Edit Customer' : 'Create Customer'} maxWidth="max-w-2xl">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">First Name *</label>
-              <input type="text" required value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">First Name <span className="text-red-500">*</span></label>
+              <input type="text" placeholder="e.g. Abdullah" {...register('first_name')} className={inputCls(!!errors.first_name)} />
+              <ErrorMsg message={errors.first_name?.message} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Last Name *</label>
-              <input type="text" required value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Last Name <span className="text-red-500">*</span></label>
+              <input type="text" placeholder="e.g. Ahmed" {...register('last_name')} className={inputCls(!!errors.last_name)} />
+              <ErrorMsg message={errors.last_name?.message} />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
-              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
+              <input type="email" placeholder="customer@example.com" {...register('email')} className={inputCls(!!errors.email)} />
+              <ErrorMsg message={errors.email?.message} />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Phone Number</label>
-              <input type="tel" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
+              <input type="tel" placeholder="+971 50 123 4567" {...register('phone_number')} className={inputCls(!!errors.phone_number)} />
+              <ErrorMsg message={errors.phone_number?.message} />
             </div>
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Company Name</label>
-              <input type="text" value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
+              <input type="text" placeholder="e.g. ACME LLC" {...register('company_name')} className={inputCls()} />
             </div>
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Address</label>
-              <input type="text" value={form.address_line_1} onChange={(e) => setForm({ ...form, address_line_1: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
+              <input type="text" placeholder="Street address" {...register('address_line_1')} className={inputCls()} />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">City</label>
-              <input type="text" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
+              <input type="text" placeholder="Dubai" {...register('city')} className={inputCls()} />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Country</label>
-              <input type="text" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
+              <input type="text" placeholder="UAE" {...register('country')} className={inputCls()} />
             </div>
           </div>
           <div className="flex gap-3 pt-4">
             <button type="button" onClick={() => setFormOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors">Cancel</button>
-            <button type="submit" disabled={saving} className="flex-1 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white font-medium text-sm hover:bg-[#1f456e] transition-colors disabled:opacity-60">
+            <button type="submit" disabled={saving} className="flex-1 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white font-medium text-sm hover:bg-[#1f456e] transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
               {saving ? 'Saving…' : editingCustomer ? 'Update' : 'Create'}
             </button>
           </div>

@@ -1,34 +1,39 @@
-import React, { useState } from 'react';
-import { User, Lock, Laptop, Loader2, Eye, EyeOff } from 'lucide-react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { User, Lock, Laptop, Loader2, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import loginImage from '../assets/WhatsApp Image 2026-07-14 at 10.27.47 PM.jpeg';
-import { api } from '../api/client';
-import { NetworkError, ServerError, NotFoundError, EmptyState } from '../components/errors/ErrorStates';
+import { NetworkError, ServerError, NotFoundError } from '../components/errors/ErrorStates';
 import { useDispatch, useSelector } from 'react-redux';
 import { loginUser } from '../store/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
 import type { AppDispatch, RootState } from '../store';
+import { loginSchema, type LoginFormValues } from '../lib/validationSchemas';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [errorState, setErrorState] = useState<'network' | 'server' | 'notFound' | 'empty' | null>(null);
+  const [errorState, setErrorState] = useState<'network' | 'server' | 'notFound' | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const isLoading = useSelector((state: RootState) => state.auth.isLoading);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors }
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: '', password: '' }
+  });
+
+  const onSubmit = async (data: LoginFormValues) => {
+    setApiError(null);
     setErrorState(null);
-
     try {
-      const resultAction = await dispatch(loginUser({ email, password })).unwrap();
-
-      console.log('Login successful:', resultAction);
+      await dispatch(loginUser({ email: data.email, password: data.password })).unwrap();
       navigate('/dashboard', { replace: true });
     } catch (error: any) {
-      console.error('Login failed:', error);
-      
       if (error.status === 0) {
         setErrorState('network');
       } else if (error.status >= 500) {
@@ -36,7 +41,7 @@ export default function LoginPage() {
       } else if (error.status === 404) {
         setErrorState('notFound');
       } else {
-        alert("Invalid email or password"); // Basic fallback for 400 errors
+        setApiError('Invalid email or password. Please try again.');
       }
     }
   };
@@ -44,17 +49,11 @@ export default function LoginPage() {
   if (errorState === 'network') {
     return <NetworkError actionButton={{ label: 'Try Again', onClick: () => setErrorState(null) }} />;
   }
-
   if (errorState === 'server') {
     return <ServerError actionButton={{ label: 'Go Back', onClick: () => setErrorState(null) }} />;
   }
-
   if (errorState === 'notFound') {
     return <NotFoundError actionButton={{ label: 'Go Back', onClick: () => setErrorState(null) }} />;
-  }
-
-  if (errorState === 'empty') {
-    return <EmptyState actionButton={{ label: 'Go Back', onClick: () => setErrorState(null) }} />;
   }
 
   return (
@@ -66,14 +65,12 @@ export default function LoginPage() {
           alt="Curtain Installation" 
           className="w-full h-full object-cover object-top md:object-center animate-slow-pan"
         />
-        {/* Subtle overlay for desktop premium feel */}
         <div className="hidden md:block absolute inset-0 bg-gradient-to-r from-transparent to-[#f4f7f9]/60 mix-blend-overlay pointer-events-none"></div>
       </div>
 
       {/* Login Form Area */}
       <div className="flex-1 -mt-8 md:mt-0 bg-[#f4f7f9] rounded-t-[2.5rem] md:rounded-none relative z-10 flex flex-col justify-center items-center px-6 pt-10 pb-8 md:w-1/2 lg:w-[45%] md:px-12 lg:px-24">
         
-        {/* Desktop-only subtle decorative elements */}
         <div className="hidden md:block absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
           <div className="absolute -top-[10%] -right-[10%] w-[500px] h-[500px] rounded-full bg-blue-100/50 blur-[100px]"></div>
           <div className="absolute -bottom-[10%] -left-[10%] w-[500px] h-[500px] rounded-full bg-slate-200/50 blur-[100px]"></div>
@@ -85,40 +82,61 @@ export default function LoginPage() {
             <p className="hidden md:block mt-3 text-slate-500 font-medium">Welcome back! Please enter your details.</p>
           </div>
 
-          <form className="space-y-4 md:space-y-5" onSubmit={handleLogin}>
+          <form className="space-y-4 md:space-y-5" onSubmit={handleSubmit(onSubmit)}>
+
+            {/* API Error Banner */}
+            {apiError && (
+              <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-2xl text-sm font-medium">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {apiError}
+              </div>
+            )}
+
             {/* Email Input */}
-            <div className="group relative flex items-center bg-white rounded-2xl px-5 py-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] focus-within:shadow-[0_4px_25px_rgb(0,0,0,0.06)] focus-within:ring-2 focus-within:ring-[#2b5c8f]/20 transition-all duration-300">
-              <User className="w-[22px] h-[22px] text-slate-600 mr-4 group-focus-within:text-[#2b5c8f] transition-colors" strokeWidth={2} />
-              <input 
-                type="email"
-                placeholder="Email"
-                className="flex-1 bg-transparent outline-none text-slate-800 placeholder-slate-400/80 font-medium text-[16px]"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+            <div>
+              <div className={`group relative flex items-center bg-white rounded-2xl px-5 py-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] focus-within:shadow-[0_4px_25px_rgb(0,0,0,0.06)] transition-all duration-300 ${errors.email ? 'ring-2 ring-red-300' : 'focus-within:ring-2 focus-within:ring-[#2b5c8f]/20'}`}>
+                <User className="w-[22px] h-[22px] text-slate-600 mr-4 group-focus-within:text-[#2b5c8f] transition-colors" strokeWidth={2} />
+                <input 
+                  type="email"
+                  placeholder="Email"
+                  className="flex-1 bg-transparent outline-none text-slate-800 placeholder-slate-400/80 font-medium text-[16px]"
+                  {...register('email')}
+                />
+              </div>
+              {errors.email && (
+                <p className="flex items-center gap-1.5 text-red-500 text-xs mt-1.5 font-medium px-2">
+                  <AlertCircle className="w-3.5 h-3.5" /> {errors.email.message}
+                </p>
+              )}
             </div>
 
             {/* Password Input */}
-            <div className="group relative flex items-center bg-white rounded-2xl px-5 py-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] focus-within:shadow-[0_4px_25px_rgb(0,0,0,0.06)] focus-within:ring-2 focus-within:ring-[#2b5c8f]/20 transition-all duration-300">
-              <Lock className="w-[22px] h-[22px] text-slate-600 mr-4 group-focus-within:text-[#2b5c8f] transition-colors" strokeWidth={2} />
-              <input 
-                type={showPassword ? "text" : "password"}
-                placeholder="Password"
-                className="flex-1 bg-transparent outline-none text-slate-800 placeholder-slate-400/80 font-medium text-[16px] pr-10"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-5 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
+            <div>
+              <div className={`group relative flex items-center bg-white rounded-2xl px-5 py-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] focus-within:shadow-[0_4px_25px_rgb(0,0,0,0.06)] transition-all duration-300 ${errors.password ? 'ring-2 ring-red-300' : 'focus-within:ring-2 focus-within:ring-[#2b5c8f]/20'}`}>
+                <Lock className="w-[22px] h-[22px] text-slate-600 mr-4 group-focus-within:text-[#2b5c8f] transition-colors" strokeWidth={2} />
+                <input 
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  className="flex-1 bg-transparent outline-none text-slate-800 placeholder-slate-400/80 font-medium text-[16px] pr-10"
+                  {...register('password')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-5 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="flex items-center gap-1.5 text-red-500 text-xs mt-1.5 font-medium px-2">
+                  <AlertCircle className="w-3.5 h-3.5" /> {errors.password.message}
+                </p>
+              )}
             </div>
 
-            {/* Buttons */}
+            {/* Submit */}
             <div className="mt-8 md:mt-10 pt-2">
               <button 
                 type="submit"

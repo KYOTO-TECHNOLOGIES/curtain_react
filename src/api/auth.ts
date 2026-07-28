@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { LoginRequest, LoginResponse, RefreshResponse, User } from '../types';
+import type { LoginRequest, LoginResponse, RefreshResponse, User, ChangePasswordRequest } from '../types';
 
 export const authApi = {
   login: (data: LoginRequest) =>
@@ -13,4 +13,7 @@ export const authApi = {
 
   me: () =>
     api.get<User>('auth/me/'),
+
+  changePassword: (data: ChangePasswordRequest) =>
+    api.post<{ detail: string }>('auth/change-password/', data),
 };

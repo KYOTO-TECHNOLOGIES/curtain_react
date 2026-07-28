@@ -1,9 +1,9 @@
 import { api } from './client';
-import type { Customer, CreateCustomerRequest, UpdateCustomerRequest } from '../types';
+import type { Customer, CreateCustomerRequest, UpdateCustomerRequest, CustomerLookupResponse, CreateOrGetCustomerResponse } from '../types';
 
 export const customersApi = {
-  list: () =>
-    api.get<Customer[]>('customers/'),
+  list: (search?: string) =>
+    api.get<Customer[]>('customers/', { params: search ? { search } : undefined }),
 
   get: (id: number) =>
     api.get<Customer>(`customers/${id}/`),
@@ -16,4 +16,10 @@ export const customersApi = {
 
   delete: (id: number) =>
     api.delete(`customers/${id}/`),
+
+  lookup: (params: { phone?: string; email?: string }) =>
+    api.get<CustomerLookupResponse>('customers/lookup/', { params }),
+
+  createOrGet: (data: Partial<CreateCustomerRequest>) =>
+    api.post<CreateOrGetCustomerResponse>('customers/create-or-get/', data),
 };

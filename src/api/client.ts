@@ -1,10 +1,8 @@
 import axios from 'axios';
-import { store } from '../store';
-import { logoutSuccess, loginSuccess } from '../store/slices/authSlice';
 
-// The base URL points directly to the backend IP you provided
+// The base URL points directly to the backend IP you provided or localhost
 export const api = axios.create({
-  baseURL: 'http://187.127.171.93:8110/api/',
+  baseURL: import.meta.env.VITE_API_URL || '/api/',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -14,7 +12,8 @@ export const api = axios.create({
 // Attach token to every request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken');
-  if (token) {
+  // Do not attach token for login or refresh endpoints
+  if (token && !config.url?.includes('/auth/login') && !config.url?.includes('/auth/refresh')) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -35,6 +34,8 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
+        const { store } = await import('../store');
+        const { logoutSuccess, loginSuccess } = await import('../store/slices/authSlice');
         const refreshToken = localStorage.getItem('refreshToken');
         if (!refreshToken) {
            store.dispatch(logoutSuccess());
@@ -56,6 +57,8 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (err) {
         // Refresh failed, log user out
+        const { store } = await import('../store');
+        const { logoutSuccess } = await import('../store/slices/authSlice');
         store.dispatch(logoutSuccess());
         return Promise.reject(err);
       }

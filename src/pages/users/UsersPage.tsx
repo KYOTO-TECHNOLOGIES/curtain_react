@@ -1,10 +1,24 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Plus, Search, Pencil, Trash2, Loader2, AlertCircle } from 'lucide-react';
 import { usersApi } from '../../api/users';
 import { rolesApi } from '../../api/roles';
-import type { User, Role, CreateUserRequest, UpdateUserRequest } from '../../types';
+import type { User, Role, UpdateUserRequest } from '../../types';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
+import { createUserSchema, editUserSchema, type CreateUserFormValues, type EditUserFormValues } from '../../lib/validationSchemas';
+
+// Shared field styles
+const inputCls = (hasError?: boolean) =>
+  `w-full px-4 py-2.5 rounded-xl border ${hasError ? 'border-red-400 bg-red-50' : 'border-slate-200'} outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm`;
+
+const ErrorMsg = ({ message }: { message?: string }) =>
+  message ? (
+    <p className="flex items-center gap-1 text-red-500 text-xs mt-1.5 font-medium">
+      <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {message}
+    </p>
+  ) : null;
 
 export default function UsersPage() {
   const { showToast } = useToast();
@@ -13,15 +27,23 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  // Modal state
   const [formOpen, setFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Form fields
-  const [form, setForm] = useState({ email: '', full_name: '', password: '', role_id: 0 });
+  // Create form
+  const createForm = useForm<CreateUserFormValues>({
+    resolver: zodResolver(createUserSchema),
+    defaultValues: { email: '', full_name: '', password: '', role_id: 0 },
+  });
+
+  // Edit form
+  const editForm = useForm<EditUserFormValues>({
+    resolver: zodResolver(editUserSchema),
+    defaultValues: { full_name: '', role_id: 0 },
+  });
 
   const load = async () => {
     setLoading(true);
@@ -29,7 +51,9 @@ export default function UsersPage() {
       const [usersRes, rolesRes] = await Promise.all([usersApi.list(), rolesApi.list()]);
       setUsers(usersRes.data);
       setRoles(rolesRes.data);
-    } catch { showToast('Failed to load users', 'error'); }
+    } catch {
+      showToast('Failed to load users', 'error');
+    }
     setLoading(false);
   };
 
@@ -37,33 +61,40 @@ export default function UsersPage() {
 
   const openCreate = () => {
     setEditingUser(null);
-    setForm({ email: '', full_name: '', password: '', role_id: roles[0]?.id || 0 });
+    createForm.reset({ email: '', full_name: '', password: '', role_id: roles[0]?.id || 0 });
     setFormOpen(true);
   };
 
   const openEdit = (u: User) => {
     setEditingUser(u);
-    setForm({ email: u.email, full_name: u.full_name, password: '', role_id: u.role.id });
+    editForm.reset({ full_name: u.full_name, role_id: u.role.id });
     setFormOpen(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreate = async (data: CreateUserFormValues) => {
     setSaving(true);
     try {
-      if (editingUser) {
-        const data: UpdateUserRequest = { full_name: form.full_name, role_id: form.role_id };
-        await usersApi.update(editingUser.id, data);
-        showToast('User updated successfully');
-      } else {
-        const data: CreateUserRequest = { email: form.email, full_name: form.full_name, password: form.password, role_id: form.role_id };
-        await usersApi.create(data);
-        showToast('User created successfully');
-      }
+      await usersApi.create({ email: data.email, full_name: data.full_name, password: data.password, role_id: data.role_id });
+      showToast('User created successfully');
       setFormOpen(false);
       load();
     } catch (err: any) {
-      showToast(err?.response?.data?.detail || 'Operation failed', 'error');
+      showToast(err?.response?.data?.detail || 'Failed to create user', 'error');
+    }
+    setSaving(false);
+  };
+
+  const handleEdit = async (data: EditUserFormValues) => {
+    if (!editingUser) return;
+    setSaving(true);
+    try {
+      const payload: UpdateUserRequest = { full_name: data.full_name, role_id: data.role_id };
+      await usersApi.update(editingUser.id, payload);
+      showToast('User updated successfully');
+      setFormOpen(false);
+      load();
+    } catch (err: any) {
+      showToast(err?.response?.data?.detail || 'Failed to update user', 'error');
     }
     setSaving(false);
   };
@@ -76,7 +107,9 @@ export default function UsersPage() {
       showToast('User deleted');
       setDeleteTarget(null);
       load();
-    } catch { showToast('Failed to delete user', 'error'); }
+    } catch {
+      showToast('Failed to delete user', 'error');
+    }
     setDeleting(false);
   };
 
@@ -167,40 +200,94 @@ export default function UsersPage() {
 
       {/* Form Modal */}
       <Modal open={formOpen} onClose={() => setFormOpen(false)} title={editingUser ? 'Edit User' : 'Create User'}>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {!editingUser && (
+        {editingUser ? (
+          /* ── Edit Form ── */
+          <form onSubmit={editForm.handleSubmit(handleEdit)} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
-              <input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" placeholder="user@example.com" />
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                placeholder="John Doe"
+                {...editForm.register('full_name')}
+                className={inputCls(!!editForm.formState.errors.full_name)}
+              />
+              <ErrorMsg message={editForm.formState.errors.full_name?.message} />
             </div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name</label>
-            <input type="text" required value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" placeholder="John Doe" />
-          </div>
-          {!editingUser && (
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
-              <input type="password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" placeholder="••••••••" />
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Role <span className="text-red-500">*</span></label>
+              <select
+                {...editForm.register('role_id', { valueAsNumber: true })}
+                className={inputCls(!!editForm.formState.errors.role_id)}
+              >
+                <option value={0}>Select a role...</option>
+                {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+              <ErrorMsg message={editForm.formState.errors.role_id?.message} />
             </div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Role</label>
-            <select value={form.role_id} onChange={(e) => setForm({ ...form, role_id: Number(e.target.value) })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm">
-              <option value={0}>Select a role...</option>
-              {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-            </select>
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={() => setFormOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors">Cancel</button>
-            <button type="submit" disabled={saving || form.role_id === 0} className="flex-1 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white font-medium text-sm hover:bg-[#1f456e] transition-colors disabled:opacity-60">
-              {saving ? 'Saving…' : editingUser ? 'Update' : 'Create'}
-            </button>
-          </div>
-        </form>
+            <div className="flex gap-3 pt-2">
+              <button type="button" onClick={() => setFormOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors">Cancel</button>
+              <button type="submit" disabled={saving} className="flex-1 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white font-medium text-sm hover:bg-[#1f456e] transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                {saving ? 'Saving…' : 'Update'}
+              </button>
+            </div>
+          </form>
+        ) : (
+          /* ── Create Form ── */
+          <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email <span className="text-red-500">*</span></label>
+              <input
+                type="email"
+                placeholder="user@example.com"
+                {...createForm.register('email')}
+                className={inputCls(!!createForm.formState.errors.email)}
+              />
+              <ErrorMsg message={createForm.formState.errors.email?.message} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                placeholder="John Doe"
+                {...createForm.register('full_name')}
+                className={inputCls(!!createForm.formState.errors.full_name)}
+              />
+              <ErrorMsg message={createForm.formState.errors.full_name?.message} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Password <span className="text-red-500">*</span></label>
+              <input
+                type="password"
+                placeholder="Min. 8 characters"
+                {...createForm.register('password')}
+                className={inputCls(!!createForm.formState.errors.password)}
+              />
+              <ErrorMsg message={createForm.formState.errors.password?.message} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Role <span className="text-red-500">*</span></label>
+              <select
+                {...createForm.register('role_id', { valueAsNumber: true })}
+                className={inputCls(!!createForm.formState.errors.role_id)}
+              >
+                <option value={0}>Select a role...</option>
+                {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+              <ErrorMsg message={createForm.formState.errors.role_id?.message} />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button type="button" onClick={() => setFormOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors">Cancel</button>
+              <button type="submit" disabled={saving} className="flex-1 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white font-medium text-sm hover:bg-[#1f456e] transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                {saving ? 'Saving…' : 'Create'}
+              </button>
+            </div>
+          </form>
+        )}
       </Modal>
 
-      {/* Delete confirm */}
+      {/* Delete Confirm */}
       <ConfirmModal
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
