@@ -8,8 +8,7 @@ import {
   Download, 
   ChevronDown, 
   FileText,
-  Eye,
-  Calendar
+  Eye
 } from 'lucide-react';
 import { quotationsApi } from '../../api/quotations';
 import type { QuotationListItem, QuotationStats } from '../../types';

@@ -1,4 +1,3 @@
-import React from 'react';
 import { ErrorState, type ErrorStateProps } from '../ui/ErrorState';
 
 type ErrorComponentProps = Omit<ErrorStateProps, 'icon' | 'title' | 'description'> & {
