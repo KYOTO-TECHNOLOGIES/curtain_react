@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Plus, 
-  Search, 
   Loader2, 
   Calendar, 
   ChevronRight, 
@@ -12,7 +10,7 @@ import {
 } from 'lucide-react';
 import { appointmentsApi } from '../../api/appointments';
 import type { AppointmentListItem, CreateAppointmentRequest, AppointmentStats } from '../../types';
-import Modal, { ConfirmModal } from '../../components/ui/Modal';
+import Modal from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
 
 export default function AppointmentsPage() {
@@ -21,7 +19,7 @@ export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<AppointmentListItem[]>([]);
   const [stats, setStats] = useState<AppointmentStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [search] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
   // Modal state

@@ -7,7 +7,6 @@ import {
   Trash2, 
   ChevronDown, 
   Image as ImageIcon,
-  Save,
   FileText
 } from 'lucide-react';
 import { useToast } from '../../components/ui/Toast';
@@ -30,7 +29,7 @@ export default function CreateQuotationPage() {
     discount_percentage: '0'
   });
 
-  const [areas, setAreas] = useState([
+  const [areas] = useState([
     {
       id: '1',
       name: 'Room of Fatima',
@@ -267,7 +266,7 @@ export default function CreateQuotationPage() {
 
       {/* Areas List */}
       <div className="space-y-6">
-        {areas.map((area, areaIdx) => (
+        {areas.map((area) => (
           <div key={area.id} className="bg-white rounded-3xl p-6 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100">
             {/* Area Header */}
             <div className="flex items-center justify-between pb-6 border-b border-slate-100 mb-6">
