@@ -1,0 +1,326 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Plus, 
+  Search, 
+  Loader2, 
+  Calendar, 
+  ChevronRight, 
+  Download, 
+  ChevronDown, 
+  FilePlus 
+} from 'lucide-react';
+import { appointmentsApi } from '../../api/appointments';
+import type { AppointmentListItem, CreateAppointmentRequest, AppointmentStats } from '../../types';
+import Modal, { ConfirmModal } from '../../components/ui/Modal';
+import { useToast } from '../../components/ui/Toast';
+
+export default function AppointmentsPage() {
+  const navigate = useNavigate();
+  const { showToast } = useToast();
+  const [appointments, setAppointments] = useState<AppointmentListItem[]>([]);
+  const [stats, setStats] = useState<AppointmentStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  // Modal state
+  const [formOpen, setFormOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Form fields
+  const [form, setForm] = useState<Partial<CreateAppointmentRequest>>({
+    title: '', description: '', appointment_date: '', appointment_time: '', job_type: 'consultation', status: 'pending',
+    customer_first_name: '', customer_last_name: '', customer_phone: '', location_full_address: ''
+  });
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [listRes, statsRes] = await Promise.all([
+        appointmentsApi.list(statusFilter ? { status: statusFilter as any } : {}),
+        appointmentsApi.stats()
+      ]);
+      setAppointments(listRes.data);
+      setStats(statsRes.data);
+    } catch { showToast('Failed to load appointments', 'error'); }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [statusFilter]);
+
+  const openCreate = () => {
+    navigate('/appointments/create');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await appointmentsApi.create(form as CreateAppointmentRequest);
+      showToast('Appointment created successfully');
+      setFormOpen(false);
+      load();
+    } catch (err: any) {
+      showToast(err?.response?.data?.detail || 'Operation failed', 'error');
+    }
+    setSaving(false);
+  };
+
+  const filtered = appointments.filter((a) =>
+    a.title.toLowerCase().includes(search.toLowerCase()) ||
+    a.customer_name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case 'scheduled': return 'bg-[#2b5c8f] text-white';
+      case 'in_progress': return 'bg-[#f97316] text-white';
+      case 'completed': return 'bg-[#10b981] text-white';
+      case 'cancelled': return 'bg-[#ef4444] text-white';
+      default: return 'bg-slate-200 text-slate-700';
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-page-in font-sans">
+      
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-[28px] font-extrabold text-[#1e293b] tracking-tight">
+            Appointment Management
+          </h1>
+          <div className="flex items-center gap-2 mt-1 text-[13px] font-medium text-slate-500">
+            <span>Curtain Master.</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+            <span className="text-[#2b5c8f]">Appointment List View</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 font-semibold text-sm rounded-xl shadow-sm hover:bg-slate-50 transition-all">
+            <Download className="w-4 h-4" strokeWidth={2.5} /> Export List
+          </button>
+          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 bg-[#2b5c8f] text-white font-semibold text-sm rounded-xl shadow-md shadow-indigo-200 hover:bg-[#1f456e] hover:-translate-y-0.5 transition-all">
+            <Calendar className="w-4 h-4" strokeWidth={2.5} /> Schedule New Appointment
+          </button>
+        </div>
+      </div>
+
+      {/* Filters Bar */}
+      <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-wrap items-center gap-6">
+        <div className="flex items-center gap-3">
+          <span className="text-[13px] font-bold text-slate-700">View:</span>
+          <div className="flex bg-slate-100 p-1 rounded-xl">
+            <button className="px-4 py-1.5 text-slate-500 text-sm font-semibold rounded-lg hover:text-slate-700 transition-colors">
+              Monthly
+            </button>
+            <button className="px-4 py-1.5 bg-white text-[#2b5c8f] text-sm font-bold rounded-lg shadow-sm">
+              Table View
+            </button>
+          </div>
+        </div>
+
+        <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
+
+        <div className="flex items-center gap-4 flex-1">
+          <div>
+            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</span>
+            <div className="relative">
+              <select 
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl px-4 py-2 pr-10 outline-none focus:border-[#2b5c8f] transition-colors w-40"
+              >
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+          
+          <div>
+            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Assigned To</span>
+            <div className="relative">
+              <select className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl px-4 py-2 pr-10 outline-none focus:border-[#2b5c8f] transition-colors w-40">
+                <option>All Staff</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+        </div>
+
+        <div className="border border-slate-100 rounded-xl px-6 py-2.5 flex flex-col items-center justify-center min-w-[120px]">
+          <span className="text-[15px] font-extrabold text-slate-800">Total: {stats?.total || 0}</span>
+          <span className="text-[11px] font-medium text-slate-500">Appointments</span>
+        </div>
+      </div>
+
+      {/* Indicators Row */}
+      <div className="flex flex-wrap items-center gap-4 mt-2 mb-6">
+        <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-slate-100 rounded-full shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
+          <div className="w-2.5 h-2.5 rounded-full bg-[#2b5c8f]"></div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-[14px] font-extrabold text-slate-800">{stats?.by_status?.scheduled || 0}</span>
+            <span className="text-[13px] font-medium text-slate-500">Scheduled</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-slate-100 rounded-full shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
+          <div className="w-2.5 h-2.5 rounded-full bg-[#f97316]"></div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-[14px] font-extrabold text-slate-800">{stats?.by_status?.in_progress || 0}</span>
+            <span className="text-[13px] font-medium text-slate-500">In Progress</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-slate-100 rounded-full shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
+          <div className="w-2.5 h-2.5 rounded-full bg-[#10b981]"></div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-[14px] font-extrabold text-slate-800">{stats?.by_status?.completed || 0}</span>
+            <span className="text-[13px] font-medium text-slate-500">Completed</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-slate-100 rounded-full shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
+          <div className="w-2.5 h-2.5 rounded-full bg-[#ef4444]"></div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-[14px] font-extrabold text-slate-800">{stats?.by_status?.cancelled || 0}</span>
+            <span className="text-[13px] font-medium text-slate-500">Cancelled</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Table Section */}
+      <div className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] overflow-hidden border border-slate-100">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[800px]">
+            <thead>
+              <tr className="border-b border-slate-100 bg-white">
+                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">ID</th>
+                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Customer Name</th>
+                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Phone</th>
+                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Booking Date & Time</th>
+                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Assignee</th>
+                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-16 text-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-[#2b5c8f] mx-auto" />
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-16 text-center text-slate-500 font-medium">
+                    No appointments found.
+                  </td>
+                </tr>
+              ) : filtered.map(a => (
+                <tr key={a.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="px-6 py-5 align-middle">
+                    <span className="text-sm font-extrabold text-slate-800">
+                      #APT-{a.id.toString().padStart(4, '0')}
+                    </span>
+                  </td>
+                  <td className="px-6 py-5 align-middle">
+                    <span className="text-[14px] font-bold text-slate-700">{a.customer_name}</span>
+                  </td>
+                  <td className="px-6 py-5 align-middle">
+                    <span className="text-sm font-medium text-slate-500 whitespace-nowrap">{a.customer_phone}</span>
+                  </td>
+                  <td className="px-6 py-5 align-middle">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[14px] font-extrabold text-slate-800">{a.appointment_date}</span>
+                      <span className="text-[12px] text-slate-400 font-semibold">{a.appointment_time}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-5 align-middle">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[11px] font-bold text-slate-600">
+                        {a.customer_name.charAt(0)}D
+                      </div>
+                      <span className="text-[13px] font-bold text-slate-700">James D.</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-5 align-middle">
+                    <span className={`inline-flex items-center justify-center px-3 py-1.5 rounded-full text-[10px] font-extrabold uppercase tracking-[0.1em] ${getStatusStyle(a.status)}`}>
+                      {a.status.replace('_', ' ')}
+                    </span>
+                  </td>
+                  <td className="px-6 py-5 align-middle text-right">
+                    <button className="inline-flex items-center gap-2 px-4 py-2 bg-[#f1f0ff] text-[#2b5c8f] hover:bg-[#e4e2ff] font-bold text-[12px] rounded-lg transition-colors">
+                      <FilePlus className="w-3.5 h-3.5" /> Quote
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Create Modal */}
+      <Modal open={formOpen} onClose={() => setFormOpen(false)} title="Create Appointment" maxWidth="max-w-2xl">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <h4 className="font-medium text-slate-800 pb-2 border-b border-slate-100">Customer Info</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">First Name *</label>
+              <input type="text" required value={form.customer_first_name} onChange={(e) => setForm({ ...form, customer_first_name: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Last Name *</label>
+              <input type="text" required value={form.customer_last_name} onChange={(e) => setForm({ ...form, customer_last_name: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Phone *</label>
+              <input type="tel" required value={form.customer_phone} onChange={(e) => setForm({ ...form, customer_phone: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
+            </div>
+          </div>
+          
+          <h4 className="font-medium text-slate-800 pb-2 border-b border-slate-100 mt-6">Appointment Details</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Title *</label>
+              <input type="text" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Date *</label>
+              <input type="date" required value={form.appointment_date} onChange={(e) => setForm({ ...form, appointment_date: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Time *</label>
+              <input type="time" required value={form.appointment_time} onChange={(e) => setForm({ ...form, appointment_time: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Job Type *</label>
+              <select required value={form.job_type} onChange={(e) => setForm({ ...form, job_type: e.target.value as any })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 transition-all text-sm">
+                <option value="measurement">Measurement</option>
+                <option value="installation">Installation</option>
+                <option value="consultation">Consultation</option>
+                <option value="repair">Repair</option>
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Location Address *</label>
+              <input type="text" required value={form.location_full_address} onChange={(e) => setForm({ ...form, location_full_address: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
+            </div>
+          </div>
+          
+          <div className="flex gap-3 pt-4">
+            <button type="button" onClick={() => setFormOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors">Cancel</button>
+            <button type="submit" disabled={saving} className="flex-1 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white font-medium text-sm hover:bg-[#1f456e] transition-colors disabled:opacity-60">
+              {saving ? 'Saving...' : 'Create Appointment'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+    </div>
+  );
+}
