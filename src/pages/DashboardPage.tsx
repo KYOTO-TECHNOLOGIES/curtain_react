@@ -24,8 +24,6 @@ export default function DashboardPage() {
     orders: null as any,
     invoices: null as any
   });
-  const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -44,7 +42,6 @@ export default function DashboardPage() {
       } catch (e) {
         console.error(e);
       }
-      setLoading(false);
     };
     fetchStats();
   }, []);
@@ -247,11 +244,11 @@ export default function DashboardPage() {
                 {/* Accepted (Green) */}
                 <circle cx="50" cy="50" r="40" fill="transparent" stroke="#10b981" strokeWidth="20" strokeDasharray="251.2" strokeDashoffset="100.48" />
                 {/* Pending (Purple) */}
-                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#2b5c8f" strokeWidth="20" strokeDasharray="251.2" strokeDashoffset="175.84" strokeDasharrayOffset="-150.72" className="origin-center rotate-[144deg]" />
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#2b5c8f" strokeWidth="20" strokeDasharray="251.2" strokeDashoffset="-150.72" className="origin-center rotate-[144deg]" />
                 {/* Cancelled (Red) */}
-                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#ef4444" strokeWidth="20" strokeDasharray="251.2" strokeDashoffset="226.08" strokeDasharrayOffset="-75.36" className="origin-center rotate-[252deg]" />
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#ef4444" strokeWidth="20" strokeDasharray="251.2" strokeDashoffset="-75.36" className="origin-center rotate-[252deg]" />
                 {/* Draft (Orange) */}
-                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f97316" strokeWidth="20" strokeDasharray="251.2" strokeDashoffset="226.08" strokeDasharrayOffset="-25.12" className="origin-center rotate-[288deg]" />
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f97316" strokeWidth="20" strokeDasharray="251.2" strokeDashoffset="-25.12" className="origin-center rotate-[288deg]" />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-3xl font-extrabold text-slate-900">{stats.quotations?.total || 0}</span>

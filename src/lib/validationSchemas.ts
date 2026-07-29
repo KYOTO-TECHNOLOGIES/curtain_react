@@ -58,7 +58,7 @@ export const paymentSchema = z.object({
     .min(1, 'Amount is required')
     .refine((v) => !isNaN(parseFloat(v)) && parseFloat(v) > 0, 'Must be a positive number'),
   payment_method: z.enum(['cash', 'card', 'bank_transfer', 'cheque'], {
-    errorMap: () => ({ message: 'Please select a payment method' }),
+    message: 'Please select a payment method',
   }),
   payment_date: z.string().min(1, 'Payment date is required'),
   reference_number: z.string().optional(),
