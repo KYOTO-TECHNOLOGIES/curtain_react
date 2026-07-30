@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Search, Pencil, Trash2, Loader2, Phone, Mail, MapPin, AlertCircle } from 'lucide-react';
@@ -20,8 +21,6 @@ const ErrorMsg = ({ message }: { message?: string }) =>
 
 export default function CustomersPage() {
   const { showToast } = useToast();
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   const [formOpen, setFormOpen] = useState(false);
@@ -40,18 +39,17 @@ export default function CustomersPage() {
 
   const { register, handleSubmit, reset, formState: { errors } } = form;
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const res = await customersApi.list();
-      setCustomers(res.data);
-    } catch {
-      showToast('Failed to load customers', 'error');
-    }
-    setLoading(false);
-  };
+  const { data: customersRes, isLoading, refetch } = useQuery({
+    queryKey: ['customers'],
+    queryFn: () => customersApi.list()
+  });
 
-  useEffect(() => { load(); }, []);
+  const customers = customersRes?.data || [];
+  const loading = isLoading;
+
+  const load = () => {
+    refetch();
+  };
 
   const openCreate = () => {
     setEditingCustomer(null);

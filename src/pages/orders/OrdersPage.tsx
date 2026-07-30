@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { 
   Search, 
   Loader2, 
@@ -15,31 +16,27 @@ import { useToast } from '../../components/ui/Toast';
 
 export default function OrdersPage() {
   const { showToast } = useToast();
-  const [orders, setOrders] = useState<OrderListItem[]>([]);
-  const [stats, setStats] = useState<OrderStats | null>(null);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const listRes = await ordersApi.list(statusFilter ? { status: statusFilter } : {});
-      setOrders(listRes.data || []);
-      
-      try {
-        const statsRes = await ordersApi.stats();
-        setStats(statsRes.data);
-      } catch {
-        setStats(null);
-      }
-    } catch { 
-      // Silently handle list failure
-    }
-    setLoading(false);
-  };
+  const { data: listRes, isLoading: loadingList, refetch: refetchList } = useQuery({
+    queryKey: ['orders', statusFilter],
+    queryFn: () => ordersApi.list(statusFilter ? { status: statusFilter } : {})
+  });
 
-  useEffect(() => { load(); }, [statusFilter]);
+  const { data: statsRes, isLoading: loadingStats, refetch: refetchStats } = useQuery({
+    queryKey: ['orders_stats', statusFilter],
+    queryFn: () => ordersApi.stats().catch(() => ({ data: null }))
+  });
+
+  const orders = listRes?.data || [];
+  const stats = statsRes?.data || null;
+  const loading = loadingList || loadingStats;
+
+  const load = () => {
+    refetchList();
+    refetchStats();
+  };
 
   const filtered = orders.filter((o) =>
     (o.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||

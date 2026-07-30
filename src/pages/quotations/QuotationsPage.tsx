@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { 
   Plus, 
@@ -18,9 +19,6 @@ import Modal from '../../components/ui/Modal';
 export default function QuotationsPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [quotations, setQuotations] = useState<QuotationListItem[]>([]);
-  const [stats, setStats] = useState<QuotationStats | null>(null);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -55,26 +53,24 @@ export default function QuotationsPage() {
     setSaving(false);
   };
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const listRes = await quotationsApi.list(statusFilter ? { status: statusFilter } : {});
-      setQuotations(listRes.data || []);
-      
-      try {
-        const statsRes = await quotationsApi.stats();
-        setStats(statsRes.data);
-      } catch {
-        // Fallback stats if stats endpoint fails
-        setStats(null);
-      }
-    } catch { 
-      // Silently handle list failure, UI will show empty state
-    }
-    setLoading(false);
-  };
+  const { data: listRes, isLoading: loadingList, refetch: refetchList } = useQuery({
+    queryKey: ['quotations', statusFilter],
+    queryFn: () => quotationsApi.list(statusFilter ? { status: statusFilter } : {})
+  });
 
-  useEffect(() => { load(); }, [statusFilter]);
+  const { data: statsRes, isLoading: loadingStats, refetch: refetchStats } = useQuery({
+    queryKey: ['quotations_stats', statusFilter],
+    queryFn: () => quotationsApi.stats().catch(() => ({ data: null }))
+  });
+
+  const quotations = listRes?.data || [];
+  const stats = statsRes?.data || null;
+  const loading = loadingList || loadingStats;
+
+  const load = () => {
+    refetchList();
+    refetchStats();
+  };
 
   const filtered = quotations.filter((q) =>
     (q.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||

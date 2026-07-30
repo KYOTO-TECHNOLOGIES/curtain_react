@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { 
   Search, 
   Loader2, 
@@ -15,23 +16,19 @@ import { useToast } from '../../components/ui/Toast';
 
 export default function PaymentsPage() {
   const { showToast } = useToast();
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [methodFilter, setMethodFilter] = useState('');
+  const { data: listRes, isLoading, refetch } = useQuery({
+    queryKey: ['payments', methodFilter],
+    queryFn: () => paymentsApi.list(methodFilter ? { method: methodFilter } : {})
+  });
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const listRes = await paymentsApi.list(methodFilter ? { method: methodFilter } : {});
-      setPayments(listRes.data || []);
-    } catch { 
-      // Silently handle list failure
-    }
-    setLoading(false);
+  const payments = listRes?.data || [];
+  const loading = isLoading;
+
+  const load = () => {
+    refetch();
   };
-
-  useEffect(() => { load(); }, [methodFilter]);
 
   const filtered = payments.filter((p) =>
     (p.invoice || '').toLowerCase().includes(search.toLowerCase()) ||

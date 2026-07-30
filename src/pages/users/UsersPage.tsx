@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Search, Pencil, Trash2, Loader2, AlertCircle } from 'lucide-react';
@@ -22,9 +23,6 @@ const ErrorMsg = ({ message }: { message?: string }) =>
 
 export default function UsersPage() {
   const { showToast } = useToast();
-  const [users, setUsers] = useState<User[]>([]);
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   const [formOpen, setFormOpen] = useState(false);
@@ -45,19 +43,24 @@ export default function UsersPage() {
     defaultValues: { full_name: '', role_id: 0 },
   });
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const [usersRes, rolesRes] = await Promise.all([usersApi.list(), rolesApi.list()]);
-      setUsers(usersRes.data);
-      setRoles(rolesRes.data);
-    } catch {
-      showToast('Failed to load users', 'error');
-    }
-    setLoading(false);
-  };
+  const { data: usersRes, isLoading: loadingUsers, refetch: refetchUsers } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => usersApi.list()
+  });
 
-  useEffect(() => { load(); }, []);
+  const { data: rolesRes, isLoading: loadingRoles, refetch: refetchRoles } = useQuery({
+    queryKey: ['roles'],
+    queryFn: () => rolesApi.list()
+  });
+
+  const users = usersRes?.data || [];
+  const roles = rolesRes?.data || [];
+  const loading = loadingUsers || loadingRoles;
+
+  const load = () => {
+    refetchUsers();
+    refetchRoles();
+  };
 
   const openCreate = () => {
     setEditingUser(null);

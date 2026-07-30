@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { 
@@ -27,9 +28,6 @@ const ErrorMsg = ({ message }: { message?: string }) =>
 
 export default function InvoicesPage() {
   const { showToast } = useToast();
-  const [invoices, setInvoices] = useState<InvoiceListItem[]>([]);
-  const [stats, setStats] = useState<InvoiceStats | null>(null);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -49,25 +47,24 @@ export default function InvoicesPage() {
     }
   });
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const listRes = await invoicesApi.list(statusFilter ? { status: statusFilter } : {});
-      setInvoices(listRes.data || []);
-      
-      try {
-        const statsRes = await invoicesApi.stats();
-        setStats(statsRes.data);
-      } catch {
-        setStats(null);
-      }
-    } catch { 
-      // Silently handle list failure
-    }
-    setLoading(false);
-  };
+  const { data: listRes, isLoading: loadingList, refetch: refetchList } = useQuery({
+    queryKey: ['invoices', statusFilter],
+    queryFn: () => invoicesApi.list(statusFilter ? { status: statusFilter } : {})
+  });
 
-  useEffect(() => { load(); }, [statusFilter]);
+  const { data: statsRes, isLoading: loadingStats, refetch: refetchStats } = useQuery({
+    queryKey: ['invoices_stats', statusFilter],
+    queryFn: () => invoicesApi.stats().catch(() => ({ data: null }))
+  });
+
+  const invoices = listRes?.data || [];
+  const stats = statsRes?.data || null;
+  const loading = loadingList || loadingStats;
+
+  const load = () => {
+    refetchList();
+    refetchStats();
+  };
 
   const filtered = invoices.filter((i) =>
     (i.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||

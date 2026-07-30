@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Plus, Search, Pencil, Trash2, Loader2, ShieldAlert } from 'lucide-react';
 import { rolesApi } from '../../api/roles';
 import { permissionsApi } from '../../api/permissions';
@@ -8,9 +9,6 @@ import { useToast } from '../../components/ui/Toast';
 
 export default function RolesPage() {
   const { showToast } = useToast();
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [permissions, setPermissions] = useState<Permission[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   const [formOpen, setFormOpen] = useState(false);
@@ -20,18 +18,24 @@ export default function RolesPage() {
   const [deleting, setDeleting] = useState(false);
 
   const [form, setForm] = useState<CreateRoleRequest>({ name: '', description: '', permission_ids: [] });
+  const { data: rolesRes, isLoading: loadingRoles, refetch: refetchRoles } = useQuery({
+    queryKey: ['roles'],
+    queryFn: () => rolesApi.list()
+  });
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const [rRes, pRes] = await Promise.all([rolesApi.list(), permissionsApi.list()]);
-      setRoles(rRes.data);
-      setPermissions(pRes.data);
-    } catch { showToast('Failed to load roles', 'error'); }
-    setLoading(false);
+  const { data: permissionsRes, isLoading: loadingPermissions, refetch: refetchPermissions } = useQuery({
+    queryKey: ['permissions'],
+    queryFn: () => permissionsApi.list()
+  });
+
+  const roles = rolesRes?.data || [];
+  const permissions = permissionsRes?.data || [];
+  const loading = loadingRoles || loadingPermissions;
+
+  const load = () => {
+    refetchRoles();
+    refetchPermissions();
   };
-
-  useEffect(() => { load(); }, []);
 
   const openCreate = () => {
     setEditingRole(null);
