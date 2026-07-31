@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Plus, Search, Pencil, Trash2, Loader2, KeyRound } from 'lucide-react';
 import { permissionsApi } from '../../api/permissions';
 import type { Permission, CreatePermissionRequest, UpdatePermissionRequest } from '../../types';
@@ -7,8 +8,6 @@ import { useToast } from '../../components/ui/Toast';
 
 export default function PermissionsPage() {
   const { showToast } = useToast();
-  const [permissions, setPermissions] = useState<Permission[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   const [formOpen, setFormOpen] = useState(false);
@@ -18,17 +17,17 @@ export default function PermissionsPage() {
   const [deleting, setDeleting] = useState(false);
 
   const [form, setForm] = useState<CreatePermissionRequest>({ name: '', description: '' });
+  const { data: permissionsRes, isLoading, refetch } = useQuery({
+    queryKey: ['permissions'],
+    queryFn: () => permissionsApi.list()
+  });
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const res = await permissionsApi.list();
-      setPermissions(res.data);
-    } catch { showToast('Failed to load permissions', 'error'); }
-    setLoading(false);
+  const permissions = permissionsRes?.data || [];
+  const loading = isLoading;
+
+  const load = () => {
+    refetch();
   };
-
-  useEffect(() => { load(); }, []);
 
   const openCreate = () => {
     setEditingPermission(null);

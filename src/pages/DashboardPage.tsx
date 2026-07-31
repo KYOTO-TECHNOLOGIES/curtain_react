@@ -9,7 +9,7 @@ import {
   ArrowUpRight
 } from 'lucide-react';
 import type { RootState } from '../store';
-import { useState, useEffect } from 'react';
+import { useQueries } from '@tanstack/react-query';
 import { appointmentsApi } from '../api/appointments';
 import { quotationsApi } from '../api/quotations';
 import { ordersApi } from '../api/orders';
@@ -18,33 +18,21 @@ export default function DashboardPage() {
   const user = useSelector((state: RootState) => state.auth.user);
   const firstName = user?.full_name?.split(' ')[0] || 'Admin';
 
-  const [stats, setStats] = useState({
-    appointments: null as any,
-    quotations: null as any,
-    orders: null as any,
-    invoices: null as any
+  const results = useQueries({
+    queries: [
+      { queryKey: ['appointments_stats'], queryFn: () => appointmentsApi.stats() },
+      { queryKey: ['quotations_stats'], queryFn: () => quotationsApi.stats() },
+      { queryKey: ['orders_stats'], queryFn: () => ordersApi.stats() },
+      { queryKey: ['invoices_stats'], queryFn: () => invoicesApi.stats() }
+    ]
   });
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const [appRes, quoteRes, orderRes, invRes] = await Promise.all([
-          appointmentsApi.stats().catch(() => ({ data: null })),
-          quotationsApi.stats().catch(() => ({ data: null })),
-          ordersApi.stats().catch(() => ({ data: null })),
-          invoicesApi.stats().catch(() => ({ data: null }))
-        ]);
-        setStats({
-          appointments: appRes.data,
-          quotations: quoteRes.data,
-          orders: orderRes.data,
-          invoices: invRes.data
-        });
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    fetchStats();
-  }, []);
+
+  const stats = {
+    appointments: results[0].data?.data || null,
+    quotations: results[1].data?.data || null,
+    orders: results[2].data?.data || null,
+    invoices: results[3].data?.data || null
+  };
 
   const formatCurrency = (amount: number | string) => {
     const num = typeof amount === 'string' ? parseFloat(amount || '0') : amount;

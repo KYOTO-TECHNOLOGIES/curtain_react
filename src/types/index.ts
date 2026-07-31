@@ -174,6 +174,13 @@ export interface AppointmentLocation {
   location_status: string;
 }
 
+export interface AppointmentAssignee {
+  id: number | string;
+  full_name?: string;
+  email?: string;
+  username?: string;
+}
+
 export interface AppointmentListItem {
   id: number | string;
   customer: number;
@@ -189,6 +196,10 @@ export interface AppointmentListItem {
   assigned_to: number | null;
   assigned_to_name: string | null;
   assigned_to_username: string | null;
+  assignee?: number | AppointmentAssignee | null;
+  assignee_id?: number | null;
+  assignee_name?: string | null;
+  assignee_username?: string | null;
   location_full_address: string;
   created_at: string;
   updated_at: string;
@@ -207,6 +218,10 @@ export interface AppointmentDetail {
   assigned_to: number | null;
   assigned_to_name: string | null;
   assigned_to_username: string | null;
+  assignee?: number | AppointmentAssignee | null;
+  assignee_id?: number | null;
+  assignee_name?: string | null;
+  assignee_username?: string | null;
   created_by: number | null;
   created_by_name: string | null;
   created_by_username: string | null;
@@ -238,6 +253,8 @@ export interface CreateAppointmentRequest {
   job_type: JobType;
   status?: AppointmentStatus;
   assigned_to?: number;
+  assignee?: number | null;
+  assignee_id?: number | null;
   // Location fields
   location_building?: string;
   location_unit?: string;
