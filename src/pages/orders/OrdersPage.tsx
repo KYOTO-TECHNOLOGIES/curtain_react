@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { 
   Search, 
   Loader2, 
@@ -10,36 +11,31 @@ import {
   Plus
 } from 'lucide-react';
 import { ordersApi } from '../../api/orders';
-import type { OrderListItem, OrderStats } from '../../types';
 import { useToast } from '../../components/ui/Toast';
 
 export default function OrdersPage() {
   const { showToast } = useToast();
-  const [orders, setOrders] = useState<OrderListItem[]>([]);
-  const [stats, setStats] = useState<OrderStats | null>(null);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const listRes = await ordersApi.list(statusFilter ? { status: statusFilter } : {});
-      setOrders(listRes.data || []);
-      
-      try {
-        const statsRes = await ordersApi.stats();
-        setStats(statsRes.data);
-      } catch {
-        setStats(null);
-      }
-    } catch { 
-      // Silently handle list failure
-    }
-    setLoading(false);
-  };
+  const { data: listRes, isLoading: loadingList, refetch: refetchList } = useQuery({
+    queryKey: ['orders', statusFilter],
+    queryFn: () => ordersApi.list(statusFilter ? { status: statusFilter } : {})
+  });
 
-  useEffect(() => { load(); }, [statusFilter]);
+  const { data: statsRes, isLoading: loadingStats, refetch: refetchStats } = useQuery({
+    queryKey: ['orders_stats', statusFilter],
+    queryFn: () => ordersApi.stats().catch(() => ({ data: null }))
+  });
+
+  const orders = listRes?.data || [];
+  const stats = statsRes?.data || null;
+  const loading = loadingList || loadingStats;
+
+  const load = () => {
+    refetchList();
+    refetchStats();
+  };
 
   const filtered = orders.filter((o) =>
     (o.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -95,20 +91,6 @@ export default function OrdersPage() {
 
       {/* Filters Bar */}
       <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-wrap items-center gap-6">
-        <div className="flex items-center gap-3">
-          <span className="text-[13px] font-bold text-slate-700">View:</span>
-          <div className="flex bg-slate-100 p-1 rounded-xl">
-            <button className="px-4 py-1.5 text-slate-500 text-sm font-semibold rounded-lg hover:text-slate-700 transition-colors">
-              Grid View
-            </button>
-            <button className="px-4 py-1.5 bg-white text-[#2b5c8f] text-sm font-bold rounded-lg shadow-sm">
-              Table View
-            </button>
-          </div>
-        </div>
-
-        <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
-
         <div className="flex items-center gap-4 flex-1">
           <div className="flex-1 max-w-sm">
             <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search</span>

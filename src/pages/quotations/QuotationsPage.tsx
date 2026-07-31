@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { 
   Plus, 
@@ -11,16 +12,12 @@ import {
   Eye
 } from 'lucide-react';
 import { quotationsApi } from '../../api/quotations';
-import type { QuotationListItem, QuotationStats } from '../../types';
 import { useToast } from '../../components/ui/Toast';
 import Modal from '../../components/ui/Modal';
 
 export default function QuotationsPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [quotations, setQuotations] = useState<QuotationListItem[]>([]);
-  const [stats, setStats] = useState<QuotationStats | null>(null);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -55,26 +52,24 @@ export default function QuotationsPage() {
     setSaving(false);
   };
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const listRes = await quotationsApi.list(statusFilter ? { status: statusFilter } : {});
-      setQuotations(listRes.data || []);
-      
-      try {
-        const statsRes = await quotationsApi.stats();
-        setStats(statsRes.data);
-      } catch {
-        // Fallback stats if stats endpoint fails
-        setStats(null);
-      }
-    } catch { 
-      // Silently handle list failure, UI will show empty state
-    }
-    setLoading(false);
-  };
+  const { data: listRes, isLoading: loadingList, refetch: refetchList } = useQuery({
+    queryKey: ['quotations', statusFilter],
+    queryFn: () => quotationsApi.list(statusFilter ? { status: statusFilter } : {})
+  });
 
-  useEffect(() => { load(); }, [statusFilter]);
+  const { data: statsRes, isLoading: loadingStats, refetch: refetchStats } = useQuery({
+    queryKey: ['quotations_stats', statusFilter],
+    queryFn: () => quotationsApi.stats().catch(() => ({ data: null }))
+  });
+
+  const quotations = listRes?.data || [];
+  const stats = statsRes?.data || null;
+  const loading = loadingList || loadingStats;
+
+  const load = () => {
+    refetchList();
+    refetchStats();
+  };
 
   const filtered = quotations.filter((q) =>
     (q.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -123,20 +118,6 @@ export default function QuotationsPage() {
 
       {/* Filters Bar */}
       <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-wrap items-center gap-6">
-        <div className="flex items-center gap-3">
-          <span className="text-[13px] font-bold text-slate-700">View:</span>
-          <div className="flex bg-slate-100 p-1 rounded-xl">
-            <button className="px-4 py-1.5 text-slate-500 text-sm font-semibold rounded-lg hover:text-slate-700 transition-colors">
-              Grid View
-            </button>
-            <button className="px-4 py-1.5 bg-white text-[#2b5c8f] text-sm font-bold rounded-lg shadow-sm">
-              Table View
-            </button>
-          </div>
-        </div>
-
-        <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
-
         <div className="flex items-center gap-4 flex-1">
           <div className="flex-1 max-w-sm">
             <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search</span>

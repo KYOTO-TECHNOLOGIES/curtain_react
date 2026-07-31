@@ -30,6 +30,7 @@ export const customerSchema = z.object({
   phone_number: z.string().optional(),
   company_name: z.string().optional(),
   address_line_1: z.string().optional(),
+  address_line_2: z.string().optional(),
   city: z.string().optional(),
   country: z.string().optional(),
   notes: z.string().optional(),
