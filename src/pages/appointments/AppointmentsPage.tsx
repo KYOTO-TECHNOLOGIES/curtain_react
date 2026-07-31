@@ -223,7 +223,7 @@ export default function AppointmentsPage() {
           </div>
         </div>
 
-        <div className="border border-slate-100 rounded-xl px-6 py-2.5 flex flex-col items-center justify-center min-w-[120px]">
+        <div className="border border-slate-100 rounded-xl px-6 py-2.5 flex flex-col items-center justify-center min-w-30">
           <span className="text-[15px] font-extrabold text-slate-800">Total: {stats?.total || 0}</span>
           <span className="text-[11px] font-medium text-slate-500">Appointments</span>
         </div>
@@ -264,7 +264,7 @@ export default function AppointmentsPage() {
       {/* Table Section */}
       <div className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] overflow-hidden border border-slate-100">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[800px]">
+          <table className="w-full text-left border-collapse min-w-200">
             <thead>
               <tr className="border-b border-slate-100 bg-white">
                 <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">ID</th>
@@ -290,7 +290,11 @@ export default function AppointmentsPage() {
                   </td>
                 </tr>
               ) : filtered.map((a: AppointmentListItem) => (
-                <tr key={a.id} className="hover:bg-slate-50/50 transition-colors">
+                <tr
+                  key={a.id}
+                  className="hover:bg-slate-50/50 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/appointments/${a.id}`)}
+                >
                   <td className="px-6 py-5 align-middle">
                     <span className="text-sm font-extrabold text-slate-800">
                       #{a.id.toString()}
@@ -330,13 +334,22 @@ export default function AppointmentsPage() {
                   <td className="px-6 py-5 align-middle text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
-                        onClick={() => openAssign(a)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openAssign(a);
+                        }}
                         className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-[12px] rounded-lg transition-colors"
                       >
                         <UserCheck className="w-3.5 h-3.5" />
                         {a.assigned_to_name ? 'Reassign' : 'Assign'}
                       </button>
-                      <button className="inline-flex items-center gap-2 px-4 py-2 bg-[#f1f0ff] text-[#2b5c8f] hover:bg-[#e4e2ff] font-bold text-[12px] rounded-lg transition-colors">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/appointments/${a.id}`);
+                        }}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-[#f1f0ff] text-[#2b5c8f] hover:bg-[#e4e2ff] font-bold text-[12px] rounded-lg transition-colors"
+                      >
                         <FilePlus className="w-3.5 h-3.5" /> Quote
                       </button>
                     </div>

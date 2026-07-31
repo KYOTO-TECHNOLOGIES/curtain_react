@@ -8,6 +8,7 @@ import CustomersPage from './pages/customers/CustomersPage';
 import RolesPage from './pages/roles/RolesPage';
 import PermissionsPage from './pages/permissions/PermissionsPage';
 import AppointmentsPage from './pages/appointments/AppointmentsPage';
+import AppointmentDetailsPage from './pages/appointments/AppointmentDetailsPage';
 import CreateAppointmentPage from './pages/appointments/CreateAppointmentPage';
 import QuotationsPage from './pages/quotations/QuotationsPage';
 import CreateQuotationPage from './pages/quotations/CreateQuotationPage';
@@ -35,6 +36,7 @@ function App() {
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/customers" element={<CustomersPage />} />
               <Route path="/appointments" element={<AppointmentsPage />} />
+              <Route path="/appointments/:id" element={<AppointmentDetailsPage />} />
               <Route path="/appointments/create" element={<CreateAppointmentPage />} />
               <Route path="/quotations" element={<QuotationsPage />} />
               <Route path="/quotations/create" element={<CreateQuotationPage />} />
