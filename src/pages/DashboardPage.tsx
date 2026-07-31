@@ -9,7 +9,6 @@ import {
   ArrowUpRight
 } from 'lucide-react';
 import type { RootState } from '../store';
-import { useState } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { appointmentsApi } from '../api/appointments';
 import { quotationsApi } from '../api/quotations';

@@ -14,7 +14,7 @@ import { customersApi } from '../../api/customers';
 import { usersApi } from '../../api/users';
 import Modal from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
-import type { AppointmentListItem, AppointmentStats, CreateAppointmentRequest, User } from '../../types';
+import type { AppointmentListItem, CreateAppointmentRequest, User } from '../../types';
 import { useQuery } from '@tanstack/react-query';
 
 export default function AppointmentsPage() {
@@ -49,7 +49,7 @@ export default function AppointmentsPage() {
     queryFn: () => appointmentsApi.stats(),
   });
 
-  const appointments = listRes?.data || [];
+  const appointments: AppointmentListItem[] = listRes?.data || [];
   const stats = statsRes?.data || null;
   const loading = loadingList || loadingStats;
 
@@ -150,9 +150,9 @@ export default function AppointmentsPage() {
     setSaving(false);
   };
 
-  const filtered = appointments.filter((a) =>
-    a.title.toLowerCase().includes(search.toLowerCase()) ||
-    a.customer_name.toLowerCase().includes(search.toLowerCase())
+  const filtered: AppointmentListItem[] = appointments.filter((a: AppointmentListItem) =>
+    (a.title || '').toLowerCase().includes(search.toLowerCase()) ||
+    (a.customer_name || '').toLowerCase().includes(search.toLowerCase())
   );
 
   const getStatusStyle = (status: string) => {
@@ -192,22 +192,8 @@ export default function AppointmentsPage() {
 
       {/* Filters Bar */}
       <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-wrap items-center gap-6">
-        <div className="flex items-center gap-3">
-          <span className="text-[13px] font-bold text-slate-700">View:</span>
-          <div className="flex bg-slate-100 p-1 rounded-xl">
-            <button className="px-4 py-1.5 text-slate-500 text-sm font-semibold rounded-lg hover:text-slate-700 transition-colors">
-              Monthly
-            </button>
-            <button className="px-4 py-1.5 bg-white text-[#2b5c8f] text-sm font-bold rounded-lg shadow-sm">
-              Table View
-            </button>
-          </div>
-        </div>
-
-        <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
-
         <div className="flex items-center gap-4 flex-1">
-          <div>
+          <div className="hidden">
             <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</span>
             <div className="relative">
               <select 
@@ -303,7 +289,7 @@ export default function AppointmentsPage() {
                     No appointments found.
                   </td>
                 </tr>
-              ) : filtered.map(a => (
+              ) : filtered.map((a: AppointmentListItem) => (
                 <tr key={a.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-5 align-middle">
                     <span className="text-sm font-extrabold text-slate-800">
@@ -327,7 +313,7 @@ export default function AppointmentsPage() {
                       {a.assigned_to_name ? (
                         <>
                           <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[11px] font-bold text-slate-600">
-                            {a.assigned_to_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                            {a.assigned_to_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
                           </div>
                           <span className="text-[13px] font-bold text-slate-700">{a.assigned_to_name}</span>
                         </>

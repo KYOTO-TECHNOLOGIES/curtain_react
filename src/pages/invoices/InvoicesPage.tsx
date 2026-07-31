@@ -14,7 +14,6 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { invoicesApi } from '../../api/invoices';
-import type { InvoiceListItem, InvoiceStats } from '../../types';
 import { useToast } from '../../components/ui/Toast';
 import Modal from '../../components/ui/Modal';
 import { paymentSchema, type PaymentFormValues } from '../../lib/validationSchemas';
@@ -147,20 +146,6 @@ export default function InvoicesPage() {
 
       {/* Filters Bar */}
       <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-wrap items-center gap-6">
-        <div className="flex items-center gap-3">
-          <span className="text-[13px] font-bold text-slate-700">View:</span>
-          <div className="flex bg-slate-100 p-1 rounded-xl">
-            <button className="px-4 py-1.5 text-slate-500 text-sm font-semibold rounded-lg hover:text-slate-700 transition-colors">
-              Grid View
-            </button>
-            <button className="px-4 py-1.5 bg-white text-[#2b5c8f] text-sm font-bold rounded-lg shadow-sm">
-              Table View
-            </button>
-          </div>
-        </div>
-
-        <div className="h-8 w-px bg-slate-200 hidden sm:block"></div>
-
         <div className="flex items-center gap-4 flex-1">
           <div className="flex-1 max-w-sm">
             <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search</span>

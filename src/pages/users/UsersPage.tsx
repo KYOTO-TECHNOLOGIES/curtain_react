@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Search, Pencil, Trash2, Loader2, AlertCircle } from 'lucide-react';
 import { usersApi } from '../../api/users';
 import { rolesApi } from '../../api/roles';
-import type { User, Role, UpdateUserRequest } from '../../types';
+import type { User, UpdateUserRequest } from '../../types';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
 import { createUserSchema, editUserSchema, type CreateUserFormValues, type EditUserFormValues } from '../../lib/validationSchemas';

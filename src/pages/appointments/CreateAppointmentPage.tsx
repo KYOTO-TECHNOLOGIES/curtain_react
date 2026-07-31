@@ -113,7 +113,7 @@ export default function CreateAppointmentPage() {
     defaultValues: {
       firstName: '', lastName: '', phone: '', email: '',
       building: '', room: '', address: '',
-      source: 'whatsapp', assignedTo: 'admin',
+      source: 'whatsapp', assignedTo: '',
       jobType: 'installation', date: new Date().toISOString().split('T')[0],
       time: '09:00 AM', notes: ''
     }
@@ -148,6 +148,8 @@ export default function CreateAppointmentPage() {
       return;
     }
 
+    const assigneeId = data.assignedTo && data.assignedTo !== '' ? Number(data.assignedTo) : undefined;
+
     setIsSubmitting(true);
     try {
       await appointmentsApi.create({
@@ -164,7 +166,9 @@ export default function CreateAppointmentPage() {
         appointment_time: data.time.split(' ')[0] + ':00',
         job_type: data.jobType as any,
         status: 'pending',
-        assigned_to: data.assignedTo ? Number(data.assignedTo) : undefined,
+        assigned_to: assigneeId,
+        assignee: assigneeId,
+        assignee_id: assigneeId,
         location_building: data.building,
         location_unit: data.room,
         location_full_address: data.address,
