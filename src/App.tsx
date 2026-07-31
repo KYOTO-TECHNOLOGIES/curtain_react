@@ -12,6 +12,8 @@ import AppointmentDetailsPage from './pages/appointments/AppointmentDetailsPage'
 import CreateAppointmentPage from './pages/appointments/CreateAppointmentPage';
 import QuotationsPage from './pages/quotations/QuotationsPage';
 import CreateQuotationPage from './pages/quotations/CreateQuotationPage';
+import CatalogPage from './pages/catalog/CatalogPage';
+import ActivitiesPage from './pages/activities/ActivitiesPage';
 import OrdersPage from './pages/orders/OrdersPage';
 import InvoicesPage from './pages/invoices/InvoicesPage';
 import PaymentsPage from './pages/payments/PaymentsPage';
@@ -40,6 +42,8 @@ function App() {
               <Route path="/appointments/create" element={<CreateAppointmentPage />} />
               <Route path="/quotations" element={<QuotationsPage />} />
               <Route path="/quotations/create" element={<CreateQuotationPage />} />
+              <Route path="/catalog" element={<CatalogPage />} />
+              <Route path="/activities" element={<ActivitiesPage />} />
               <Route path="/orders" element={<OrdersPage />} />
               <Route path="/invoices" element={<InvoicesPage />} />
               <Route path="/payments" element={<PaymentsPage />} />
