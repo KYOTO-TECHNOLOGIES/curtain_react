@@ -1,65 +1,158 @@
 import { api } from './client';
-import type {
-  CatalogChargeTemplate,
-  CatalogFabricType,
-  CatalogItem,
-  CatalogModel,
-  CatalogMotorType,
-  CatalogWorkType,
-} from '../types';
 
-const endpoints = {
-  workTypes: '/catalog/work-types/',
-  fabricTypes: '/catalog/fabric-types/',
-  models: '/catalog/models/',
-  items: '/catalog/items/',
-  motors: '/catalog/motors/',
-  charges: '/catalog/charges/',
-};
+export interface WorkType {
+  id: number;
+  name: string;
+  pricing_unit: string;
+  features: {
+    motor: boolean;
+    charges: boolean;
+    images: boolean;
+  };
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface FabricType {
+  id: number;
+  work_type: number;
+  work_type_name: string;
+  name: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CatalogModel {
+  id: number;
+  fabric_type: number;
+  fabric_type_name: string;
+  name: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MotorType {
+  id: number;
+  name: string;
+  price_per_m2: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ChargeTemplate {
+  id: number;
+  name: string;
+  price: string;
+  unit: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CatalogItem {
+  id: number;
+  model: number;
+  model_name: string;
+  name: string;
+  price_per_unit: string;
+  image: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ActivityLog {
+  id: number;
+  action: string;
+  details: Record<string, any>;
+  content_type: number;
+  object_id: number;
+  target_type: string;
+  target_id: number;
+  user: number;
+  user_email: string;
+  created_at: string;
+}
 
 export const catalogApi = {
-  workTypes: {
-    list: () => api.get<CatalogWorkType[]>(endpoints.workTypes),
-    get: (id: number) => api.get<CatalogWorkType>(`${endpoints.workTypes}${id}/`),
-    create: (payload: Partial<CatalogWorkType>) => api.post<CatalogWorkType>(endpoints.workTypes, payload),
-    update: (id: number, payload: Partial<CatalogWorkType>) => api.patch<CatalogWorkType>(`${endpoints.workTypes}${id}/`, payload),
-    remove: (id: number) => api.delete(`${endpoints.workTypes}${id}/`),
-  },
-  fabricTypes: {
-    list: () => api.get<CatalogFabricType[]>(endpoints.fabricTypes),
-    get: (id: number) => api.get<CatalogFabricType>(`${endpoints.fabricTypes}${id}/`),
-    create: (payload: Partial<CatalogFabricType>) => api.post<CatalogFabricType>(endpoints.fabricTypes, payload),
-    update: (id: number, payload: Partial<CatalogFabricType>) => api.patch<CatalogFabricType>(`${endpoints.fabricTypes}${id}/`, payload),
-    remove: (id: number) => api.delete(`${endpoints.fabricTypes}${id}/`),
-  },
-  models: {
-    list: () => api.get<CatalogModel[]>(endpoints.models),
-    get: (id: number) => api.get<CatalogModel>(`${endpoints.models}${id}/`),
-    create: (payload: Partial<CatalogModel>) => api.post<CatalogModel>(endpoints.models, payload),
-    update: (id: number, payload: Partial<CatalogModel>) => api.patch<CatalogModel>(`${endpoints.models}${id}/`, payload),
-    remove: (id: number) => api.delete(`${endpoints.models}${id}/`),
-  },
-  items: {
-    list: () => api.get<CatalogItem[]>(endpoints.items),
-    get: (id: number) => api.get<CatalogItem>(`${endpoints.items}${id}/`),
-    create: (payload: Partial<CatalogItem>) => api.post<CatalogItem>(endpoints.items, payload),
-    update: (id: number, payload: Partial<CatalogItem>) => api.patch<CatalogItem>(`${endpoints.items}${id}/`, payload),
-    remove: (id: number) => api.delete(`${endpoints.items}${id}/`),
-  },
-  motors: {
-    list: () => api.get<CatalogMotorType[]>(endpoints.motors),
-    get: (id: number) => api.get<CatalogMotorType>(`${endpoints.motors}${id}/`),
-    create: (payload: Partial<CatalogMotorType>) => api.post<CatalogMotorType>(endpoints.motors, payload),
-    update: (id: number, payload: Partial<CatalogMotorType>) => api.patch<CatalogMotorType>(`${endpoints.motors}${id}/`, payload),
-    remove: (id: number) => api.delete(`${endpoints.motors}${id}/`),
-  },
-  charges: {
-    list: () => api.get<CatalogChargeTemplate[]>(endpoints.charges),
-    get: (id: number) => api.get<CatalogChargeTemplate>(`${endpoints.charges}${id}/`),
-    create: (payload: Partial<CatalogChargeTemplate>) => api.post<CatalogChargeTemplate>(endpoints.charges, payload),
-    update: (id: number, payload: Partial<CatalogChargeTemplate>) => api.patch<CatalogChargeTemplate>(`${endpoints.charges}${id}/`, payload),
-    remove: (id: number) => api.delete(`${endpoints.charges}${id}/`),
-  },
+  // Work Types
+  workTypes: () =>
+    api.get<WorkType[]>('catalog/work-types/'),
+
+  createWorkType: (data: Partial<WorkType>) =>
+    api.post<WorkType>('catalog/work-types/', data),
+
+  updateWorkType: (id: number, data: Partial<WorkType>) =>
+    api.patch<WorkType>(`catalog/work-types/${id}/`, data),
+
+  deleteWorkType: (id: number) =>
+    api.delete(`catalog/work-types/${id}/`),
+
+  // Fabric Types
+  fabricTypes: () =>
+    api.get<FabricType[]>('catalog/fabric-types/'),
+
+  createFabricType: (data: Partial<FabricType>) =>
+    api.post<FabricType>('catalog/fabric-types/', data),
+
+  updateFabricType: (id: number, data: Partial<FabricType>) =>
+    api.patch<FabricType>(`catalog/fabric-types/${id}/`, data),
+
+  deleteFabricType: (id: number) =>
+    api.delete(`catalog/fabric-types/${id}/`),
+
+  // Models
+  models: () =>
+    api.get<CatalogModel[]>('catalog/models/'),
+
+  createModel: (data: Partial<CatalogModel>) =>
+    api.post<CatalogModel>('catalog/models/', data),
+
+  updateModel: (id: number, data: Partial<CatalogModel>) =>
+    api.patch<CatalogModel>(`catalog/models/${id}/`, data),
+
+  deleteModel: (id: number) =>
+    api.delete(`catalog/models/${id}/`),
+
+  // Catalog Items
+  items: () =>
+    api.get<CatalogItem[]>('catalog/items/'),
+
+  createItem: (data: Partial<CatalogItem>) =>
+    api.post<CatalogItem>('catalog/items/', data),
+
+  updateItem: (id: number, data: Partial<CatalogItem>) =>
+    api.patch<CatalogItem>(`catalog/items/${id}/`, data),
+
+  deleteItem: (id: number) =>
+    api.delete(`catalog/items/${id}/`),
+
+  // Motor Types
+  motors: () =>
+    api.get<MotorType[]>('catalog/motors/'),
+
+  createMotor: (data: Partial<MotorType>) =>
+    api.post<MotorType>('catalog/motors/', data),
+
+  updateMotor: (id: number, data: Partial<MotorType>) =>
+    api.patch<MotorType>(`catalog/motors/${id}/`, data),
+
+  deleteMotor: (id: number) =>
+    api.delete(`catalog/motors/${id}/`),
+
+  // Charge Templates
+  charges: () =>
+    api.get<ChargeTemplate[]>('catalog/charges/'),
+
+  createCharge: (data: Partial<ChargeTemplate>) =>
+    api.post<ChargeTemplate>('catalog/charges/', data),
+
+  updateCharge: (id: number, data: Partial<ChargeTemplate>) =>
+    api.patch<ChargeTemplate>(`catalog/charges/${id}/`, data),
+
+  deleteCharge: (id: number) =>
+    api.delete(`catalog/charges/${id}/`),
 };
 
-export type CatalogResourceKey = keyof typeof catalogApi;
+export const activitiesApi = {
+  logs: (contentType?: string) =>
+    api.get<ActivityLog[]>('activities/activity-logs/', { params: contentType ? { content_type: contentType } : undefined }),
+};

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -18,8 +18,18 @@ import Modal from '../../components/ui/Modal';
 export default function QuotationsPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [search, setSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [quoteTypeFilter, setQuoteTypeFilter] = useState('');
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const [formOpen, setFormOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -53,12 +63,16 @@ export default function QuotationsPage() {
   };
 
   const { data: listRes, isLoading: loadingList, refetch: refetchList } = useQuery({
-    queryKey: ['quotations', statusFilter],
-    queryFn: () => quotationsApi.list(statusFilter ? { status: statusFilter } : {})
+    queryKey: ['quotations', statusFilter, quoteTypeFilter, debouncedSearch],
+    queryFn: () => quotationsApi.list({
+      status: statusFilter || undefined,
+      quote_type: quoteTypeFilter || undefined,
+      search: debouncedSearch || undefined,
+    })
   });
 
   const { data: statsRes, isLoading: loadingStats, refetch: refetchStats } = useQuery({
-    queryKey: ['quotations_stats', statusFilter],
+    queryKey: ['quotations_stats'],
     queryFn: () => quotationsApi.stats().catch(() => ({ data: null }))
   });
 
@@ -71,10 +85,7 @@ export default function QuotationsPage() {
     refetchStats();
   };
 
-  const filtered = quotations.filter((q) =>
-    (q.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (q.id || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = quotations;
 
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -111,7 +122,7 @@ export default function QuotationsPage() {
             <Download className="w-4 h-4" strokeWidth={2.5} /> Export List
           </button>
           <button onClick={() => navigate('/quotations/create')} className="flex items-center gap-2 px-4 py-2.5 bg-[#2b5c8f] text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-900/20 hover:bg-[#1f456e] hover:-translate-y-0.5 transition-all">
-            <Plus className="w-4 h-4" strokeWidth={2.5} /> Create Quotation
+            <Plus className="w-4 h-4" strokeWidth={2.5} /> New Quotation
           </button>
         </div>
       </div>
@@ -126,8 +137,8 @@ export default function QuotationsPage() {
               <input 
                 type="text"
                 placeholder="Search quotes..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl outline-none focus:border-[#2b5c8f] transition-colors"
               />
             </div>
@@ -144,8 +155,25 @@ export default function QuotationsPage() {
                 <option value="">All Status</option>
                 <option value="draft">Draft</option>
                 <option value="pending">Pending</option>
+                <option value="sent">Sent</option>
                 <option value="accepted">Accepted</option>
                 <option value="cancelled">Cancelled</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+          
+          <div>
+            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Type</span>
+            <div className="relative">
+              <select 
+                value={quoteTypeFilter}
+                onChange={(e) => setQuoteTypeFilter(e.target.value)}
+                className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl px-4 py-2 pr-10 outline-none focus:border-[#2b5c8f] transition-colors w-40"
+              >
+                <option value="">All Types</option>
+                <option value="b2c">B2C (Retail)</option>
+                <option value="b2b">B2B (Business)</option>
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
@@ -262,7 +290,7 @@ export default function QuotationsPage() {
                     </span>
                   </td>
                   <td className="px-6 py-5 align-middle text-right">
-                    <button className="inline-flex items-center gap-2 px-4 py-2 bg-[#f0f4f8] text-[#2b5c8f] hover:bg-[#e1e9f1] font-bold text-[12px] rounded-lg transition-colors">
+                    <button onClick={() => navigate(`/quotations/${q.id}`)} className="inline-flex items-center gap-2 px-4 py-2 bg-[#f0f4f8] text-[#2b5c8f] hover:bg-[#e1e9f1] font-bold text-[12px] rounded-lg transition-colors">
                       <Eye className="w-3.5 h-3.5" /> View Details
                     </button>
                   </td>

@@ -1,453 +1,337 @@
-import { useMemo, useState, type FormEvent } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import React from 'react';
 import {
-  AlertCircle,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-  Pencil,
   Plus,
-  Search,
   Trash2,
-  Wrench,
-  Layers3,
-  Box,
-  Tag,
-  Coins,
-  Database,
+  Loader2,
+  Edit2,
+  DollarSign,
+  Package,
+  Layers,
+  Zap,
+  Grid3X3,
+  FileText,
 } from 'lucide-react';
-import Modal, { ConfirmModal } from '../../components/ui/Modal';
+import { useQuery } from '@tanstack/react-query';
 import { catalogApi } from '../../api/catalog';
+import { useToast } from '../../components/ui/Toast';
+import Modal from '../../components/ui/Modal';
 
-type CatalogTabKey = 'workTypes' | 'fabricTypes' | 'models' | 'items' | 'motors' | 'charges';
-
-type CatalogFormState = {
-  name?: string;
-  work_type?: number | string;
-  fabric_type?: number | string;
-  model?: number | string;
-  price_per_unit?: string;
-  price_per_m2?: string;
-  price?: string;
-  unit?: string;
-  pricing_unit?: string;
-  features?: {
-    motor: boolean;
-    charges: boolean;
-    images: boolean;
-  };
-};
-
-const tabConfig: Array<{
-  key: CatalogTabKey;
-  label: string;
-  icon: typeof Database;
-}> = [
-  { key: 'workTypes', label: 'Work Types', icon: Wrench },
-  { key: 'fabricTypes', label: 'Fabric Types', icon: Layers3 },
-  { key: 'models', label: 'Models', icon: Box },
-  { key: 'items', label: 'Items', icon: Tag },
-  { key: 'motors', label: 'Motors', icon: Database },
-  { key: 'charges', label: 'Charges', icon: Coins },
-];
-
-const initialForm: CatalogFormState = {
-  name: '',
-  work_type: '',
-  fabric_type: '',
-  model: '',
-  price_per_unit: '',
-  price_per_m2: '',
-  price: '',
-  unit: '',
-  pricing_unit: 'm2',
-  features: {
-    motor: false,
-    charges: false,
-    images: false,
-  },
-};
-
-function formatDisplayValue(value: unknown) {
-  if (value === null || value === undefined || value === '') return '—';
-  return String(value);
-}
+type TabType = 'work-types' | 'fabric-types' | 'models' | 'items' | 'motors' | 'charges';
 
 export default function CatalogPage() {
-  const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<CatalogTabKey>('workTypes');
-  const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState('name');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const [page, setPage] = useState(1);
+  const { showToast } = useToast();
+  const [activeTab, setActiveTab] = useState<TabType>('items');
   const [formOpen, setFormOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<{ key: CatalogTabKey; id: number; label: string } | null>(null);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [formState, setFormState] = useState<CatalogFormState>(initialForm);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [formData, setFormData] = useState<any>({});
 
-  const workTypesQuery = useQuery({
-    queryKey: ['catalog', 'workTypes'],
-    queryFn: () => catalogApi.workTypes.list(),
+  // Debounce search
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Fetch all data
+  const { data: workTypesRes, refetch: refetchWorkTypes } = useQuery({
+    queryKey: ['work-types', debouncedSearch],
+    queryFn: () => catalogApi.workTypes(),
   });
 
-  const fabricTypesQuery = useQuery({
-    queryKey: ['catalog', 'fabricTypes'],
-    queryFn: () => catalogApi.fabricTypes.list(),
+  const { data: fabricTypesRes, refetch: refetchFabricTypes } = useQuery({
+    queryKey: ['fabric-types', debouncedSearch],
+    queryFn: () => catalogApi.fabricTypes(),
   });
 
-  const modelsQuery = useQuery({
-    queryKey: ['catalog', 'models'],
-    queryFn: () => catalogApi.models.list(),
+  const { data: modelsRes, refetch: refetchModels } = useQuery({
+    queryKey: ['models', debouncedSearch],
+    queryFn: () => catalogApi.models(),
   });
 
-  const itemsQuery = useQuery({
-    queryKey: ['catalog', 'items'],
-    queryFn: () => catalogApi.items.list(),
+  const { data: itemsRes, refetch: refetchItems, isLoading: itemsLoading } = useQuery({
+    queryKey: ['items', debouncedSearch],
+    queryFn: () => catalogApi.items(),
   });
 
-  const motorsQuery = useQuery({
-    queryKey: ['catalog', 'motors'],
-    queryFn: () => catalogApi.motors.list(),
+  const { data: motorsRes, refetch: refetchMotors } = useQuery({
+    queryKey: ['motors', debouncedSearch],
+    queryFn: () => catalogApi.motors(),
   });
 
-  const chargesQuery = useQuery({
-    queryKey: ['catalog', 'charges'],
-    queryFn: () => catalogApi.charges.list(),
+  const { data: chargesRes, refetch: refetchCharges } = useQuery({
+    queryKey: ['charges', debouncedSearch],
+    queryFn: () => catalogApi.charges(),
   });
 
-  const resourceDataMap = {
-    workTypes: workTypesQuery.data?.data ?? [],
-    fabricTypes: fabricTypesQuery.data?.data ?? [],
-    models: modelsQuery.data?.data ?? [],
-    items: itemsQuery.data?.data ?? [],
-    motors: motorsQuery.data?.data ?? [],
-    charges: chargesQuery.data?.data ?? [],
-  } as const;
+  const workTypes = workTypesRes?.data || [];
+  const fabricTypes = fabricTypesRes?.data || [];
+  const models = modelsRes?.data || [];
+  const items = itemsRes?.data || [];
+  const motors = motorsRes?.data || [];
+  const charges = chargesRes?.data || [];
 
-  const currentData = (resourceDataMap[activeTab] ?? []) as unknown as Array<Record<string, unknown>>;
-
-  const filteredData = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-    const filtered = normalizedSearch
-      ? currentData.filter((item) => JSON.stringify(item).toLowerCase().includes(normalizedSearch))
-      : currentData;
-
-    return [...filtered].sort((a, b) => {
-      const left = a[sortBy] ?? '';
-      const right = b[sortBy] ?? '';
-      const dir = sortDir === 'asc' ? 1 : -1;
-
-      if (typeof left === 'number' && typeof right === 'number') {
-        return (left - right) * dir;
-      }
-
-      return String(left).localeCompare(String(right)) * dir;
-    });
-  }, [currentData, search, sortBy, sortDir]);
-
-  const pageSize = 8;
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
-  const currentPageData = filteredData.slice((page - 1) * pageSize, page * pageSize);
-
-  const openCreateForm = () => {
-    setFormState(initialForm);
-    setEditingId(null);
+  const openCreate = () => {
+    if (activeTab === 'items' && models.length === 0) {
+      showToast('Please add models first', 'error');
+      return;
+    }
+    if (activeTab === 'fabric-types' && workTypes.length === 0) {
+      showToast('Please add work types first', 'error');
+      return;
+    }
+    if (activeTab === 'models' && fabricTypes.length === 0) {
+      showToast('Please add fabric types first', 'error');
+      return;
+    }
+    setEditingItem(null);
+    setFormData({});
     setFormOpen(true);
   };
 
-  const openEditForm = (item: Record<string, unknown>) => {
-    const nextState: CatalogFormState = {
-      name: typeof item.name === 'string' ? item.name : '',
-      work_type:
-        typeof item.work_type === 'number' || typeof item.work_type === 'string' ? item.work_type : '',
-      fabric_type:
-        typeof item.fabric_type === 'number' || typeof item.fabric_type === 'string' ? item.fabric_type : '',
-      model:
-        typeof item.model === 'number' || typeof item.model === 'string' ? item.model : '',
-      price_per_unit: typeof item.price_per_unit === 'string' ? item.price_per_unit : '',
-      price_per_m2: typeof item.price_per_m2 === 'string' ? item.price_per_m2 : '',
-      price: typeof item.price === 'string' ? item.price : '',
-      unit: typeof item.unit === 'string' ? item.unit : '',
-      pricing_unit: typeof item.pricing_unit === 'string' ? item.pricing_unit : 'm2',
-      features: {
-        motor: Boolean((item.features as { motor?: boolean } | undefined)?.motor),
-        charges: Boolean((item.features as { charges?: boolean } | undefined)?.charges),
-        images: Boolean((item.features as { images?: boolean } | undefined)?.images),
-      },
-    };
-
-    setFormState(nextState);
-    setEditingId(Number(item.id));
+  const openEdit = (item: any) => {
+    setEditingItem(item);
+    setFormData({ ...item });
     setFormOpen(true);
   };
 
-  const submitForm = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleSave = async () => {
+    // Validate required fields based on active tab
+    if (!formData.name || formData.name.trim() === '') {
+      showToast('Name is required', 'error');
+      return;
+    }
+
+    if (activeTab === 'fabric-types' && !formData.work_type) {
+      showToast('Work Type is required', 'error');
+      return;
+    }
+
+    if (activeTab === 'models' && !formData.fabric_type) {
+      showToast('Fabric Type is required', 'error');
+      return;
+    }
+
+    if (activeTab === 'items' && !formData.model) {
+      showToast('Model is required', 'error');
+      return;
+    }
+
+    if (activeTab === 'items' && (!formData.price_per_unit || formData.price_per_unit === '')) {
+      showToast('Price Per Unit is required', 'error');
+      return;
+    }
+
     setSaving(true);
-
     try {
-      const payload: Record<string, unknown> = {};
-      const name = formState.name?.trim();
-
-      if (!name) {
-        throw new Error('Name is required.');
-      }
-
-      payload.name = name;
-
-      if (activeTab === 'fabricTypes' || activeTab === 'models' || activeTab === 'items') {
-        if (!formState.work_type && activeTab === 'fabricTypes') {
-          throw new Error('Work type is required.');
+      if (activeTab === 'work-types') {
+        if (editingItem) {
+          await catalogApi.updateWorkType(editingItem.id, { name: formData.name, pricing_unit: formData.pricing_unit || 'm2', features: formData.features || { motor: false, charges: false, images: false } });
+          showToast('Work type updated successfully', 'success');
+        } else {
+          await catalogApi.createWorkType({ name: formData.name, pricing_unit: formData.pricing_unit || 'm2', features: formData.features || { motor: false, charges: false, images: false } });
+          showToast('Work type created successfully', 'success');
         }
-        if (!formState.fabric_type && activeTab === 'models') {
-          throw new Error('Fabric type is required.');
+        refetchWorkTypes();
+      } else if (activeTab === 'fabric-types') {
+        if (editingItem) {
+          await catalogApi.updateFabricType(editingItem.id, { work_type: formData.work_type, name: formData.name });
+          showToast('Fabric type updated successfully', 'success');
+        } else {
+          await catalogApi.createFabricType({ work_type: formData.work_type, name: formData.name });
+          showToast('Fabric type created successfully', 'success');
         }
-        if (!formState.model && activeTab === 'items') {
-          throw new Error('Model is required.');
+        refetchFabricTypes();
+      } else if (activeTab === 'models') {
+        if (editingItem) {
+          await catalogApi.updateModel(editingItem.id, { fabric_type: formData.fabric_type, name: formData.name });
+          showToast('Model updated successfully', 'success');
+        } else {
+          await catalogApi.createModel({ fabric_type: formData.fabric_type, name: formData.name });
+          showToast('Model created successfully', 'success');
         }
-      }
-
-      if (activeTab === 'workTypes') {
-        payload.pricing_unit = formState.pricing_unit ?? 'm2';
-        payload.features = formState.features ?? { motor: false, charges: false, images: false };
-      }
-
-      if (activeTab === 'fabricTypes' && formState.work_type) {
-        payload.work_type = Number(formState.work_type);
-      }
-
-      if (activeTab === 'models' && formState.fabric_type) {
-        payload.fabric_type = Number(formState.fabric_type);
-      }
-
-      if (activeTab === 'items') {
-        if (!formState.model) {
-          throw new Error('Model is required.');
+        refetchModels();
+      } else if (activeTab === 'items') {
+        if (editingItem) {
+          await catalogApi.updateItem(editingItem.id, { model: formData.model, name: formData.name, price_per_unit: formData.price_per_unit });
+          showToast('Item updated successfully', 'success');
+        } else {
+          await catalogApi.createItem({ model: formData.model, name: formData.name, price_per_unit: formData.price_per_unit });
+          showToast('Item created successfully', 'success');
         }
-        payload.model = Number(formState.model);
-        if (formState.price_per_unit) {
-          payload.price_per_unit = formState.price_per_unit;
+        refetchItems();
+      } else if (activeTab === 'motors') {
+        if (editingItem) {
+          await catalogApi.updateMotor(editingItem.id, { name: formData.name, price_per_m2: formData.price_per_m2 || '0' });
+          showToast('Motor type updated successfully', 'success');
+        } else {
+          await catalogApi.createMotor({ name: formData.name, price_per_m2: formData.price_per_m2 || '0' });
+          showToast('Motor type created successfully', 'success');
         }
-      }
-
-      if (activeTab === 'motors') {
-        payload.price_per_m2 = formState.price_per_m2 ?? '';
-      }
-
-      if (activeTab === 'charges') {
-        payload.price = formState.price ?? '';
-        payload.unit = formState.unit ?? 'unit';
-      }
-
-      if (editingId !== null) {
-        switch (activeTab) {
-          case 'workTypes':
-            await catalogApi.workTypes.update(editingId, payload);
-            break;
-          case 'fabricTypes':
-            await catalogApi.fabricTypes.update(editingId, payload);
-            break;
-          case 'models':
-            await catalogApi.models.update(editingId, payload);
-            break;
-          case 'items':
-            await catalogApi.items.update(editingId, payload);
-            break;
-          case 'motors':
-            await catalogApi.motors.update(editingId, payload);
-            break;
-          case 'charges':
-            await catalogApi.charges.update(editingId, payload);
-            break;
-          default:
-            break;
+        refetchMotors();
+      } else if (activeTab === 'charges') {
+        if (editingItem) {
+          await catalogApi.updateCharge(editingItem.id, { name: formData.name, price: formData.price || '0', unit: formData.unit || 'flat' });
+          showToast('Charge template updated successfully', 'success');
+        } else {
+          await catalogApi.createCharge({ name: formData.name, price: formData.price || '0', unit: formData.unit || 'flat' });
+          showToast('Charge template created successfully', 'success');
         }
-      } else {
-        switch (activeTab) {
-          case 'workTypes':
-            await catalogApi.workTypes.create(payload);
-            break;
-          case 'fabricTypes':
-            await catalogApi.fabricTypes.create(payload);
-            break;
-          case 'models':
-            await catalogApi.models.create(payload);
-            break;
-          case 'items':
-            await catalogApi.items.create(payload);
-            break;
-          case 'motors':
-            await catalogApi.motors.create(payload);
-            break;
-          case 'charges':
-            await catalogApi.charges.create(payload);
-            break;
-          default:
-            break;
-        }
+        refetchCharges();
       }
-
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['catalog', 'workTypes'] }),
-        queryClient.invalidateQueries({ queryKey: ['catalog', 'fabricTypes'] }),
-        queryClient.invalidateQueries({ queryKey: ['catalog', 'models'] }),
-        queryClient.invalidateQueries({ queryKey: ['catalog', 'items'] }),
-        queryClient.invalidateQueries({ queryKey: ['catalog', 'motors'] }),
-        queryClient.invalidateQueries({ queryKey: ['catalog', 'charges'] }),
-      ]);
-
       setFormOpen(false);
-      setFormState(initialForm);
-      setEditingId(null);
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'Unable to save catalog entry.');
+      setFormData({});
+    } catch (err: any) {
+      console.error('Error saving:', err);
+      showToast(err?.response?.data?.detail || err?.message || 'Operation failed', 'error');
     } finally {
       setSaving(false);
     }
   };
 
-  const confirmDelete = async () => {
+  const handleDelete = async () => {
     if (!deleteTarget) return;
 
-    setDeleting(true);
     try {
-      switch (deleteTarget.key) {
-        case 'workTypes':
-          await catalogApi.workTypes.remove(deleteTarget.id);
-          break;
-        case 'fabricTypes':
-          await catalogApi.fabricTypes.remove(deleteTarget.id);
-          break;
-        case 'models':
-          await catalogApi.models.remove(deleteTarget.id);
-          break;
-        case 'items':
-          await catalogApi.items.remove(deleteTarget.id);
-          break;
-        case 'motors':
-          await catalogApi.motors.remove(deleteTarget.id);
-          break;
-        case 'charges':
-          await catalogApi.charges.remove(deleteTarget.id);
-          break;
-        default:
-          break;
+      if (activeTab === 'work-types') {
+        await catalogApi.deleteWorkType(deleteTarget.id);
+        showToast('Work type deleted successfully', 'success');
+        refetchWorkTypes();
+      } else if (activeTab === 'fabric-types') {
+        await catalogApi.deleteFabricType(deleteTarget.id);
+        showToast('Fabric type deleted successfully', 'success');
+        refetchFabricTypes();
+      } else if (activeTab === 'models') {
+        await catalogApi.deleteModel(deleteTarget.id);
+        showToast('Model deleted successfully', 'success');
+        refetchModels();
+      } else if (activeTab === 'items') {
+        await catalogApi.deleteItem(deleteTarget.id);
+        showToast('Item deleted successfully', 'success');
+        refetchItems();
+      } else if (activeTab === 'motors') {
+        await catalogApi.deleteMotor(deleteTarget.id);
+        showToast('Motor type deleted successfully', 'success');
+        refetchMotors();
+      } else if (activeTab === 'charges') {
+        await catalogApi.deleteCharge(deleteTarget.id);
+        showToast('Charge template deleted successfully', 'success');
+        refetchCharges();
       }
-
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['catalog', 'workTypes'] }),
-        queryClient.invalidateQueries({ queryKey: ['catalog', 'fabricTypes'] }),
-        queryClient.invalidateQueries({ queryKey: ['catalog', 'models'] }),
-        queryClient.invalidateQueries({ queryKey: ['catalog', 'items'] }),
-        queryClient.invalidateQueries({ queryKey: ['catalog', 'motors'] }),
-        queryClient.invalidateQueries({ queryKey: ['catalog', 'charges'] }),
-      ]);
       setDeleteTarget(null);
-    } finally {
-      setDeleting(false);
+    } catch (err: any) {
+      showToast(err?.response?.data?.detail || 'Failed to delete', 'error');
     }
   };
 
-  const totals = {
-    workTypes: workTypesQuery.data?.data?.length ?? 0,
-    fabricTypes: fabricTypesQuery.data?.data?.length ?? 0,
-    models: modelsQuery.data?.data?.length ?? 0,
-    items: itemsQuery.data?.data?.length ?? 0,
-    motors: motorsQuery.data?.data?.length ?? 0,
-    charges: chargesQuery.data?.data?.length ?? 0,
+  const getTabLabel = (tab: TabType) => {
+    const labels: Record<TabType, string> = {
+      'work-types': 'Work Types',
+      'fabric-types': 'Fabric Types',
+      'models': 'Models',
+      'items': 'Catalog Items',
+      'motors': 'Motors',
+      'charges': 'Charges',
+    };
+    return labels[tab];
   };
 
-  const hasAnyError = [workTypesQuery, fabricTypesQuery, modelsQuery, itemsQuery, motorsQuery, chargesQuery].some(
-    ({ isError }) => isError,
-  );
+  const getTabIcon = (tab: TabType) => {
+    const icons: Record<TabType, React.ReactNode> = {
+      'work-types': <Layers className="w-4 h-4" />,
+      'fabric-types': <Package className="w-4 h-4" />,
+      'models': <Grid3X3 className="w-4 h-4" />,
+      'items': <FileText className="w-4 h-4" />,
+      'motors': <Zap className="w-4 h-4" />,
+      'charges': <DollarSign className="w-4 h-4" />,
+    };
+    return icons[tab];
+  };
 
-  const isLoading = [workTypesQuery, fabricTypesQuery, modelsQuery, itemsQuery, motorsQuery, chargesQuery].some(
-    ({ isLoading }) => isLoading,
-  );
+  const renderContent = () => {
+    let dataArray: any[] = [];
+    let columns: string[] = [];
 
-  const renderTable = () => {
-    if (isLoading && !currentData.length) {
-      return (
-        <div className="flex items-center justify-center py-16 text-slate-500">
-          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-          Loading catalog data…
-        </div>
-      );
+    if (activeTab === 'work-types') {
+      dataArray = workTypes;
+      columns = ['id', 'name', 'pricing_unit'];
+    } else if (activeTab === 'fabric-types') {
+      dataArray = fabricTypes;
+      columns = ['id', 'work_type_name', 'name'];
+    } else if (activeTab === 'models') {
+      dataArray = models;
+      columns = ['id', 'fabric_type_name', 'name'];
+    } else if (activeTab === 'items') {
+      dataArray = items;
+      columns = ['id', 'model_name', 'name', 'price_per_unit'];
+    } else if (activeTab === 'motors') {
+      dataArray = motors;
+      columns = ['id', 'name', 'price_per_m2'];
+    } else if (activeTab === 'charges') {
+      dataArray = charges;
+      columns = ['id', 'name', 'price', 'unit'];
     }
-
-    if (hasAnyError && !currentData.length) {
-      return (
-        <div className="flex items-center justify-center gap-2 py-16 text-red-600">
-          <AlertCircle className="w-5 h-5" />
-          Unable to load catalog data.
-        </div>
-      );
-    }
-
-    const rows = currentPageData as Array<Record<string, unknown>>;
-
-    if (!rows.length) {
-      return (
-        <div className="py-16 text-center text-slate-500">
-          No catalog records found for this section.
-        </div>
-      );
-    }
-
-    const keyName = activeTab === 'items' ? 'name' : 'name';
 
     return (
-      <div className="overflow-hidden rounded-xl border border-slate-200">
+      <div className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] overflow-hidden border border-slate-100">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              <tr>
-                <th className="px-4 py-3">Name</th>
-                {activeTab === 'fabricTypes' && <th className="px-4 py-3">Work Type</th>}
-                {activeTab === 'models' && <th className="px-4 py-3">Fabric Type</th>}
-                {activeTab === 'items' && <th className="px-4 py-3">Model</th>}
-                {activeTab === 'workTypes' && <th className="px-4 py-3">Pricing Unit</th>}
-                {activeTab === 'motors' && <th className="px-4 py-3">Price / m²</th>}
-                {activeTab === 'charges' && <th className="px-4 py-3">Unit</th>}
-                {activeTab === 'charges' && <th className="px-4 py-3">Price</th>}
-                <th className="px-4 py-3 text-right">Actions</th>
+          <table className="w-full text-left border-collapse min-w-[800px]">
+            <thead>
+              <tr className="border-b border-slate-100 bg-white">
+                {columns.map((col) => (
+                  <th
+                    key={col}
+                    className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider"
+                  >
+                    {col.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                  </th>
+                ))}
+                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">
+                  Actions
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 bg-white text-sm text-slate-700">
-              {rows.map((item) => (
-                <tr key={String(item.id)} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium text-slate-800">{formatDisplayValue(item[keyName])}</td>
-                  {activeTab === 'fabricTypes' && <td className="px-4 py-3">{formatDisplayValue(item.work_type_name ?? item.work_type)}</td>}
-                  {activeTab === 'models' && <td className="px-4 py-3">{formatDisplayValue(item.fabric_type_name ?? item.fabric_type)}</td>}
-                  {activeTab === 'items' && <td className="px-4 py-3">{formatDisplayValue(item.model_name ?? item.model)}</td>}
-                  {activeTab === 'workTypes' && <td className="px-4 py-3">{formatDisplayValue(item.pricing_unit)}</td>}
-                  {activeTab === 'motors' && <td className="px-4 py-3">{formatDisplayValue(item.price_per_m2)}</td>}
-                  {activeTab === 'charges' && <td className="px-4 py-3">{formatDisplayValue(item.unit)}</td>}
-                  {activeTab === 'charges' && <td className="px-4 py-3">{formatDisplayValue(item.price)}</td>}
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openEditForm(item)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeleteTarget({ key: activeTab, id: Number(item.id), label: String(item.name || 'record') })}
-                        className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Delete
-                      </button>
-                    </div>
+            <tbody className="divide-y divide-slate-100">
+              {dataArray.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length + 1} className="px-6 py-16 text-center text-slate-500 font-medium">
+                    No {getTabLabel(activeTab).toLowerCase()} found.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                dataArray.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                    {columns.map((col) => (
+                      <td key={col} className="px-6 py-5 align-middle">
+                        <span className="text-sm font-medium text-slate-700">
+                          {item[col] || '—'}
+                        </span>
+                      </td>
+                    ))}
+                    <td className="px-6 py-5 align-middle text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => openEdit(item)}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-[12px] rounded-lg transition-colors"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(item)}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 hover:bg-red-100 font-bold text-[12px] rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -455,333 +339,343 @@ export default function CatalogPage() {
     );
   };
 
-  const renderFormFields = () => {
-    const sharedNameField = (
-      <label className="block space-y-2">
-        <span className="text-sm font-medium text-slate-700">Name</span>
-        <input
-          value={formState.name ?? ''}
-          onChange={(event) => setFormState((prev) => ({ ...prev, name: event.target.value }))}
-          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none ring-0 transition focus:border-indigo-500"
-          placeholder={`Enter ${tabConfig.find((tab) => tab.key === activeTab)?.label ?? 'record'} name`}
-          required
-        />
-      </label>
-    );
-
-    if (activeTab === 'workTypes') {
-      return (
-        <div className="space-y-4">
-          {sharedNameField}
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Pricing Unit</span>
-            <select
-              value={formState.pricing_unit ?? 'm2'}
-              onChange={(event) => setFormState((prev) => ({ ...prev, pricing_unit: event.target.value }))}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-indigo-500"
-            >
-              <option value="m2">m²</option>
-              <option value="item">Item</option>
-              <option value="flat">Flat</option>
-            </select>
-          </label>
-
-          <div className="space-y-2">
-            <span className="text-sm font-medium text-slate-700">Features</span>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {[
-                { key: 'motor', label: 'Motor' },
-                { key: 'charges', label: 'Charges' },
-                { key: 'images', label: 'Images' },
-              ].map((feature) => (
-                <label key={feature.key} className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(formState.features?.[feature.key as keyof NonNullable<CatalogFormState['features']>])}
-                    onChange={(event) =>
-                      setFormState((prev) => {
-                        const nextFeatures = {
-                          motor: prev.features?.motor ?? false,
-                          charges: prev.features?.charges ?? false,
-                          images: prev.features?.images ?? false,
-                        };
-                        nextFeatures[feature.key as keyof typeof nextFeatures] = event.target.checked;
-
-                        return {
-                          ...prev,
-                          features: nextFeatures,
-                        };
-                      })
-                    }
-                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  {feature.label}
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (activeTab === 'fabricTypes') {
-      return (
-        <div className="space-y-4">
-          {sharedNameField}
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Work Type</span>
-            <input
-              type="number"
-              value={formState.work_type ?? ''}
-              onChange={(event) => setFormState((prev) => ({ ...prev, work_type: event.target.value }))}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-indigo-500"
-              placeholder="Work type ID"
-              required
-            />
-          </label>
-        </div>
-      );
-    }
-
-    if (activeTab === 'models') {
-      return (
-        <div className="space-y-4">
-          {sharedNameField}
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Fabric Type</span>
-            <input
-              type="number"
-              value={formState.fabric_type ?? ''}
-              onChange={(event) => setFormState((prev) => ({ ...prev, fabric_type: event.target.value }))}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-indigo-500"
-              placeholder="Fabric type ID"
-              required
-            />
-          </label>
-        </div>
-      );
-    }
-
-    if (activeTab === 'items') {
-      return (
-        <div className="space-y-4">
-          {sharedNameField}
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Model</span>
-            <input
-              type="number"
-              value={formState.model ?? ''}
-              onChange={(event) => setFormState((prev) => ({ ...prev, model: event.target.value }))}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-indigo-500"
-              placeholder="Model ID"
-              required
-            />
-          </label>
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Price per unit</span>
-            <input
-              value={formState.price_per_unit ?? ''}
-              onChange={(event) => setFormState((prev) => ({ ...prev, price_per_unit: event.target.value }))}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-indigo-500"
-              placeholder="e.g. 1250.00"
-            />
-          </label>
-        </div>
-      );
-    }
-
-    if (activeTab === 'motors') {
-      return (
-        <div className="space-y-4">
-          {sharedNameField}
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Price / m²</span>
-            <input
-              value={formState.price_per_m2 ?? ''}
-              onChange={(event) => setFormState((prev) => ({ ...prev, price_per_m2: event.target.value }))}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-indigo-500"
-              placeholder="e.g. 180.00"
-            />
-          </label>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-4">
-        {sharedNameField}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Price</span>
-            <input
-              value={formState.price ?? ''}
-              onChange={(event) => setFormState((prev) => ({ ...prev, price: event.target.value }))}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-indigo-500"
-              placeholder="e.g. 75.00"
-            />
-          </label>
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Unit</span>
-            <input
-              value={formState.unit ?? ''}
-              onChange={(event) => setFormState((prev) => ({ ...prev, unit: event.target.value }))}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-indigo-500"
-              placeholder="e.g. per item"
-            />
-          </label>
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div className="space-y-6 animate-page-in">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-indigo-600">Catalog</p>
-          <h1 className="mt-1 text-3xl font-bold text-slate-900">Catalog & Pricing</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Catalog & Pricing</h1>
+          <p className="text-slate-500 text-sm mt-0.5">Manage catalog items, work types, and pricing</p>
         </div>
         <button
-          type="button"
-          onClick={openCreateForm}
-          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500"
+          onClick={openCreate}
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2b5c8f] text-white text-sm font-medium rounded-xl hover:bg-[#1f456e] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
         >
-          <Plus className="h-4 w-4" />
-          Add {tabConfig.find((tab) => tab.key === activeTab)?.label ?? 'Record'}
+          <Plus className="w-4 h-4" /> Add {getTabLabel(activeTab)}
         </button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {tabConfig.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => {
-              setActiveTab(key);
-              setPage(1);
-            }}
-            className={`rounded-2xl border p-4 text-left transition ${
-              activeTab === key
-                ? 'border-indigo-200 bg-indigo-50 shadow-sm'
-                : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-slate-100 p-2 text-slate-700">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-slate-600">{label}</div>
-                  <div className="text-2xl font-bold text-slate-900">{totals[key]}</div>
-                </div>
-              </div>
+      {/* Tabs */}
+      <div className="bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100">
+        <div className="flex overflow-x-auto border-b border-slate-100">
+          {(['work-types', 'fabric-types', 'models', 'items', 'motors', 'charges'] as TabType[]).map(
+            (tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${
+                  activeTab === tab
+                    ? 'border-[#2b5c8f] text-[#2b5c8f]'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {getTabIcon(tab)}
+                {getTabLabel(tab)}
+              </button>
+            )
+          )}
+        </div>
+
+        {/* Search Bar */}
+        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/60">
+          <input
+            type="text"
+            placeholder={`Search ${getTabLabel(activeTab).toLowerCase()}...`}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all"
+          />
+        </div>
+
+        {/* Content */}
+        <div className="p-6">
+          {itemsLoading && activeTab === 'items' ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-8 h-8 animate-spin text-[#2b5c8f]" />
             </div>
-          </button>
-        ))}
-      </div>
-
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="relative w-full max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setPage(1);
-              }}
-              placeholder="Search records"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-700 outline-none transition focus:border-indigo-500 focus:bg-white"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-slate-700">Sort</label>
-            <select
-              value={sortBy}
-              onChange={(event) => setSortBy(event.target.value)}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-sm text-slate-700 outline-none focus:border-indigo-500 focus:bg-white"
-            >
-              <option value="name">Name</option>
-              {activeTab === 'items' && <option value="price_per_unit">Price</option>}
-              {activeTab === 'motors' && <option value="price_per_m2">Price / m²</option>}
-              {activeTab === 'charges' && <option value="price">Price</option>}
-            </select>
-            <button
-              type="button"
-              onClick={() => setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-              className="rounded-xl border border-slate-200 px-2.5 py-2 text-sm text-slate-700 hover:bg-slate-50"
-            >
-              {sortDir === 'asc' ? 'Asc' : 'Desc'}
-            </button>
-          </div>
-        </div>
-
-        {renderTable()}
-
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <div className="text-sm text-slate-500">
-            Showing {Math.min((page - 1) * pageSize + 1, filteredData.length)}-{Math.min(page * pageSize, filteredData.length)} of {filteredData.length}
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-              disabled={page <= 1}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Prev
-            </button>
-            <span className="text-sm text-slate-600">
-              Page {page} / {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-              disabled={page >= totalPages}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
+          ) : (
+            renderContent()
+          )}
         </div>
       </div>
 
-      <Modal open={formOpen} onClose={() => setFormOpen(false)} title={editingId !== null ? 'Edit catalog item' : 'Create catalog item'} maxWidth="max-w-lg">
-        <form onSubmit={submitForm} className="space-y-5">
-          {renderFormFields()}
+      {/* Form Modal */}
+      <Modal
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        title={editingItem ? `Edit ${getTabLabel(activeTab)}` : `Create ${getTabLabel(activeTab)}`}
+        maxWidth="max-w-2xl"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSave();
+          }}
+          className="space-y-4"
+        >
+          {activeTab === 'work-types' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name || ''}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g. Roller"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Pricing Unit
+                </label>
+                <input
+                  type="text"
+                  value={formData.pricing_unit || ''}
+                  onChange={(e) => setFormData({ ...formData, pricing_unit: e.target.value })}
+                  placeholder="e.g. m2"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
+                />
+              </div>
+            </>
+          )}
 
-          <div className="flex justify-end gap-3 pt-2">
+          {activeTab === 'fabric-types' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Work Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.work_type || ''}
+                  onChange={(e) => setFormData({ ...formData, work_type: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
+                >
+                  <option value="">Select work type</option>
+                  {workTypes.map((wt) => (
+                    <option key={wt.id} value={wt.id}>
+                      {wt.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name || ''}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g. Blackout"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
+                />
+              </div>
+            </>
+          )}
+
+          {activeTab === 'models' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Fabric Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.fabric_type || ''}
+                  onChange={(e) => setFormData({ ...formData, fabric_type: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
+                >
+                  <option value="">Select fabric type</option>
+                  {fabricTypes.map((ft) => (
+                    <option key={ft.id} value={ft.id}>
+                      {ft.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name || ''}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g. Classic"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
+                />
+              </div>
+            </>
+          )}
+
+          {activeTab === 'items' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Model <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.model || ''}
+                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
+                >
+                  <option value="">Select model</option>
+                  {models.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name || ''}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g. Premium Shade"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Price Per Unit <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.price_per_unit || ''}
+                  onChange={(e) => setFormData({ ...formData, price_per_unit: e.target.value })}
+                  placeholder="e.g. 150.00"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
+                />
+              </div>
+            </>
+          )}
+
+          {activeTab === 'motors' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name || ''}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g. Tubular"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Price Per m2
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.price_per_m2 || ''}
+                  onChange={(e) => setFormData({ ...formData, price_per_m2: e.target.value })}
+                  placeholder="e.g. 120.00"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
+                />
+              </div>
+            </>
+          )}
+
+          {activeTab === 'charges' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name || ''}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g. Manual Control"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Price
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.price || ''}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  placeholder="e.g. 50.00"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Unit
+                </label>
+                <select
+                  value={formData.unit || 'flat'}
+                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
+                >
+                  <option value="flat">Flat</option>
+                  <option value="per_m2">Per m2</option>
+                </select>
+              </div>
+            </>
+          )}
+
+          <div className="flex gap-3 pt-4">
             <button
               type="button"
               onClick={() => setFormOpen(false)}
-              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-70"
+              className="flex-1 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white font-medium text-sm hover:bg-[#1f456e] transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
             >
-              {saving ? 'Saving…' : editingId !== null ? 'Save changes' : 'Create entry'}
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {saving ? 'Saving…' : editingItem ? 'Update' : 'Create'}
             </button>
           </div>
         </form>
       </Modal>
 
-      <ConfirmModal
-        open={Boolean(deleteTarget)}
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        onConfirm={confirmDelete}
-        title="Delete catalog entry"
-        message={`Are you sure you want to remove ${deleteTarget?.label ?? 'this record'}? This action cannot be undone.`}
-        confirmLabel="Delete"
-        isLoading={deleting}
-      />
+        title={`Delete ${editingItem ? getTabLabel(activeTab) : 'Item'}`}
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600">
+            Are you sure you want to delete this item? This action cannot be undone.
+          </p>
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={() => setDeleteTarget(null)}
+              className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDelete}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

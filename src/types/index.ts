@@ -256,7 +256,7 @@ export interface AppointmentListItem {
 
 export interface AppointmentDetail {
   id: number | string;
-  customer: Customer;
+  customer?: Customer | null;
   title: string;
   description: string;
   appointment_date: string;
