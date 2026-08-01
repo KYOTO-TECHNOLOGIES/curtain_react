@@ -66,3 +66,42 @@ export const paymentSchema = z.object({
   notes: z.string().optional(),
 });
 export type PaymentFormValues = z.infer<typeof paymentSchema>;
+
+// ── Catalog ─────────────────────────────────────────────
+export const catalogWorkTypeSchema = z.object({
+  name: z.string().min(1, 'Work type name is required'),
+  pricing_unit: z.string().optional(),
+});
+export type CatalogWorkTypeFormValues = z.infer<typeof catalogWorkTypeSchema>;
+
+export const catalogFabricTypeSchema = z.object({
+  name: z.string().min(1, 'Fabric type name is required'),
+  work_type: z.coerce.number().min(1, 'Please select a work type'),
+});
+export type CatalogFabricTypeFormValues = z.infer<typeof catalogFabricTypeSchema>;
+
+export const catalogModelSchema = z.object({
+  name: z.string().min(1, 'Model name is required'),
+  fabric_type: z.coerce.number().min(1, 'Please select a fabric type'),
+});
+export type CatalogModelFormValues = z.infer<typeof catalogModelSchema>;
+
+export const catalogItemSchema = z.object({
+  name: z.string().min(1, 'Item name is required'),
+  model: z.coerce.number().min(1, 'Please select a model'),
+  price_per_unit: z.string().min(1, 'Price is required'),
+});
+export type CatalogItemFormValues = z.infer<typeof catalogItemSchema>;
+
+export const catalogMotorSchema = z.object({
+  name: z.string().min(1, 'Motor name is required'),
+  price_per_m2: z.string().min(1, 'Price is required'),
+});
+export type CatalogMotorFormValues = z.infer<typeof catalogMotorSchema>;
+
+export const catalogChargeSchema = z.object({
+  name: z.string().min(1, 'Charge name is required'),
+  price: z.string().min(1, 'Price is required'),
+  unit: z.string().min(1, 'Unit is required'),
+});
+export type CatalogChargeFormValues = z.infer<typeof catalogChargeSchema>;

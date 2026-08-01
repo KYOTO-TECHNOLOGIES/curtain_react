@@ -9,6 +9,7 @@ import CustomerDetailPage from './pages/customers/CustomerDetailPage';
 import RolesPage from './pages/roles/RolesPage';
 import PermissionsPage from './pages/permissions/PermissionsPage';
 import AppointmentsPage from './pages/appointments/AppointmentsPage';
+import AppointmentDetailsPage from './pages/appointments/AppointmentDetailsPage';
 import CreateAppointmentPage from './pages/appointments/CreateAppointmentPage';
 import AppointmentDetailPage from './pages/appointments/AppointmentDetailPage';
 import QuotationsPage from './pages/quotations/QuotationsPage';
@@ -41,6 +42,7 @@ function App() {
               <Route path="/customers" element={<CustomersPage />} />
               <Route path="/customers/:id" element={<CustomerDetailPage />} />
               <Route path="/appointments" element={<AppointmentsPage />} />
+              <Route path="/appointments/:id" element={<AppointmentDetailsPage />} />
               <Route path="/appointments/create" element={<CreateAppointmentPage />} />
               <Route path="/appointments/:id" element={<AppointmentDetailPage />} />
               <Route path="/quotations" element={<QuotationsPage />} />

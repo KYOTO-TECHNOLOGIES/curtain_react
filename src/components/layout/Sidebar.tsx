@@ -37,6 +37,7 @@ const navSections = [
   {
     label: 'OPERATIONS',
     items: [
+      { to: '/activities', label: 'Activities', icon: Activity },
       { to: '/orders', label: 'Orders', icon: Activity },
       { to: '/installation', label: 'Installation', icon: Wrench },
       { to: '/inventory', label: 'Inventory', icon: Package },
@@ -81,7 +82,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 z-50 h-screen w-[250px] flex flex-col
+          fixed top-0 left-0 z-50 h-screen w-62.5 flex flex-col
           bg-[#2b5c8f]
           transition-transform duration-300 ease-out
           lg:translate-x-0 lg:static lg:z-auto
@@ -116,7 +117,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 {section.items.map((item: any, j: number) => (
                   <li key={j}>
                     <NavLink to={item.to} className={linkClass} onClick={onClose}>
-                      <item.icon className="w-[18px] h-[18px] shrink-0 opacity-80" strokeWidth={2.5} />
+                      <item.icon className="w-4.5 h-4.5 shrink-0 opacity-80" strokeWidth={2.5} />
                       <span className="flex-1">{item.label}</span>
                     </NavLink>
                   </li>
@@ -132,7 +133,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             onClick={handleLogout}
             className="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-[14px] font-semibold text-white/60 hover:bg-white/5 hover:text-white transition-all duration-200"
           >
-            <LogOut className="w-[18px] h-[18px] opacity-80" strokeWidth={2.5} />
+            <LogOut className="w-4.5 h-4.5 opacity-80" strokeWidth={2.5} />
             Sign Out
           </button>
         </div>

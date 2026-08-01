@@ -91,6 +91,8 @@ export default function CreateAppointmentPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast } = useToast();
+  const editAppointment = (location.state as { editAppointment?: any } | null)?.editAppointment;
+  const isEditingAppointment = Boolean(editAppointment);
   
   const [step, setStep] = useState<1 | 2>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -123,6 +125,26 @@ export default function CreateAppointmentPage() {
   const selectedTime = watch('time');
 
   useEffect(() => {
+    if (editAppointment) {
+      const customer = editAppointment.customer;
+      setExistingCustomer(customer || null);
+      setValue('firstName', customer?.first_name || editAppointment.customer_first_name || '');
+      setValue('lastName', customer?.last_name || editAppointment.customer_last_name || '');
+      setValue('phone', customer?.phone_number || editAppointment.customer_phone || '');
+      setValue('email', customer?.email || editAppointment.customer_email || '');
+      setValue('building', editAppointment.location?.building_name || editAppointment.location_building || '');
+      setValue('room', editAppointment.location?.unit_number || editAppointment.location_unit || '');
+      setValue('address', editAppointment.location?.full_address || editAppointment.location_full_address || '');
+      setValue('source', editAppointment.customer_source || 'whatsapp');
+      setValue('jobType', editAppointment.job_type || 'installation');
+      setValue('date', editAppointment.appointment_date || new Date().toISOString().split('T')[0]);
+      setValue('time', editAppointment.appointment_time ? editAppointment.appointment_time.slice(0,5) : '09:00 AM');
+      setValue('notes', editAppointment.description || '');
+      setValue('assignedTo', editAppointment.assigned_to ? String(editAppointment.assigned_to) : '');
+      setStep(2);
+      return;
+    }
+
     if (location.state) {
       const { lookupResult, lookupQuery, lookupType } = location.state;
       if (lookupResult?.found && lookupResult.customer) {
@@ -138,7 +160,7 @@ export default function CreateAppointmentPage() {
         else setValue('phone', lookupQuery);
       }
     }
-  }, [location.state, setValue]);
+  }, [location.state, editAppointment, setValue]);
 
   const onSubmit = async (data: AppointmentFormValues) => {
     if (step === 1) {
@@ -152,7 +174,7 @@ export default function CreateAppointmentPage() {
 
     setIsSubmitting(true);
     try {
-      await appointmentsApi.create({
+      const payload = {
         customer: existingCustomer?.id,
         customer_first_name: data.firstName,
         customer_last_name: data.lastName,
@@ -165,16 +187,24 @@ export default function CreateAppointmentPage() {
         appointment_date: data.date,
         appointment_time: data.time.split(' ')[0] + ':00',
         job_type: data.jobType as any,
-        status: 'pending',
+        status: editAppointment ? editAppointment.status : 'pending',
         assigned_to: assigneeId,
         assignee: assigneeId,
         assignee_id: assigneeId,
         location_building: data.building,
         location_unit: data.room,
         location_full_address: data.address,
-      });
-      showToast('Appointment created successfully', 'success');
-      navigate('/appointments');
+      };
+
+      if (isEditingAppointment && editAppointment?.id) {
+        await appointmentsApi.update(editAppointment.id, payload);
+        showToast('Appointment updated successfully', 'success');
+        navigate(`/appointments/${editAppointment.id}`);
+      } else {
+        await appointmentsApi.create(payload);
+        showToast('Appointment created successfully', 'success');
+        navigate('/appointments');
+      }
     } catch (error: any) {
       console.error('Create Appointment Error:', error?.response?.data);
       const errorMsg = error?.response?.data

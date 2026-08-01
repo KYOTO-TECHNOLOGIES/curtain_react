@@ -148,6 +148,55 @@ export interface CreateOrGetCustomerResponse {
   customer: Customer;
 }
 
+// ── Catalog ─────────────────────────────────────────────
+
+export interface CatalogWorkType {
+  id: number;
+  name: string;
+  pricing_unit?: string;
+  features?: {
+    motor?: boolean;
+    charges?: boolean;
+    images?: boolean;
+  };
+}
+
+export interface CatalogFabricType {
+  id: number;
+  work_type: number;
+  work_type_name?: string;
+  name: string;
+}
+
+export interface CatalogModel {
+  id: number;
+  fabric_type: number;
+  fabric_type_name?: string;
+  name: string;
+}
+
+export interface CatalogItem {
+  id: number;
+  model: number;
+  model_name?: string;
+  name: string;
+  price_per_unit: string;
+  image?: string | null;
+}
+
+export interface CatalogMotorType {
+  id: number;
+  name: string;
+  price_per_m2: string;
+}
+
+export interface CatalogChargeTemplate {
+  id: number;
+  name: string;
+  price: string;
+  unit: string;
+}
+
 // ── Appointments ────────────────────────────────────────
 
 export type AppointmentStatus =
