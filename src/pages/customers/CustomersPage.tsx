@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -20,8 +22,18 @@ const ErrorMsg = ({ message }: { message?: string }) =>
   ) : null;
 
 export default function CustomersPage() {
+  const navigate = useNavigate();
   const { showToast } = useToast();
-  const [search, setSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Debounce search for backend call
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -40,8 +52,8 @@ export default function CustomersPage() {
   const { register, handleSubmit, reset, formState: { errors } } = form;
 
   const { data: customersRes, isLoading, refetch } = useQuery({
-    queryKey: ['customers'],
-    queryFn: () => customersApi.list()
+    queryKey: ['customers', debouncedSearch],
+    queryFn: () => customersApi.list(debouncedSearch || undefined)
   });
 
   const customers = customersRes?.data || [];
@@ -109,11 +121,7 @@ export default function CustomersPage() {
     setDeleting(false);
   };
 
-  const filtered = customers.filter((c) =>
-    c.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    (c.email && c.email.toLowerCase().includes(search.toLowerCase())) ||
-    (c.company_name && c.company_name.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filtered = customers;
 
   return (
     <div className="space-y-6 animate-page-in">
@@ -134,8 +142,8 @@ export default function CustomersPage() {
             <input
               type="text"
               placeholder="Search customers..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all"
             />
           </div>
@@ -172,7 +180,7 @@ export default function CustomersPage() {
                   </td>
                 </tr>
               ) : filtered.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
+                <tr key={c.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => navigate(`/customers/${c.id}`)}>
                   <td className="px-6 py-5 align-middle">
                     <span className="text-sm font-extrabold text-slate-800">#{c.id}</span>
                   </td>
@@ -207,7 +215,7 @@ export default function CustomersPage() {
                       {c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}
                     </span>
                   </td>
-                  <td className="px-6 py-5 align-middle text-right">
+                  <td className="px-6 py-5 align-middle text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-2">
                       <button onClick={() => openEdit(c)} className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-[12px] rounded-lg transition-colors">
                         <Pencil className="w-3.5 h-3.5" /> Edit

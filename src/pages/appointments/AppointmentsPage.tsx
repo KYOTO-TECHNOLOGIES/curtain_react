@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Loader2, 
@@ -20,8 +20,18 @@ import { useQuery } from '@tanstack/react-query';
 export default function AppointmentsPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [search] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [assigneeFilter, setAssigneeFilter] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Debounce search for backend call
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Lookup Modal state
   const [lookupOpen, setLookupOpen] = useState(false);
@@ -40,8 +50,12 @@ export default function AppointmentsPage() {
   });
 
   const { data: listRes, isLoading: loadingList, refetch: refetchList } = useQuery({
-    queryKey: ['appointments', statusFilter],
-    queryFn: () => appointmentsApi.list(statusFilter ? { status: statusFilter as any } : {}),
+    queryKey: ['appointments', statusFilter, assigneeFilter, debouncedSearch],
+    queryFn: () => appointmentsApi.list({
+      status: statusFilter || undefined,
+      assigned_to: assigneeFilter ? Number(assigneeFilter) : undefined,
+      search: debouncedSearch || undefined,
+    } as any),
   });
 
   const { data: statsRes, isLoading: loadingStats, refetch: refetchStats } = useQuery({
@@ -150,10 +164,7 @@ export default function AppointmentsPage() {
     setSaving(false);
   };
 
-  const filtered: AppointmentListItem[] = appointments.filter((a: AppointmentListItem) =>
-    (a.title || '').toLowerCase().includes(search.toLowerCase()) ||
-    (a.customer_name || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered: AppointmentListItem[] = appointments;
 
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -193,7 +204,20 @@ export default function AppointmentsPage() {
       {/* Filters Bar */}
       <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-wrap items-center gap-6">
         <div className="flex items-center gap-4 flex-1">
-          <div className="hidden">
+          <div>
+            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search</span>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search by title or customer..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl px-4 py-2 outline-none focus:border-[#2b5c8f] transition-colors w-60"
+              />
+            </div>
+          </div>
+
+          <div>
             <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</span>
             <div className="relative">
               <select 
@@ -215,8 +239,17 @@ export default function AppointmentsPage() {
           <div>
             <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Assigned To</span>
             <div className="relative">
-              <select className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl px-4 py-2 pr-10 outline-none focus:border-[#2b5c8f] transition-colors w-40">
-                <option>All Staff</option>
+              <select 
+                value={assigneeFilter}
+                onChange={(e) => setAssigneeFilter(e.target.value)}
+                className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl px-4 py-2 pr-10 outline-none focus:border-[#2b5c8f] transition-colors w-40"
+              >
+                <option value="">All Staff</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.full_name}
+                  </option>
+                ))}
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
@@ -290,7 +323,7 @@ export default function AppointmentsPage() {
                   </td>
                 </tr>
               ) : filtered.map((a: AppointmentListItem) => (
-                <tr key={a.id} className="hover:bg-slate-50/50 transition-colors">
+                <tr key={a.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => navigate(`/appointments/${a.id}`)}>
                   <td className="px-6 py-5 align-middle">
                     <span className="text-sm font-extrabold text-slate-800">
                       #{a.id.toString()}
@@ -327,7 +360,7 @@ export default function AppointmentsPage() {
                       {a.status.replace('_', ' ')}
                     </span>
                   </td>
-                  <td className="px-6 py-5 align-middle text-right">
+                  <td className="px-6 py-5 align-middle text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => openAssign(a)}

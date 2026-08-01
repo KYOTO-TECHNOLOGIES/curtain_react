@@ -5,12 +5,17 @@ import DashboardLayout from './components/layout/DashboardLayout';
 import DashboardPage from './pages/DashboardPage';
 import UsersPage from './pages/users/UsersPage';
 import CustomersPage from './pages/customers/CustomersPage';
+import CustomerDetailPage from './pages/customers/CustomerDetailPage';
 import RolesPage from './pages/roles/RolesPage';
 import PermissionsPage from './pages/permissions/PermissionsPage';
 import AppointmentsPage from './pages/appointments/AppointmentsPage';
 import CreateAppointmentPage from './pages/appointments/CreateAppointmentPage';
+import AppointmentDetailPage from './pages/appointments/AppointmentDetailPage';
 import QuotationsPage from './pages/quotations/QuotationsPage';
-import CreateQuotationPage from './pages/quotations/CreateQuotationPage';
+import QuotationDetailPage from './pages/quotations/QuotationDetailPage';
+import QuotationBuilderPage from './pages/quotations/QuotationBuilderPage';
+import CatalogPage from './pages/catalog/CatalogPage';
+import PricingBuilderPage from './pages/pricing/PricingBuilderPage';
 import OrdersPage from './pages/orders/OrdersPage';
 import InvoicesPage from './pages/invoices/InvoicesPage';
 import PaymentsPage from './pages/payments/PaymentsPage';
@@ -34,10 +39,15 @@ function App() {
               <Route path="/users" element={<UsersPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/customers" element={<CustomersPage />} />
+              <Route path="/customers/:id" element={<CustomerDetailPage />} />
               <Route path="/appointments" element={<AppointmentsPage />} />
               <Route path="/appointments/create" element={<CreateAppointmentPage />} />
+              <Route path="/appointments/:id" element={<AppointmentDetailPage />} />
               <Route path="/quotations" element={<QuotationsPage />} />
-              <Route path="/quotations/create" element={<CreateQuotationPage />} />
+              <Route path="/quotations/create" element={<QuotationBuilderPage />} />
+              <Route path="/quotations/:id" element={<QuotationDetailPage />} />
+              <Route path="/catalog" element={<CatalogPage />} />
+              <Route path="/pricing" element={<PricingBuilderPage />} />
               <Route path="/orders" element={<OrdersPage />} />
               <Route path="/invoices" element={<InvoicesPage />} />
               <Route path="/payments" element={<PaymentsPage />} />
