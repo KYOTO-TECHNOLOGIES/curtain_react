@@ -3,15 +3,15 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { 
-  ChevronRight, 
-  User, 
-  MapPin, 
-  FileText, 
-  Phone, 
-  Mail, 
-  MessageSquare, 
-  Globe, 
+import {
+  ChevronRight,
+  User,
+  MapPin,
+  FileText,
+  Phone,
+  Mail,
+  MessageSquare,
+  Globe,
   Users,
   Footprints,
   Calendar as CalendarIcon,
@@ -24,6 +24,7 @@ import { usersApi } from '../../api/users';
 import { useToast } from '../../components/ui/Toast';
 import { useQuery } from '@tanstack/react-query';
 import type { Customer } from '../../types';
+import { FormInput } from '../../components/ui/FormInput';
 
 // ── Zod Schema ─────────────────────────────────────────────────────────────
 const appointmentSchema = z.object({
@@ -67,24 +68,7 @@ const jobTypes = [
   { value: 'repair', label: 'Repair' },
 ];
 
-// ── Reusable Input ─────────────────────────────────────────────────────────
-function FormInput({ label, icon: Icon, error, required, ...props }: any) {
-  return (
-    <div>
-      <label className="block text-[13px] font-bold text-slate-700 mb-1.5">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <div className="relative">
-        {Icon && <Icon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />}
-        <input
-          {...props}
-          className={`w-full ${Icon ? 'pl-11' : 'pl-4'} pr-4 py-3 bg-slate-50/50 border ${error ? 'border-red-300 focus:border-red-400' : 'border-slate-200 focus:border-[#2b5c8f]'} rounded-xl text-[14px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#2b5c8f]/10 transition-all`}
-        />
-      </div>
-      {error && <p className="text-[12px] text-red-500 font-medium mt-1">{error}</p>}
-    </div>
-  );
-}
+
 
 // ── Component ──────────────────────────────────────────────────────────────
 export default function CreateAppointmentPage() {
@@ -93,7 +77,7 @@ export default function CreateAppointmentPage() {
   const { showToast } = useToast();
   const editAppointment = (location.state as { editAppointment?: any } | null)?.editAppointment;
   const isEditingAppointment = Boolean(editAppointment);
-  
+
   const [step, setStep] = useState<1 | 2>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [existingCustomer, setExistingCustomer] = useState<Customer | null>(null);
@@ -138,7 +122,7 @@ export default function CreateAppointmentPage() {
       setValue('source', editAppointment.customer_source || 'whatsapp');
       setValue('jobType', editAppointment.job_type || 'installation');
       setValue('date', editAppointment.appointment_date || new Date().toISOString().split('T')[0]);
-      setValue('time', editAppointment.appointment_time ? editAppointment.appointment_time.slice(0,5) : '09:00 AM');
+      setValue('time', editAppointment.appointment_time ? editAppointment.appointment_time.slice(0, 5) : '09:00 AM');
       setValue('notes', editAppointment.description || '');
       setValue('assignedTo', editAppointment.assigned_to ? String(editAppointment.assigned_to) : '');
       setStep(2);
@@ -229,7 +213,7 @@ export default function CreateAppointmentPage() {
 
   return (
     <div className="space-y-6 animate-page-in font-sans">
-      
+
       {/* ── Page Header ─────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -250,21 +234,18 @@ export default function CreateAppointmentPage() {
           {steps.map((s, i) => (
             <div key={s.num} className="flex items-center gap-3 flex-1">
               <div className="flex items-center gap-3 flex-1">
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-extrabold shrink-0 transition-all ${
-                  step >= s.num
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-extrabold shrink-0 transition-all ${step >= s.num
                     ? 'bg-[#2b5c8f] text-white shadow-md shadow-[#2b5c8f]/20'
                     : 'bg-slate-100 text-slate-400'
-                }`}>
+                  }`}>
                   {step > s.num ? <CheckCircle2 className="w-5 h-5" /> : s.num}
                 </div>
-                <span className={`text-[13px] font-bold whitespace-nowrap ${
-                  step >= s.num ? 'text-slate-800' : 'text-slate-400'
-                }`}>{s.label}</span>
+                <span className={`text-[13px] font-bold whitespace-nowrap ${step >= s.num ? 'text-slate-800' : 'text-slate-400'
+                  }`}>{s.label}</span>
               </div>
               {i < steps.length - 1 && (
-                <div className={`h-0.5 flex-1 rounded-full transition-all ${
-                  step > s.num ? 'bg-[#2b5c8f]' : 'bg-slate-200'
-                }`} />
+                <div className={`h-0.5 flex-1 rounded-full transition-all ${step > s.num ? 'bg-[#2b5c8f]' : 'bg-slate-200'
+                  }`} />
               )}
             </div>
           ))}
@@ -358,11 +339,10 @@ export default function CreateAppointmentPage() {
                       key={src.id}
                       type="button"
                       onClick={() => setValue('source', src.id)}
-                      className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border text-left transition-all ${
-                        selectedSource === src.id
+                      className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border text-left transition-all ${selectedSource === src.id
                           ? 'bg-[#2b5c8f] border-[#2b5c8f] text-white shadow-md shadow-[#2b5c8f]/15'
                           : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                      }`}
+                        }`}
                     >
                       <src.icon className="w-4 h-4 shrink-0" />
                       <span className="text-[13px] font-bold">{src.label}</span>
@@ -393,11 +373,10 @@ export default function CreateAppointmentPage() {
                       const selected = watch('jobType') === jt.value;
                       return (
                         <button key={jt.value} type="button" onClick={() => setValue('jobType', jt.value)}
-                          className={`px-4 py-3 rounded-xl border text-[13px] font-bold transition-all ${
-                            selected
+                          className={`px-4 py-3 rounded-xl border text-[13px] font-bold transition-all ${selected
                               ? 'bg-[#2b5c8f] border-[#2b5c8f] text-white shadow-md shadow-[#2b5c8f]/15'
                               : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                          }`}>
+                            }`}>
                           {jt.label}
                         </button>
                       );
@@ -449,11 +428,10 @@ export default function CreateAppointmentPage() {
                   <div className="grid grid-cols-5 gap-2">
                     {timeSlots.map(slot => (
                       <button key={slot} type="button" onClick={() => setValue('time', slot)}
-                        className={`py-2.5 rounded-xl text-[11px] font-bold transition-all border ${
-                          selectedTime === slot
+                        className={`py-2.5 rounded-xl text-[11px] font-bold transition-all border ${selectedTime === slot
                             ? 'bg-[#2b5c8f] text-white border-[#2b5c8f] shadow-md shadow-[#2b5c8f]/15'
                             : 'bg-white text-slate-500 border-slate-200 hover:border-[#2b5c8f]'
-                        }`}>
+                          }`}>
                         {slot}
                       </button>
                     ))}

@@ -1,20 +1,15 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import {
-  ArrowLeft,
-  Plus,
-  Trash2,
-  Save,
-  Loader2,
-  AlertCircle,
-  ChevronRight,
-} from 'lucide-react';
+import { Plus, Trash2, Save, Loader2, AlertCircle, ChevronRight } from 'lucide-react';
 import { appointmentsApi } from '../../api/appointments';
 import { catalogApi } from '../../api/catalog';
 import { quotationsApi } from '../../api/quotations';
 import { useToast } from '../../components/ui/Toast';
 import Modal from '../../components/ui/Modal';
+import { Card } from '../../components/ui/Card';
+import QuotationHeader from './components/QuotationHeader';
+
 import type { SurfaceSpec } from '../../api/quotations';
 import type { AppointmentDetail, AppointmentListItem } from '../../types';
 
@@ -164,7 +159,7 @@ export default function QuotationBuilderPage() {
         model: models[0]?.id || 0,
         catalog_item: items[0]?.id || 0,
         fabric_code: defaultItem?.code || '',
-        unit_price_per_m2: defaultItem?.unit_price_per_m2 || '0',
+        unit_price_per_m2: defaultItem?.price_per_unit || '0',
         motor_control_type: 'manual',
         motor_type: null,
         motor_price_per_unit: '0',
@@ -220,13 +215,13 @@ export default function QuotationBuilderPage() {
       areas.map((a) =>
         a.tempId === areaId
           ? {
-              ...a,
-              surfaces: a.surfaces.map((s) =>
-                s.tempId === surfaceId
-                  ? { ...s, spec: { ...s.spec, ...specUpdates } }
-                  : s
-              ),
-            }
+            ...a,
+            surfaces: a.surfaces.map((s) =>
+              s.tempId === surfaceId
+                ? { ...s, spec: { ...s.spec, ...specUpdates } }
+                : s
+            ),
+          }
           : a
       )
     );
@@ -309,7 +304,7 @@ export default function QuotationBuilderPage() {
       : 0;
     const pelmetTotal = spec.pelmet_enabled
       ? parseFloat(String(spec.pelmet_price_per_metre)) *
-        (parseFloat(String(spec.pelmet_width_cm)) / 100)
+      (parseFloat(String(spec.pelmet_width_cm)) / 100)
       : 0;
     const addonTotal = parseFloat(String(spec.addon_amount));
 
@@ -319,148 +314,140 @@ export default function QuotationBuilderPage() {
   return (
     <div className="space-y-6 animate-page-in font-sans pb-20">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
-        <button
-          onClick={() => navigate('/quotations')}
-          className="p-2 hover:bg-slate-100 rounded-lg transition"
-        >
-          <ArrowLeft className="w-5 h-5 text-slate-600" />
-        </button>
-        <div>
-          <h1 className="text-[28px] font-extrabold text-[#1e293b]">Build Quotation</h1>
-          <p className="text-sm text-slate-500">Create a new quotation with areas and surfaces</p>
-        </div>
-      </div>
+      <QuotationHeader title="Create New Quotation" subtitle="Configure your bespoke atelier request by defining areas, surfaces, and product specifics." />
 
-      {/* Step 1: Select Appointment */}
-      <div className="bg-white rounded-2xl shadow-md p-6 border border-slate-100">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">Step 1: Select Appointment</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Appointment</label>
-            {appointmentsLoading ? (
-              <div className="flex items-center justify-center py-2">
-                <Loader2 className="w-4 h-4 animate-spin text-[#2b5c8f]" />
+      {/* General Information */}
+      <div className="bg-white rounded-3xl p-8 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 mb-8">
+        <div className="flex items-center gap-2 mb-6">
+          <AlertCircle className="w-5 h-5 text-[#5442f6]" />
+          <h2 className="text-[13px] font-bold text-[#5442f6] uppercase tracking-wider">General Information</h2>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+          <div className="space-y-6">
+            <div>
+              <label className="block text-[15px] font-bold text-slate-700 mb-2">Choose Appointment</label>
+              <div className="relative">
+                {appointmentsLoading ? (
+                  <div className="flex items-center justify-center py-3 bg-slate-50 border border-slate-100 rounded-xl">
+                    <Loader2 className="w-5 h-5 animate-spin text-[#5442f6]" />
+                  </div>
+                ) : (
+                  <select
+                    value={selectedAppointmentId}
+                    onChange={(e) => setSelectedAppointmentId(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-[#5442f6] focus:ring-2 focus:ring-[#5442f6]/20 transition-all font-medium text-slate-700"
+                  >
+                    <option value="">-- Select Appointment --</option>
+                    {appointments.map((appt) => (
+                      <option key={appt.id} value={String(appt.id)}>
+                        #{appt.id} - {appt.customer_name || 'Unknown'}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
-            ) : (
-              <select
-                value={selectedAppointmentId}
-                onChange={(e) => setSelectedAppointmentId(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#2b5c8f] focus:ring-2 focus:ring-[#2b5c8f]/20"
-              >
-                <option value="">-- Select Appointment --</option>
-                {appointments.map((appt) => (
-                  <option key={appt.id} value={String(appt.id)}>
-                    #{appt.id} - {appt.customer_name || 'Unknown'}
-                  </option>
-                ))}
-              </select>
+            </div>
+
+            {selectedAppointmentId && (
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium text-slate-500">Customer:</span>
+                  <span className="text-sm font-bold text-slate-700">{selectedCustomerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium text-slate-500">Email:</span>
+                  <span className="text-sm font-bold text-slate-700">{selectedAppointmentLoading ? 'Loading...' : selectedCustomerEmail}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium text-slate-500">Phone:</span>
+                  <span className="text-sm font-bold text-slate-700">{selectedCustomerPhone}</span>
+                </div>
+              </div>
             )}
           </div>
 
-          {selectedAppointmentId && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Customer Name
-                </label>
-                <input
-                  type="text"
-                  value={selectedCustomerName}
-                  disabled
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-600"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
-                <input
-                  type="email"
-                  value={selectedAppointmentLoading ? 'Loading...' : selectedCustomerEmail}
-                  disabled
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-600"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Phone</label>
-                <input
-                  type="tel"
-                  value={selectedCustomerPhone}
-                  disabled
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-600"
-                />
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Quotation Settings */}
-      {selectedAppointmentId && (
-        <>
-          <div className="bg-white rounded-2xl shadow-md p-6 border border-slate-100">
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">Quotation Settings</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Quote Type</label>
-                <select
-                  value={quotationSettings.quote_type}
-                  onChange={(e) =>
-                    setQuotationSettings({
-                      ...quotationSettings,
-                      quote_type: e.target.value as 'b2c' | 'b2b',
-                    })
-                  }
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#2b5c8f]"
+          <div className="space-y-6">
+            <div>
+              <label className="block text-[15px] font-bold text-slate-700 mb-2">Quotation Type</label>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setQuotationSettings({ ...quotationSettings, quote_type: 'b2c' })}
+                  className={`flex-1 flex items-center gap-3 px-5 py-3.5 rounded-xl border-2 transition-all ${quotationSettings.quote_type === 'b2c'
+                      ? 'border-[#5442f6] bg-[#eef2ff]'
+                      : 'border-slate-100 hover:border-slate-200 bg-white'
+                    }`}
                 >
-                  <option value="b2c">B2C (Retail)</option>
-                  <option value="b2b">B2B (Business)</option>
-                </select>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${quotationSettings.quote_type === 'b2c' ? 'border-[#5442f6]' : 'border-slate-300'
+                    }`}>
+                    {quotationSettings.quote_type === 'b2c' && <div className="w-2.5 h-2.5 rounded-full bg-[#5442f6]" />}
+                  </div>
+                  <span className={`font-bold text-[15px] ${quotationSettings.quote_type === 'b2c' ? 'text-[#1e293b]' : 'text-slate-700'}`}>
+                    B2C (Retail)
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setQuotationSettings({ ...quotationSettings, quote_type: 'b2b' })}
+                  className={`flex-1 flex items-center gap-3 px-5 py-3.5 rounded-xl border-2 transition-all ${quotationSettings.quote_type === 'b2b'
+                      ? 'border-[#5442f6] bg-[#eef2ff]'
+                      : 'border-slate-100 hover:border-slate-200 bg-white'
+                    }`}
+                >
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${quotationSettings.quote_type === 'b2b' ? 'border-[#5442f6]' : 'border-slate-300'
+                    }`}>
+                    {quotationSettings.quote_type === 'b2b' && <div className="w-2.5 h-2.5 rounded-full bg-[#5442f6]" />}
+                  </div>
+                  <span className={`font-bold text-[15px] ${quotationSettings.quote_type === 'b2b' ? 'text-[#1e293b]' : 'text-slate-700'}`}>
+                    B2B (Business)
+                  </span>
+                </button>
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Valid Until</label>
+                <label className="block text-[15px] font-bold text-slate-700 mb-2">
+                  Valid Until <span className="text-[#ef4444]">*</span>
+                </label>
                 <input
                   type="date"
                   value={quotationSettings.valid_until}
-                  onChange={(e) =>
-                    setQuotationSettings({
-                      ...quotationSettings,
-                      valid_until: e.target.value,
-                    })
-                  }
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#2b5c8f]"
+                  onChange={(e) => setQuotationSettings({ ...quotationSettings, valid_until: e.target.value })}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-[#5442f6] focus:ring-2 focus:ring-[#5442f6]/20 transition-all font-medium text-slate-700"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Discount (%)
-                </label>
+                <label className="block text-[15px] font-bold text-slate-700 mb-2">Discount (%)</label>
                 <input
                   type="number"
                   min="0"
                   max="100"
                   step="0.01"
                   value={quotationSettings.discount_percentage}
-                  onChange={(e) =>
-                    setQuotationSettings({
-                      ...quotationSettings,
-                      discount_percentage: parseFloat(e.target.value) || 0,
-                    })
-                  }
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#2b5c8f]"
+                  onChange={(e) => setQuotationSettings({ ...quotationSettings, discount_percentage: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-[#5442f6] focus:ring-2 focus:ring-[#5442f6]/20 transition-all font-medium text-slate-700"
                 />
               </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Step 2: Areas and Surfaces */}
-          <div className="bg-white rounded-2xl shadow-md p-6 border border-slate-100">
+      {/* Step 2: Areas and Surfaces */}
+      {selectedAppointmentId && (
+        <>
+          <div className="bg-white rounded-3xl p-8 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-slate-900">Step 2: Areas & Surfaces</h2>
+              <h2 className="text-[20px] font-extrabold text-[#1e293b]">Configuration</h2>
               <button
                 onClick={() => setShowAddAreaModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-[#2b5c8f] text-white font-medium rounded-lg hover:bg-[#1f456e] transition"
+                className="flex items-center gap-2 px-6 py-3 bg-[#22c55e] text-slate-900 font-extrabold text-[14px] rounded-full shadow-sm hover:bg-[#16a34a] transition-all"
               >
-                <Plus className="w-4 h-4" /> Add Area
+                <div className="flex items-center justify-center w-5 h-5 rounded-full border-[1.5px] border-slate-900">
+                  <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+                </div>
+                Add New Area
               </button>
             </div>
 
@@ -474,32 +461,44 @@ export default function QuotationBuilderPage() {
                 {areas.map((area) => (
                   <div key={area.tempId} className="border border-slate-200 rounded-lg p-4">
                     {/* Area Header */}
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-100">
                       <button
                         onClick={() =>
                           setExpandedAreaId(expandedAreaId === area.tempId ? null : area.tempId)
                         }
-                        className="flex items-center gap-3 flex-1 hover:text-[#2b5c8f] transition"
+                        className="flex items-center gap-4 flex-1 hover:opacity-80 transition"
                       >
-                        <ChevronRight
-                          className={`w-5 h-5 transition-transform ${
-                            expandedAreaId === area.tempId ? 'rotate-90' : ''
-                          }`}
-                        />
-                        <div className="text-left">
-                          <p className="font-semibold text-slate-900">{area.display_name}</p>
-                          <p className="text-xs text-slate-500">{area.area_type}</p>
+                        <div className="w-12 h-12 rounded-xl bg-[#eef2ff] text-[#5442f6] flex items-center justify-center">
+                          <div className="w-5 h-5 border-2 border-current rounded-sm"></div>
+                        </div>
+                        <div className="text-left flex items-center gap-3">
+                          <h3 className="text-[22px] font-extrabold text-[#1e293b]">{area.display_name}</h3>
+                          <ChevronRight
+                            className={`w-5 h-5 text-slate-400 transition-transform ${expandedAreaId === area.tempId ? 'rotate-90' : ''
+                              }`}
+                          />
                         </div>
                       </button>
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded">
-                          {area.surfaces.length} surfaces
-                        </span>
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <select
+                            value={area.area_type}
+                            onChange={(e) => {
+                              const newAreas = [...areas];
+                              const idx = newAreas.findIndex(a => a.tempId === area.tempId);
+                              if (idx !== -1) newAreas[idx].area_type = e.target.value;
+                              setAreas(newAreas);
+                            }}
+                            className="appearance-none bg-white border border-slate-200 text-slate-700 text-[15px] font-medium rounded-xl pl-4 pr-10 py-2.5 outline-none focus:border-[#5442f6] min-w-[180px]"
+                          >
+                            <option value={area.area_type}>{area.area_type}</option>
+                          </select>
+                        </div>
                         <button
                           onClick={() => handleDeleteArea(area.tempId)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"
+                          className="p-3 bg-[#fef2f2] text-[#ef4444] rounded-xl hover:bg-[#fee2e2] transition-colors"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
                     </div>
@@ -590,11 +589,14 @@ export default function QuotationBuilderPage() {
                                       </label>
                                       <select
                                         value={surface.spec.catalog_item}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
+                                          const selectedItemId = Number(e.target.value);
+                                          const selectedItem = items.find((i: any) => i.id === selectedItemId) as any;
                                           handleUpdateSurfaceSpec(area.tempId, surface.tempId, {
-                                            catalog_item: Number(e.target.value),
-                                          })
-                                        }
+                                            catalog_item: selectedItemId,
+                                            unit_price_per_m2: selectedItem?.price_per_unit || surface.spec.unit_price_per_m2,
+                                          });
+                                        }}
                                         className="w-full px-2 py-1.5 rounded text-sm border border-slate-200"
                                       >
                                         {items.map((item: any) => (
@@ -607,17 +609,24 @@ export default function QuotationBuilderPage() {
 
                                     <div>
                                       <label className="block text-xs font-medium text-slate-600 mb-1">
-                                        Price/m² (AED)
+                                        Surface Price (AED)
                                       </label>
                                       <input
                                         type="number"
                                         step="0.01"
-                                        value={surface.spec.unit_price_per_m2}
-                                        onChange={(e) =>
+                                        value={(() => {
+                                          const areaM2 = (Number(surface.width_cm) * Number(surface.height_cm)) / 10000;
+                                          const unitPrice = parseFloat(String(surface.spec.unit_price_per_m2)) || 0;
+                                          return areaM2 > 0 ? (areaM2 * unitPrice).toFixed(2) : '0.00';
+                                        })()}
+                                        onChange={(e) => {
+                                          const areaM2 = (Number(surface.width_cm) * Number(surface.height_cm)) / 10000;
+                                          const newSurfacePrice = parseFloat(e.target.value) || 0;
+                                          const newUnitPrice = areaM2 > 0 ? (newSurfacePrice / areaM2).toFixed(4) : '0';
                                           handleUpdateSurfaceSpec(area.tempId, surface.tempId, {
-                                            unit_price_per_m2: e.target.value,
-                                          })
-                                        }
+                                            unit_price_per_m2: newUnitPrice,
+                                          });
+                                        }}
                                         className="w-full px-2 py-1.5 rounded text-sm border border-slate-200"
                                       />
                                     </div>
@@ -648,11 +657,14 @@ export default function QuotationBuilderPage() {
                                         </label>
                                         <select
                                           value={surface.spec.motor_type || ''}
-                                          onChange={(e) =>
+                                          onChange={(e) => {
+                                            const selectedMotorId = e.target.value ? Number(e.target.value) : null;
+                                            const selectedMotor = selectedMotorId ? motors.find((m: any) => m.id === selectedMotorId) as any : null;
                                             handleUpdateSurfaceSpec(area.tempId, surface.tempId, {
-                                              motor_type: e.target.value ? Number(e.target.value) : null,
-                                            })
-                                          }
+                                              motor_type: selectedMotorId,
+                                              motor_price_per_unit: selectedMotor?.price_per_m2 || '0',
+                                            });
+                                          }}
                                           className="w-full px-2 py-1.5 rounded text-sm border border-slate-200"
                                         >
                                           <option value="">Select</option>
@@ -876,7 +888,7 @@ export default function QuotationBuilderPage() {
             <button
               onClick={handleSaveQuotation}
               disabled={isSaving || !selectedAppointmentId || !selectedCustomerId || areas.length === 0}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#2b5c8f] text-white font-semibold rounded-lg hover:bg-[#1f456e] transition disabled:opacity-60"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#5442f6] text-white font-semibold rounded-lg hover:bg-[#1f456e] transition disabled:opacity-60"
             >
               {isSaving ? (
                 <>
@@ -907,7 +919,7 @@ export default function QuotationBuilderPage() {
               placeholder="e.g., Master Bedroom"
               value={newAreaData.type}
               onChange={(e) => setNewAreaData({ ...newAreaData, type: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#2b5c8f]"
+              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#5442f6]"
             />
           </div>
           <div>
@@ -919,7 +931,7 @@ export default function QuotationBuilderPage() {
               onChange={(e) =>
                 setNewAreaData({ ...newAreaData, display_name: e.target.value })
               }
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#2b5c8f]"
+              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#5442f6]"
             />
           </div>
           <div className="flex gap-3 pt-2">
@@ -931,7 +943,7 @@ export default function QuotationBuilderPage() {
             </button>
             <button
               onClick={handleAddArea}
-              className="flex-1 px-4 py-2 rounded-lg bg-[#2b5c8f] text-white font-medium hover:bg-[#1f456e]"
+              className="flex-1 px-4 py-2 rounded-lg bg-[#5442f6] text-white font-medium hover:bg-[#1f456e]"
             >
               Add Area
             </button>
@@ -956,7 +968,7 @@ export default function QuotationBuilderPage() {
               onChange={(e) =>
                 setNewSurfaceData({ ...newSurfaceData, surface_name: e.target.value })
               }
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#2b5c8f]"
+              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#5442f6]"
             />
           </div>
           <div>
@@ -966,7 +978,7 @@ export default function QuotationBuilderPage() {
               onChange={(e) =>
                 setNewSurfaceData({ ...newSurfaceData, surface_type: e.target.value })
               }
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#2b5c8f]"
+              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#5442f6]"
             >
               <option value="window">Window</option>
               <option value="wall">Wall</option>
@@ -983,7 +995,7 @@ export default function QuotationBuilderPage() {
                 onChange={(e) =>
                   setNewSurfaceData({ ...newSurfaceData, width_cm: e.target.value })
                 }
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#2b5c8f]"
+                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#5442f6]"
               />
             </div>
             <div>
@@ -995,7 +1007,7 @@ export default function QuotationBuilderPage() {
                 onChange={(e) =>
                   setNewSurfaceData({ ...newSurfaceData, height_cm: e.target.value })
                 }
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#2b5c8f]"
+                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#5442f6]"
               />
             </div>
           </div>
@@ -1008,7 +1020,7 @@ export default function QuotationBuilderPage() {
             </button>
             <button
               onClick={handleAddSurface}
-              className="flex-1 px-4 py-2 rounded-lg bg-[#2b5c8f] text-white font-medium hover:bg-[#1f456e]"
+              className="flex-1 px-4 py-2 rounded-lg bg-[#5442f6] text-white font-medium hover:bg-[#1f456e]"
             >
               Add Surface
             </button>
