@@ -71,12 +71,20 @@ export default function CatalogPage() {
     queryFn: () => catalogApi.charges(),
   });
 
-  const workTypes = workTypesRes?.data || [];
-  const fabricTypes = fabricTypesRes?.data || [];
-  const models = modelsRes?.data || [];
-  const items = itemsRes?.data || [];
-  const motors = motorsRes?.data || [];
-  const charges = chargesRes?.data || [];
+  const toArray = <T,>(res: any): T[] => {
+    const d = res?.data;
+    if (Array.isArray(d)) return d;
+    if (Array.isArray(d?.results)) return d.results;
+    if (Array.isArray(res)) return res;
+    return [];
+  };
+
+  const workTypes = toArray<WorkType>(workTypesRes);
+  const fabricTypes = toArray<FabricType>(fabricTypesRes);
+  const models = toArray<CatalogModel>(modelsRes);
+  const items = toArray<CatalogItem>(itemsRes);
+  const motors = toArray<MotorType>(motorsRes);
+  const charges = toArray<ChargeTemplate>(chargesRes);
 
   const openCreate = () => {
     if (activeTab === 'items' && models.length === 0) {

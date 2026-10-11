@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -86,7 +86,14 @@ export default function CreateAppointmentPage() {
     queryKey: ['users'],
     queryFn: () => usersApi.list()
   });
-  const users = usersRes?.data || [];
+  const users = useMemo(() => {
+    const raw = usersRes?.data;
+    if (Array.isArray(raw)) return raw;
+    if (Array.isArray((raw as any)?.results)) return (raw as any).results;
+    if (Array.isArray((raw as any)?.data)) return (raw as any).data;
+    if (Array.isArray(usersRes)) return usersRes as any;
+    return [];
+  }, [usersRes]);
 
   const {
     register,
@@ -390,7 +397,7 @@ export default function CreateAppointmentPage() {
                     className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200 rounded-xl text-[14px] font-semibold text-slate-800 outline-none focus:border-[#2b5c8f] focus:ring-2 focus:ring-[#2b5c8f]/10 transition-all"
                   >
                     <option value="">— Unassigned —</option>
-                    {users.map(u => (
+                    {(Array.isArray(users) ? users : []).map((u) => (
                       <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>
                     ))}
                   </select>

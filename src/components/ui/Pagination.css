@@ -1,0 +1,223 @@
+/* ── Pagination Component ─────────────────────────────── */
+
+.pagination-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-top: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, #fafbfc 0%, #ffffff 100%);
+  border-radius: 0 0 16px 16px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pagination-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.pagination-info-highlight {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.pagination-info-divider {
+  width: 1px;
+  height: 16px;
+  background: #e2e8f0;
+  margin: 0 4px;
+}
+
+/* ── Page Size Selector ──────────────────────────────── */
+.pagination-page-size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.pagination-page-size select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 6px 28px 6px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 8px center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+  min-width: 60px;
+}
+
+.pagination-page-size select:hover {
+  border-color: #cbd5e1;
+  background-color: #f8fafc;
+}
+
+.pagination-page-size select:focus {
+  border-color: #2b5c8f;
+  box-shadow: 0 0 0 3px rgba(43, 92, 143, 0.1);
+}
+
+/* ── Navigation Controls ─────────────────────────────── */
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.pagination-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled):not(.pagination-btn--active) {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #1e293b;
+  transform: translateY(-1px);
+}
+
+.pagination-btn:hover:not(:disabled):not(.pagination-btn--active)::before {
+  opacity: 0.04;
+}
+
+.pagination-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.pagination-btn--active {
+  background: linear-gradient(135deg, #2b5c8f 0%, #1f456e 100%);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px -2px rgba(43, 92, 143, 0.4),
+              0 1px 3px rgba(43, 92, 143, 0.2);
+  font-weight: 700;
+}
+
+.pagination-btn--active:hover {
+  background: linear-gradient(135deg, #234f7d 0%, #1a3c60 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -2px rgba(43, 92, 143, 0.45),
+              0 2px 4px rgba(43, 92, 143, 0.25);
+}
+
+/* Arrow buttons */
+.pagination-btn--arrow {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.pagination-btn--arrow:hover:not(:disabled) {
+  color: #2b5c8f;
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+
+.pagination-btn--arrow svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.5;
+}
+
+/* Ellipsis */
+.pagination-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: #94a3b8;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  user-select: none;
+}
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 640px) {
+  .pagination-wrapper {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .pagination-info {
+    order: 2;
+    font-size: 12px;
+  }
+
+  .pagination-controls {
+    order: 1;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .pagination-page-size {
+    order: 3;
+    font-size: 12px;
+  }
+
+  .pagination-btn {
+    min-width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+}
+
+/* ── Animation ───────────────────────────────────────── */
+@keyframes pagination-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pagination-wrapper {
+  animation: pagination-fade-in 0.3s ease-out;
+}

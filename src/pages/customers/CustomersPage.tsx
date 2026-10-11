@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -11,22 +11,28 @@ import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import { FormInput } from '../../components/ui/FormInput';
 import { useToast } from '../../components/ui/Toast';
 import { customerSchema, type CustomerFormValues } from '../../lib/validationSchemas';
-
-
+import { Pagination } from '../../components/ui/Pagination';
+import { usePagination } from '../../hooks/usePagination';
 
 export default function CustomersPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const pagination = usePagination();
 
   // Debounce search for backend call
-  React.useEffect(() => {
+  useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-    }, 500);
+    }, 400);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // Reset page when search changes
+  useEffect(() => {
+    pagination.resetPage();
+  }, [debouncedSearch]);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -45,11 +51,23 @@ export default function CustomersPage() {
   const { register, handleSubmit, reset, formState: { errors } } = form;
 
   const { data: customersRes, isLoading, refetch } = useQuery({
-    queryKey: ['customers', debouncedSearch],
-    queryFn: () => customersApi.list(debouncedSearch || undefined)
+    queryKey: ['customers', debouncedSearch, pagination.currentPage, pagination.pageSize],
+    queryFn: () => customersApi.list({
+      search: debouncedSearch || undefined,
+      limit: pagination.limit,
+      offset: pagination.offset,
+    })
   });
 
-  const customers = customersRes?.data || [];
+  const { items: customers, totalCount } = useMemo(() => {
+    const raw = customersRes?.data;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw) && Array.isArray((raw as any).results)) {
+      return { items: (raw as any).results as Customer[], totalCount: (raw as any).count as number };
+    }
+    if (Array.isArray(raw)) return { items: raw, totalCount: raw.length };
+    if (Array.isArray(customersRes)) return { items: customersRes as any, totalCount: (customersRes as any).length };
+    return { items: [] as Customer[], totalCount: 0 };
+  }, [customersRes]);
   const loading = isLoading;
 
   const load = () => {
@@ -141,7 +159,7 @@ export default function CustomersPage() {
             />
           </div>
           <div className="text-sm text-slate-500 font-medium">
-            {filtered.length} {filtered.length === 1 ? 'customer' : 'customers'}
+            {totalCount} {totalCount === 1 ? 'customer' : 'customers'}
           </div>
         </div>
 
@@ -224,6 +242,16 @@ export default function CustomersPage() {
           </table>
         </div>
       </div>
+
+      {/* Pagination */}
+      <Pagination
+        totalCount={totalCount}
+        currentPage={pagination.currentPage}
+        pageSize={pagination.pageSize}
+        onPageChange={pagination.goToPage}
+        onPageSizeChange={pagination.setPageSize}
+        loading={isLoading}
+      />
 
       {/* Form Modal */}
       <Modal open={formOpen} onClose={() => setFormOpen(false)} title={editingCustomer ? 'Edit Customer' : 'Create Customer'} maxWidth="max-w-2xl">

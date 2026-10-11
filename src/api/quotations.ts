@@ -84,7 +84,7 @@ export interface QuotationDetail {
 }
 
 export const quotationsApi = {
-  list: (params?: any) => api.get<QuotationListItem[]>('quotations/', { params }),
+  list: (params?: any) => api.get<QuotationListItem[]>('quotations/', { params: { ...params } }),
   stats: () => api.get<QuotationStats>('quotations/stats/'),
   get: (id: string | number) => api.get<QuotationDetail>(`quotations/${id}/`),
   create: (data: any) => api.post<QuotationDetail>('quotations/', data),

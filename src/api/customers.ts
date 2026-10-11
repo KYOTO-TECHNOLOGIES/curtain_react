@@ -1,9 +1,18 @@
 import { api } from './client';
 import type { Customer, CreateCustomerRequest, UpdateCustomerRequest, CustomerLookupResponse, CreateOrGetCustomerResponse } from '../types';
 
+export interface CustomerListParams {
+  search?: string;
+  limit?: number;
+  offset?: number;
+  [key: string]: any;
+}
+
 export const customersApi = {
-  list: (search?: string) =>
-    api.get<Customer[]>('customers/', { params: search ? { search } : undefined }),
+  list: (params?: CustomerListParams | string) => {
+    const queryParams = typeof params === 'string' ? { search: params } : params;
+    return api.get<Customer[]>('customers/', { params: queryParams });
+  },
 
   get: (id: number) =>
     api.get<Customer>(`customers/${id}/`),

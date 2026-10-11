@@ -28,8 +28,16 @@ export default function RolesPage() {
     queryFn: () => permissionsApi.list()
   });
 
-  const roles = rolesRes?.data || [];
-  const permissions = permissionsRes?.data || [];
+  const toArray = <T,>(res: any): T[] => {
+    const d = res?.data;
+    if (Array.isArray(d)) return d;
+    if (Array.isArray(d?.results)) return d.results;
+    if (Array.isArray(res)) return res;
+    return [];
+  };
+
+  const roles = toArray<Role>(rolesRes);
+  const permissions = toArray<Permission>(permissionsRes);
   const loading = loadingRoles || loadingPermissions;
 
   const load = () => {

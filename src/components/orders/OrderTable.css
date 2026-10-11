@@ -1,0 +1,193 @@
+/* ── Order Table Custom Styles ─────────────────────────────────── */
+
+/* ── Column Widths ─────────────────────────────────────────────── */
+.ord-col-id { width: 115px; }
+.ord-col-customer { width: auto; min-width: 220px; }
+.ord-col-quote { width: 130px; }
+.ord-col-prod { width: 140px; }
+.ord-col-status { width: 155px; }
+.ord-col-invoice { width: 135px; }
+.ord-col-actions { width: 195px; }
+
+/* ── Order ID Chip ─────────────────────────────────────────────── */
+.order-id-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background-color: #F8FAFC;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.order-id-icon {
+  width: 14px;
+  height: 14px;
+  color: #94A3B8;
+  flex-shrink: 0;
+}
+
+/* ── Quote Chip ────────────────────────────────────────────────── */
+.order-quote-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 7px;
+  background-color: #F1F5F9;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.order-quote-chip:hover {
+  background-color: #E2E8F0;
+  color: #0F172A;
+}
+
+/* ── Production Days Cell ──────────────────────────────────────── */
+.order-prod-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.order-prod-icon {
+  width: 14px;
+  height: 14px;
+  color: #94A3B8;
+  flex-shrink: 0;
+}
+
+.order-prod-days {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0F172A;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Invoice Pill ──────────────────────────────────────────────── */
+.order-invoice-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background-color: #F8FAFC;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.order-no-invoice {
+  font-size: 12px;
+  font-weight: 500;
+  color: #94A3B8;
+  white-space: nowrap;
+}
+
+/* ── Actions Cell ──────────────────────────────────────────────── */
+.order-actions-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.order-inv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid rgba(47, 93, 143, 0.15);
+  background-color: #EEF4FA;
+  color: #2F5D8F;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.order-inv-btn:hover {
+  background-color: #2F5D8F;
+  color: #FFFFFF;
+}
+
+.order-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background-color: #0F172A;
+  color: #FFFFFF;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+
+.order-view-btn:hover {
+  background-color: #1E293B;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
+}
+
+.order-view-btn:focus-visible {
+  outline: 2px solid #0F172A;
+  outline-offset: 1px;
+}
+
+/* ── Responsive ────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .order-inv-btn .order-btn-label,
+  .order-view-btn .order-btn-label {
+    display: none;
+  }
+  .order-inv-btn,
+  .order-view-btn {
+    padding: 0 10px;
+  }
+}
+
+@media (max-width: 767px) {
+  .ord-col-status {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+  }
+  .order-actions-cell {
+    width: 100%;
+    margin-top: 8px;
+  }
+  .order-inv-btn,
+  .order-view-btn {
+    flex: 1;
+    justify-content: center;
+  }
+  .order-btn-label {
+    display: inline !important;
+  }
+}

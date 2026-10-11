@@ -1,0 +1,282 @@
+/* ── Status Summary & Stat Cards (Design Spells Micro-interactions) ── */
+
+/* 1. Entrance animation: fade and slide up 12px with soft cubic-bezier */
+@keyframes statusCardRise {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.status-stat-card-enter {
+  animation: statusCardRise 500ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+/* ── Responsive Grids for Status Summary ───────────────────── */
+.status-summary-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .status-summary-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.status-summary-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .status-summary-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .status-summary-grid-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.status-summary-grid-5 {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .status-summary-grid-5 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .status-summary-grid-5 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .status-summary-grid-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+/* 2. Card base styling: compact horizontal grid (74px fixed height) */
+.status-stat-card {
+  --mx: 50%;
+  --my: 50%;
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  column-gap: 12px;
+  padding: 10px 14px;
+  height: 74px;
+  border-radius: 15px;
+  background-color: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 16px -6px rgba(15, 23, 42, 0.08);
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1),
+              background-color 200ms ease;
+  outline: none;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+@media (min-width: 1280px) and (max-width: 1536px) {
+  .status-summary-grid-5 .status-stat-card {
+    padding: 10px 12px;
+    column-gap: 10px;
+  }
+}
+
+/* Cursor-following spotlight pseudo-element */
+.status-stat-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(130px circle at var(--mx, 50%) var(--my, 50%), var(--status-spotlight, transparent), transparent 70%);
+  opacity: 0;
+  transition: opacity 220ms ease;
+  z-index: 2;
+}
+
+/* Hover: Lift 2px, deeper shadow, spotlight reveals */
+.status-stat-card:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06), 0 12px 24px -6px rgba(15, 23, 42, 0.12);
+}
+
+.status-stat-card:hover:not(:disabled)::after {
+  opacity: 1;
+}
+
+/* Press: scale down to 0.985 with quick spring-back */
+.status-stat-card:active:not(:disabled) {
+  transform: scale(0.985);
+  transition-duration: 90ms;
+}
+
+/* Focus-visible ring */
+.status-stat-card:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 3.5px var(--status-color), 0 4px 14px -2px var(--status-active-glow);
+}
+
+/* Active filter state: box-shadow border & glow, tinted surface */
+.status-stat-card.is-active {
+  background-color: var(--status-active-bg);
+  box-shadow: 0 0 0 1.5px var(--status-color), 0 0 0 4px var(--status-active-glow);
+}
+
+.status-stat-card.is-active:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 1.5px var(--status-color), 0 0 0 4px var(--status-active-glow), 0 8px 20px -6px rgba(15, 23, 42, 0.12);
+}
+
+/* Active 3px left edge bar with scaleY animation */
+.status-active-bar {
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-top-right-radius: 3px;
+  border-bottom-right-radius: 3px;
+  transform: scaleY(0);
+  transform-origin: center;
+  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.status-stat-card.is-active .status-active-bar {
+  transform: scaleY(1);
+}
+
+/* Soft status-tint radial wash behind the icon (about 8% opacity) */
+.status-icon-wash {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 3. Icon Badge: 36px, radius 11px, faint inner ring */
+.status-icon-badge {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px var(--status-inner-ring);
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 3;
+}
+
+/* Icon badge hover: tilts -6deg and scales 1.06 */
+.status-stat-card:hover:not(:disabled) .status-icon-badge {
+  transform: scale(1.06) rotate(-6deg);
+}
+
+/* 4. In Progress activity indicator: gentle pulsing ring and slow rotation */
+.status-pulse-ring {
+  position: absolute;
+  inset: -2.5px;
+  border-radius: 13.5px;
+  border: 1.5px solid currentColor;
+  pointer-events: none;
+  animation: gentlePulseRing 2.6s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+}
+
+@keyframes gentlePulseRing {
+  0% {
+    transform: scale(0.94);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}
+
+@keyframes slowSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-slow-spin {
+  animation: slowSpin 8s linear infinite;
+}
+
+/* 5. Completed Check animation: draws itself on load and redraws on hover */
+@keyframes drawCheckPath {
+  0% {
+    stroke-dashoffset: 18;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.completed-check-path {
+  stroke-dasharray: 18;
+  stroke-dashoffset: 0;
+  animation: drawCheckPath 650ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.status-stat-card:hover .completed-check-path {
+  animation: drawCheckPath 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* 6. Accessibility & prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .status-stat-card-enter,
+  .status-stat-card,
+  .status-icon-badge,
+  .status-pulse-ring,
+  .status-active-bar,
+  .animate-slow-spin,
+  .completed-check-path {
+    animation: none !important;
+    transform: none !important;
+    transition: opacity 100ms ease, background-color 100ms ease !important;
+  }
+
+  .status-stat-card:hover:not(:disabled),
+  .status-stat-card:active:not(:disabled) {
+    transform: none !important;
+  }
+
+  .status-stat-card:hover:not(:disabled) .status-icon-badge {
+    transform: none !important;
+  }
+}

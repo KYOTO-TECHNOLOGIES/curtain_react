@@ -1,0 +1,186 @@
+/* ── Invoice Table Custom Styles ───────────────────────────────── */
+
+/* ── Column Widths ─────────────────────────────────────────────── */
+.inv-col-id { width: 145px; }
+.inv-col-customer { width: auto; min-width: 220px; }
+.inv-col-amount { width: 160px; }
+.inv-col-timeline { width: 175px; }
+.inv-col-status { width: 150px; }
+.inv-col-actions { width: 205px; }
+
+/* ── Invoice ID & Quote Reference ──────────────────────────────── */
+.inv-id-container {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.inv-id-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background-color: #F8FAFC;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #0F172A;
+  white-space: nowrap;
+  width: fit-content;
+}
+
+.inv-id-icon {
+  width: 14px;
+  height: 14px;
+  color: #2F5D8F;
+  flex-shrink: 0;
+}
+
+.inv-quote-ref {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #64748B;
+  padding-left: 2px;
+  white-space: nowrap;
+}
+
+.inv-quote-ref-code {
+  font-weight: 600;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Total / Balance Amount Cell ───────────────────────────────── */
+.inv-amount-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inv-amount-total {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: #0F172A;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.inv-amount-due {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #EF4444;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.inv-amount-paid-full {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #059669;
+  white-space: nowrap;
+}
+
+/* ── Timeline Cell ─────────────────────────────────────────────── */
+.inv-timeline-container {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.inv-timeline-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.inv-timeline-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748B;
+  width: 48px;
+  flex-shrink: 0;
+}
+
+.inv-timeline-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Actions Cell ──────────────────────────────────────────────── */
+.inv-actions-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.inv-payment-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 34px;
+  padding: 0 11px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid rgba(47, 93, 143, 0.15);
+  background-color: #EEF4FA;
+  color: #2F5D8F;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.inv-payment-btn:hover {
+  background-color: #2F5D8F;
+  border-color: #2F5D8F;
+  color: #FFFFFF;
+}
+
+.inv-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background-color: #0F172A;
+  color: #FFFFFF;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+
+.inv-view-btn:hover {
+  background-color: #1E293B;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
+}
+
+.inv-view-btn:focus-visible {
+  outline: 2px solid #0F172A;
+  outline-offset: 1px;
+}
