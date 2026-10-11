@@ -1,30 +1,53 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, Filter, Loader2, Search } from 'lucide-react';
 import { activitiesApi } from '../../api/activities';
+import { Pagination } from '../../components/ui/Pagination';
+import { usePagination } from '../../hooks/usePagination';
+import type { ActivityLog } from '../../types';
 
 const targetTypeOptions = ['all', 'worktype', 'fabrictype', 'model', 'item', 'motor', 'charge'];
 
 export default function ActivitiesPage() {
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedType, setSelectedType] = useState('all');
+  const pagination = usePagination();
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    pagination.resetPage();
+  }, [selectedType, debouncedSearch]);
 
   const activitiesQuery = useQuery({
-    queryKey: ['activities', 'logs'],
-    queryFn: () => activitiesApi.list(),
+    queryKey: ['activities', 'logs', selectedType, debouncedSearch, pagination.currentPage, pagination.pageSize],
+    queryFn: () => activitiesApi.list({
+      ...(selectedType !== 'all' ? { content_type: selectedType } : {}),
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+      limit: pagination.limit,
+      offset: pagination.offset,
+    }),
   });
 
-  const filteredLogs = useMemo(() => {
-    const logs = activitiesQuery.data?.data ?? [];
-    const term = search.trim().toLowerCase();
+  const { logs, totalCount } = useMemo(() => {
+    const raw = activitiesQuery.data?.data;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw) && Array.isArray((raw as any).results)) {
+      return { logs: (raw as any).results as ActivityLog[], totalCount: (raw as any).count as number };
+    }
+    if (Array.isArray(raw)) return { logs: raw, totalCount: raw.length };
+    if (Array.isArray(activitiesQuery.data)) return { logs: activitiesQuery.data as any, totalCount: (activitiesQuery.data as any).length };
+    return { logs: [], totalCount: 0 };
+  }, [activitiesQuery.data]);
 
-    return logs.filter((log) => {
-      const matchesType = selectedType === 'all' || log.target_type === selectedType;
-      const haystack = `${log.action} ${log.user_email} ${log.target_type} ${JSON.stringify(log.details ?? {})}`.toLowerCase();
-      const matchesSearch = !term || haystack.includes(term);
-      return matchesType && matchesSearch;
-    });
-  }, [activitiesQuery.data?.data, search, selectedType]);
+  const filteredLogs = logs;
 
   const isLoading = activitiesQuery.isLoading;
   const isError = activitiesQuery.isError;
@@ -118,6 +141,16 @@ export default function ActivitiesPage() {
             </div>
           </div>
         )}
+
+        {/* Pagination */}
+        <Pagination
+          totalCount={totalCount}
+          currentPage={pagination.currentPage}
+          pageSize={pagination.pageSize}
+          onPageChange={pagination.goToPage}
+          onPageSizeChange={pagination.setPageSize}
+          loading={isLoading}
+        />
       </div>
     </div>
   );

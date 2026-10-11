@@ -1,15 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  AlertTriangle,
-  ChevronDown,
-  Edit2,
   Loader2,
-  Plus,
   Search,
-  Trash2,
-  Truck,
+  X,
+  ArrowDownRight,
+  ArrowUpRight,
+  SlidersHorizontal,
+  Package,
+  Building2,
   Warehouse,
+  Truck,
+  RotateCcw,
 } from 'lucide-react';
 import { inventoryApi } from '../../api/inventory';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
@@ -26,7 +28,18 @@ import type {
   Supplier,
 } from '../../types';
 
-type TabType = 'items' | 'suppliers' | 'reorders' | 'movements';
+// Design Spells Components
+import { InventoryPageHeader } from '../../components/inventory/InventoryPageHeader';
+import { InventoryStatCards } from '../../components/inventory/InventoryStatCards';
+import { InventoryTabs, type InventoryTabType } from '../../components/inventory/InventoryTabs';
+import { InventoryFilterBar } from '../../components/inventory/InventoryFilterBar';
+import { InventoryItemsTable } from '../../components/inventory/InventoryItemsTable';
+import { InventorySuppliersTable } from '../../components/inventory/InventorySuppliersTable';
+import { InventoryReordersTable } from '../../components/inventory/InventoryReordersTable';
+import { InventoryMovementsTable } from '../../components/inventory/InventoryMovementsTable';
+import { Pagination } from '../../components/ui/Pagination';
+import { usePagination } from '../../hooks/usePagination';
+import '../../components/appointments/FilterBar.css';
 
 const CATEGORIES: { value: InventoryCategory; label: string }[] = [
   { value: 'fabric', label: 'Fabric' },
@@ -68,23 +81,55 @@ const emptySupplierForm: CreateSupplierRequest = {
   notes: '',
 };
 
-const formatCurrency = (amount: number | string) => {
-  const num = typeof amount === 'string' ? parseFloat(amount || '0') : amount;
-  return new Intl.NumberFormat('en-AE', { style: 'currency', currency: 'AED' }).format(num || 0);
-};
-
-const formatQty = (qty: number | string) => {
+function formatQty(qty: number | string): string {
   const num = typeof qty === 'string' ? parseFloat(qty || '0') : qty;
   return Number.isInteger(num) ? String(num) : num.toFixed(2);
-};
+}
 
 export default function InventoryPage() {
   const { showToast } = useToast();
-  const [tab, setTab] = useState<TabType>('items');
-  const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [tab, setTab] = useState<InventoryTabType>('items');
 
+  // Filters
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [stockStatusFilter, setStockStatusFilter] = useState('');
+  const [supplierFilter, setSupplierFilter] = useState('');
+  const [lowStockCardActive, setLowStockCardActive] = useState<boolean>(false);
+
+  // Pagination for tabs
+  const itemsPagination = usePagination();
+  const suppliersPagination = usePagination();
+  const reordersPagination = usePagination();
+  const movementsPagination = usePagination();
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    itemsPagination.resetPage();
+  }, [categoryFilter, stockStatusFilter, supplierFilter, lowStockCardActive, debouncedSearch]);
+
+  useEffect(() => {
+    suppliersPagination.resetPage();
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    reordersPagination.resetPage();
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    movementsPagination.resetPage();
+  }, [debouncedSearch]);
+
+  // Modals state
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [itemForm, setItemForm] = useState<CreateInventoryItemRequest>(emptyItemForm);
@@ -105,31 +150,55 @@ export default function InventoryPage() {
   });
 
   const [reorderModalOpen, setReorderModalOpen] = useState(false);
-  const [reorderForm, setReorderForm] = useState({ item: 0, quantity: '', supplier: null as number | null, notes: '' });
-  const [saving, setSaving] = useState(false);
+  const [reorderForm, setReorderForm] = useState({
+    item: 0,
+    quantity: '',
+    supplier: null as number | null,
+    notes: '',
+  });
 
+  const [saving, setSaving] = useState(false);
+  const [isReorderingLowStock, setIsReorderingLowStock] = useState(false);
+
+  // Queries
   const itemsQuery = useQuery({
-    queryKey: ['inventory-items', categoryFilter, lowStockOnly],
+    queryKey: ['inventory-items', categoryFilter, lowStockCardActive || stockStatusFilter === 'low', supplierFilter, debouncedSearch, itemsPagination.currentPage, itemsPagination.pageSize],
     queryFn: () =>
       inventoryApi.listItems({
         ...(categoryFilter ? { category: categoryFilter } : {}),
-        ...(lowStockOnly ? { low_stock: true } : {}),
+        ...(lowStockCardActive || stockStatusFilter === 'low' ? { low_stock: true } : {}),
+        ...(supplierFilter ? { supplier: supplierFilter } : {}),
+        ...(debouncedSearch ? { search: debouncedSearch } : {}),
+        limit: itemsPagination.limit,
+        offset: itemsPagination.offset,
       }),
   });
 
   const suppliersQuery = useQuery({
-    queryKey: ['inventory-suppliers'],
-    queryFn: () => inventoryApi.listSuppliers(),
+    queryKey: ['inventory-suppliers', debouncedSearch, suppliersPagination.currentPage, suppliersPagination.pageSize],
+    queryFn: () => inventoryApi.listSuppliers({
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+      limit: suppliersPagination.limit,
+      offset: suppliersPagination.offset,
+    }),
   });
 
   const reordersQuery = useQuery({
-    queryKey: ['inventory-reorders'],
-    queryFn: () => inventoryApi.listReorders(),
+    queryKey: ['inventory-reorders', debouncedSearch, reordersPagination.currentPage, reordersPagination.pageSize],
+    queryFn: () => inventoryApi.listReorders({
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+      limit: reordersPagination.limit,
+      offset: reordersPagination.offset,
+    }),
   });
 
   const movementsQuery = useQuery({
-    queryKey: ['inventory-movements'],
-    queryFn: () => inventoryApi.listMovements(),
+    queryKey: ['inventory-movements', debouncedSearch, movementsPagination.currentPage, movementsPagination.pageSize],
+    queryFn: () => inventoryApi.listMovements({
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+      limit: movementsPagination.limit,
+      offset: movementsPagination.offset,
+    }),
   });
 
   const statsQuery = useQuery({
@@ -137,35 +206,47 @@ export default function InventoryPage() {
     queryFn: () => inventoryApi.stats(),
   });
 
-  const items = itemsQuery.data?.data || [];
-  const suppliers = suppliersQuery.data?.data || [];
-  const reorders = reordersQuery.data?.data || [];
-  const movements = movementsQuery.data?.data || [];
+  const { items, paginatedItemsTotal } = useMemo(() => {
+    const raw = itemsQuery.data?.data;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw) && Array.isArray((raw as any).results)) {
+      return { items: (raw as any).results as InventoryItem[], paginatedItemsTotal: (raw as any).count as number };
+    }
+    if (Array.isArray(raw)) return { items: raw, paginatedItemsTotal: raw.length };
+    if (Array.isArray(itemsQuery.data)) return { items: itemsQuery.data as any, paginatedItemsTotal: (itemsQuery.data as any).length };
+    return { items: [], paginatedItemsTotal: 0 };
+  }, [itemsQuery.data]);
+
+  const { suppliers, paginatedSuppliersTotal } = useMemo(() => {
+    const raw = suppliersQuery.data?.data;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw) && Array.isArray((raw as any).results)) {
+      return { suppliers: (raw as any).results as Supplier[], paginatedSuppliersTotal: (raw as any).count as number };
+    }
+    if (Array.isArray(raw)) return { suppliers: raw, paginatedSuppliersTotal: raw.length };
+    if (Array.isArray(suppliersQuery.data)) return { suppliers: suppliersQuery.data as any, paginatedSuppliersTotal: (suppliersQuery.data as any).length };
+    return { suppliers: [], paginatedSuppliersTotal: 0 };
+  }, [suppliersQuery.data]);
+
+  const { reorders, paginatedReordersTotal } = useMemo(() => {
+    const raw = reordersQuery.data?.data;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw) && Array.isArray((raw as any).results)) {
+      return { reorders: (raw as any).results as ReorderRequest[], paginatedReordersTotal: (raw as any).count as number };
+    }
+    if (Array.isArray(raw)) return { reorders: raw, paginatedReordersTotal: raw.length };
+    if (Array.isArray(reordersQuery.data)) return { reorders: reordersQuery.data as any, paginatedReordersTotal: (reordersQuery.data as any).length };
+    return { reorders: [], paginatedReordersTotal: 0 };
+  }, [reordersQuery.data]);
+
+  const { movements, paginatedMovementsTotal } = useMemo(() => {
+    const raw = movementsQuery.data?.data;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw) && Array.isArray((raw as any).results)) {
+      return { movements: (raw as any).results as StockMovement[], paginatedMovementsTotal: (raw as any).count as number };
+    }
+    if (Array.isArray(raw)) return { movements: raw, paginatedMovementsTotal: raw.length };
+    if (Array.isArray(movementsQuery.data)) return { movements: movementsQuery.data as any, paginatedMovementsTotal: (movementsQuery.data as any).length };
+    return { movements: [], paginatedMovementsTotal: 0 };
+  }, [movementsQuery.data]);
+
   const stats = statsQuery.data?.data || null;
-
-  const filteredItems = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return items;
-    return items.filter(
-      (i) =>
-        i.sku.toLowerCase().includes(term) ||
-        i.name.toLowerCase().includes(term) ||
-        (i.location || '').toLowerCase().includes(term) ||
-        (i.supplier_name || '').toLowerCase().includes(term)
-    );
-  }, [items, search]);
-
-  const filteredSuppliers = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return suppliers;
-    return suppliers.filter(
-      (s) =>
-        s.name.toLowerCase().includes(term) ||
-        (s.contact_person || '').toLowerCase().includes(term) ||
-        (s.phone || '').toLowerCase().includes(term) ||
-        (s.email || '').toLowerCase().includes(term)
-    );
-  }, [suppliers, search]);
 
   const refreshAll = () => {
     itemsQuery.refetch();
@@ -175,6 +256,91 @@ export default function InventoryPage() {
     statsQuery.refetch();
   };
 
+  const totalItemsCount = paginatedItemsTotal || stats?.total_items || items.length;
+  const totalSuppliersCount = paginatedSuppliersTotal || suppliers.length;
+  const totalReordersCount = paginatedReordersTotal || reorders.length;
+  const totalMovementsCount = paginatedMovementsTotal || movements.length;
+
+  // Filtered Items logic
+  const filteredItems = useMemo(() => {
+    let result = items;
+
+    // Search query
+    const term = search.trim().toLowerCase();
+    if (term) {
+      result = result.filter(
+        (i) =>
+          i.sku.toLowerCase().includes(term) ||
+          i.name.toLowerCase().includes(term) ||
+          (i.location || '').toLowerCase().includes(term) ||
+          (i.supplier_name || '').toLowerCase().includes(term)
+      );
+    }
+
+    // Category filter
+    if (categoryFilter) {
+      result = result.filter((i) => i.category === categoryFilter);
+    }
+
+    // Stock Status filter
+    if (stockStatusFilter === 'low' || lowStockCardActive) {
+      result = result.filter((i) => i.is_low_stock);
+    } else if (stockStatusFilter === 'out_of_stock') {
+      result = result.filter((i) => parseFloat(i.quantity_on_hand || '0') <= 0);
+    } else if (stockStatusFilter === 'in_stock') {
+      result = result.filter((i) => !i.is_low_stock && parseFloat(i.quantity_on_hand || '0') > 0);
+    }
+
+    // Supplier filter
+    if (supplierFilter) {
+      result = result.filter((i) => String(i.supplier) === String(supplierFilter));
+    }
+
+    return result;
+  }, [items, search, categoryFilter, stockStatusFilter, lowStockCardActive, supplierFilter]);
+
+  // Filtered Suppliers
+  const filteredSuppliers = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return suppliers;
+    return suppliers.filter(
+      (s) =>
+        s.name.toLowerCase().includes(term) ||
+        (s.contact_person || '').toLowerCase().includes(term) ||
+        (s.phone || '').toLowerCase().includes(term) ||
+        (s.email || '').toLowerCase().includes(term) ||
+        (s.address || '').toLowerCase().includes(term)
+    );
+  }, [suppliers, search]);
+
+  // Filtered Reorders
+  const filteredReorders = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return reorders;
+    return reorders.filter(
+      (r) =>
+        r.item_sku.toLowerCase().includes(term) ||
+        r.item_name.toLowerCase().includes(term) ||
+        (r.supplier_name || '').toLowerCase().includes(term) ||
+        r.status.toLowerCase().includes(term)
+    );
+  }, [reorders, search]);
+
+  // Filtered Movements
+  const filteredMovements = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return movements;
+    return movements.filter(
+      (m) =>
+        m.item_sku.toLowerCase().includes(term) ||
+        m.item_name.toLowerCase().includes(term) ||
+        (m.reference || '').toLowerCase().includes(term) ||
+        (m.notes || '').toLowerCase().includes(term) ||
+        (m.created_by_name || '').toLowerCase().includes(term)
+    );
+  }, [movements, search]);
+
+  // Item Modal Handlers
   const openCreateItem = () => {
     setEditingItem(null);
     setItemForm(emptyItemForm);
@@ -209,10 +375,10 @@ export default function InventoryPage() {
       if (editingItem) {
         const { quantity_on_hand: _q, ...rest } = itemForm;
         await inventoryApi.updateItem(editingItem.id, rest);
-        showToast('Item updated', 'success');
+        showToast('Item updated successfully', 'success');
       } else {
         await inventoryApi.createItem(itemForm);
-        showToast('Item created', 'success');
+        showToast('Stock item created successfully', 'success');
       }
       setItemModalOpen(false);
       refreshAll();
@@ -227,7 +393,7 @@ export default function InventoryPage() {
     setSaving(true);
     try {
       await inventoryApi.deleteItem(deleteItem.id);
-      showToast('Item deleted', 'success');
+      showToast('Item deleted successfully', 'success');
       setDeleteItem(null);
       refreshAll();
     } catch (err: any) {
@@ -236,6 +402,7 @@ export default function InventoryPage() {
     setSaving(false);
   };
 
+  // Supplier Modal Handlers
   const openCreateSupplier = () => {
     setEditingSupplier(null);
     setSupplierForm(emptySupplierForm);
@@ -264,10 +431,10 @@ export default function InventoryPage() {
     try {
       if (editingSupplier) {
         await inventoryApi.updateSupplier(editingSupplier.id, supplierForm);
-        showToast('Supplier updated', 'success');
+        showToast('Supplier updated successfully', 'success');
       } else {
         await inventoryApi.createSupplier(supplierForm);
-        showToast('Supplier created', 'success');
+        showToast('Supplier added successfully', 'success');
       }
       setSupplierModalOpen(false);
       refreshAll();
@@ -282,7 +449,7 @@ export default function InventoryPage() {
     setSaving(true);
     try {
       await inventoryApi.deleteSupplier(deleteSupplier.id);
-      showToast('Supplier deleted', 'success');
+      showToast('Supplier deleted successfully', 'success');
       setDeleteSupplier(null);
       refreshAll();
     } catch (err: any) {
@@ -291,6 +458,7 @@ export default function InventoryPage() {
     setSaving(false);
   };
 
+  // Adjust Stock Handlers
   const openAdjust = (item: InventoryItem) => {
     setAdjustItem(item);
     setAdjustForm({ movement_type: 'in', quantity: '', reference: '', notes: '' });
@@ -310,7 +478,7 @@ export default function InventoryPage() {
         reference: adjustForm.reference,
         notes: adjustForm.notes,
       });
-      showToast('Stock updated', 'success');
+      showToast('Stock level updated successfully', 'success');
       setAdjustModalOpen(false);
       refreshAll();
     } catch (err: any) {
@@ -322,6 +490,7 @@ export default function InventoryPage() {
     setSaving(false);
   };
 
+  // Reorder Handlers
   const openReorder = (item?: InventoryItem) => {
     setReorderForm({
       item: item?.id || items[0]?.id || 0,
@@ -345,7 +514,7 @@ export default function InventoryPage() {
         supplier: reorderForm.supplier,
         notes: reorderForm.notes,
       });
-      showToast('Reorder created', 'success');
+      showToast('Reorder request submitted successfully', 'success');
       setReorderModalOpen(false);
       refreshAll();
       setTab('reorders');
@@ -358,33 +527,91 @@ export default function InventoryPage() {
   const updateReorderStatus = async (reorder: ReorderRequest, status: ReorderStatus) => {
     try {
       await inventoryApi.updateReorderStatus(reorder.id, status);
-      showToast(`Reorder marked as ${status}`, 'success');
+      showToast(`Reorder status updated to ${status}`, 'success');
       refreshAll();
     } catch (err: any) {
-      showToast(err?.response?.data?.detail || 'Failed to update reorder', 'error');
+      showToast(err?.response?.data?.detail || 'Failed to update reorder status', 'error');
     }
   };
 
   const createFromLowStock = async () => {
-    setSaving(true);
+    setIsReorderingLowStock(true);
     try {
       const res = await inventoryApi.createReordersFromLowStock();
       const count = res.data?.length || 0;
-      showToast(count ? `${count} reorder(s) created` : 'No new reorders needed', 'success');
+      showToast(count ? `${count} reorder(s) generated for low stock` : 'No new reorders needed', 'success');
       refreshAll();
       setTab('reorders');
     } catch (err: any) {
       showToast(err?.response?.data?.detail || 'Failed to create reorders', 'error');
     }
-    setSaving(false);
+    setIsReorderingLowStock(false);
   };
 
-  const tabs: { id: TabType; label: string }[] = [
-    { id: 'items', label: 'Stock Items' },
-    { id: 'suppliers', label: 'Suppliers' },
-    { id: 'reorders', label: 'Reorders' },
-    { id: 'movements', label: 'Movements' },
-  ];
+  // CSV Export
+  const handleExportCSV = () => {
+    if (!filteredItems.length) {
+      showToast('No items to export', 'info');
+      return;
+    }
+
+    const headers = [
+      'SKU',
+      'Item Name',
+      'Category',
+      'Unit',
+      'On Hand',
+      'Reorder Level',
+      'Reorder Qty',
+      'Unit Cost (AED)',
+      'Stock Value (AED)',
+      'Location',
+      'Supplier',
+    ];
+
+    const rows = filteredItems.map((i) => [
+      `"${i.sku}"`,
+      `"${(i.name || '').replace(/"/g, '""')}"`,
+      i.category,
+      i.unit,
+      i.quantity_on_hand,
+      i.reorder_level,
+      i.reorder_quantity,
+      i.unit_cost,
+      i.stock_value,
+      `"${(i.location || '').replace(/"/g, '""')}"`,
+      `"${(i.supplier_name || '').replace(/"/g, '""')}"`,
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `inventory_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showToast(`Exported ${filteredItems.length} items to CSV`, 'success');
+  };
+
+  const clearAllFilters = () => {
+    setSearch('');
+    setCategoryFilter('');
+    setStockStatusFilter('');
+    setSupplierFilter('');
+    setLowStockCardActive(false);
+  };
+
+  // Live calculation for Stock Adjustment Modal
+  const currentAdjustQty = adjustItem ? parseFloat(adjustItem.quantity_on_hand || '0') : 0;
+  const inputDelta = parseFloat(adjustForm.quantity || '0');
+  const calculatedNewQty = useMemo(() => {
+    if (isNaN(inputDelta)) return currentAdjustQty;
+    if (adjustForm.movement_type === 'in') return currentAdjustQty + inputDelta;
+    if (adjustForm.movement_type === 'out') return Math.max(0, currentAdjustQty - inputDelta);
+    return inputDelta;
+  }, [currentAdjustQty, inputDelta, adjustForm.movement_type]);
 
   const loading =
     (tab === 'items' && itemsQuery.isLoading) ||
@@ -393,557 +620,820 @@ export default function InventoryPage() {
     (tab === 'movements' && movementsQuery.isLoading);
 
   return (
-    <div className="space-y-6 animate-page-in font-sans pb-10">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-[28px] font-extrabold text-[#1e293b] tracking-tight">Inventory</h1>
-          <p className="mt-1 text-[13px] font-medium text-slate-500">
-            Textile stock levels, suppliers and reorders.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {tab === 'items' && (
-            <>
-              <button
-                onClick={createFromLowStock}
-                disabled={saving || !(stats?.low_stock_count)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-50 disabled:opacity-50"
-              >
-                <AlertTriangle className="w-4 h-4 text-amber-500" /> Reorder Low Stock
-              </button>
-              <button
-                onClick={openCreateItem}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#2b5c8f] text-white font-semibold text-sm rounded-xl hover:bg-[#1f456e]"
-              >
-                <Plus className="w-4 h-4" /> Add Item
-              </button>
-            </>
-          )}
-          {tab === 'suppliers' && (
-            <button
-              onClick={openCreateSupplier}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#2b5c8f] text-white font-semibold text-sm rounded-xl hover:bg-[#1f456e]"
-            >
-              <Plus className="w-4 h-4" /> Add Supplier
-            </button>
-          )}
-          {tab === 'reorders' && (
-            <button
-              onClick={() => openReorder()}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#2b5c8f] text-white font-semibold text-sm rounded-xl hover:bg-[#1f456e]"
-            >
-              <Plus className="w-4 h-4" /> New Reorder
-            </button>
-          )}
-        </div>
+    <div className="space-y-6 animate-page-in font-sans pb-12">
+      {/* 1. Modern Page Header (Design Spells Style) */}
+      <InventoryPageHeader
+        activeTab={tab}
+        lowStockCount={stats?.low_stock_count ?? 0}
+        onExport={handleExportCSV}
+        onReorderLowStock={createFromLowStock}
+        onAddItem={openCreateItem}
+        onAddSupplier={openCreateSupplier}
+        onNewReorder={() => openReorder()}
+        onRefresh={refreshAll}
+        isReorderingLowStock={isReorderingLowStock}
+      />
+
+      {/* 2. Interactive KPI Stat Cards (Design Spells Micro-interactions) */}
+      <InventoryStatCards
+        stats={stats}
+        loading={statsQuery.isLoading}
+        activeFilter={lowStockCardActive ? 'low_stock' : 'all'}
+        onFilterChange={(f) => {
+          if (f === 'low_stock') {
+            setLowStockCardActive(true);
+            setStockStatusFilter('low');
+          } else {
+            setLowStockCardActive(false);
+            setStockStatusFilter('');
+          }
+        }}
+        onTabChange={(t) => {
+          setTab(t);
+          if (t !== 'items') {
+            setLowStockCardActive(false);
+          }
+        }}
+        activeTab={tab}
+      />
+
+      {/* 3. Floating Pill Navigation Tabs */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-1">
+        <InventoryTabs
+          activeTab={tab}
+          onTabChange={(newTab) => {
+            setTab(newTab);
+            setSearch('');
+          }}
+          stats={stats}
+          itemsCount={items.length}
+          suppliersCount={suppliers.length}
+          reordersCount={reorders.length}
+          movementsCount={movements.length}
+        />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)]">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Items</p>
-          <p className="text-2xl font-extrabold text-slate-800 mt-1">{stats?.total_items ?? '—'}</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)]">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Low Stock</p>
-          <p className="text-2xl font-extrabold text-amber-500 mt-1">{stats?.low_stock_count ?? '—'}</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)]">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Stock Value</p>
-          <p className="text-2xl font-extrabold text-slate-800 mt-1">
-            {stats ? formatCurrency(stats.total_stock_value) : '—'}
-          </p>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)]">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending Reorders</p>
-          <p className="text-2xl font-extrabold text-[#2b5c8f] mt-1">{stats?.pending_reorders ?? '—'}</p>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
-              tab === t.id
-                ? 'bg-[#2b5c8f] text-white'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {(tab === 'items' || tab === 'suppliers') && (
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 flex flex-wrap items-center gap-4">
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={tab === 'items' ? 'Search SKU, name, location…' : 'Search suppliers…'}
-              className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 text-sm font-semibold rounded-xl outline-none focus:border-[#2b5c8f]"
-            />
-          </div>
-          {tab === 'items' && (
-            <>
-              <div className="relative">
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="appearance-none bg-white border border-slate-200 text-sm font-semibold rounded-xl px-4 py-2 pr-10 outline-none focus:border-[#2b5c8f]"
+      {/* 4. Filter Bar */}
+      {tab === 'items' ? (
+        <InventoryFilterBar
+          searchQuery={search}
+          onSearchChange={setSearch}
+          categoryFilter={categoryFilter}
+          onCategoryChange={setCategoryFilter}
+          stockStatusFilter={stockStatusFilter}
+          onStockStatusChange={(status) => {
+            setStockStatusFilter(status);
+            setLowStockCardActive(status === 'low');
+          }}
+          supplierFilter={supplierFilter}
+          onSupplierChange={setSupplierFilter}
+          onClearFilters={clearAllFilters}
+          totalCount={stats?.total_items ?? items.length}
+          filteredCount={filteredItems.length}
+          stats={stats}
+          suppliers={suppliers}
+          items={items}
+        />
+      ) : (
+        /* Streamlined Search Bar for other tabs */
+        <div className="cm-filter-card">
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={
+                  tab === 'suppliers'
+                    ? 'Search suppliers by name, phone, email...'
+                    : tab === 'reorders'
+                    ? 'Search reorders by SKU, item, or status...'
+                    : 'Search movement audit records...'
+                }
+                className="w-full pl-10 pr-9 py-2.5 bg-white border border-slate-200 text-sm font-semibold rounded-xl outline-none focus:border-[#2F5D8F] focus:ring-2 focus:ring-[#2F5D8F]/15 transition-all"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
                 >
-                  <option value="">All categories</option>
-                  {CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-              </div>
-              <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={lowStockOnly}
-                  onChange={(e) => setLowStockOnly(e.target.checked)}
-                  className="rounded border-slate-300"
-                />
-                Low stock only
-              </label>
-            </>
-          )}
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[#2F5D8F] bg-[#EEF4FA] hover:bg-[#E2ECF6] transition-colors"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Reset</span>
+              </button>
+            )}
+
+            <div className="ml-auto text-xs font-semibold text-slate-500">
+              {tab === 'suppliers' && `${filteredSuppliers.length} suppliers`}
+              {tab === 'reorders' && `${filteredReorders.length} requests`}
+              {tab === 'movements' && `${filteredMovements.length} log events`}
+            </div>
+          </div>
         </div>
       )}
 
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] overflow-hidden">
-        {loading ? (
-          <div className="py-16 flex justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-[#2b5c8f]" />
-          </div>
-        ) : tab === 'items' ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left min-w-[900px]">
-              <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">SKU / Item</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">Category</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">On Hand</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">Reorder At</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">Supplier</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredItems.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-16 text-center text-slate-500 font-medium">
-                      No inventory items yet. Add fabric, tracks, motors, or accessories.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredItems.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50/50">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-xl bg-[#2b5c8f]/10">
-                            <Warehouse className="w-4 h-4 text-[#2b5c8f]" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-extrabold text-slate-800">{item.sku}</p>
-                            <p className="text-xs font-medium text-slate-500">{item.name}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 capitalize text-sm font-semibold text-slate-700">{item.category}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-sm font-extrabold ${item.is_low_stock ? 'text-amber-500' : 'text-slate-800'}`}>
-                            {formatQty(item.quantity_on_hand)} {item.unit}
-                          </span>
-                          {item.is_low_stock && (
-                            <span className="text-[10px] font-extrabold uppercase bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
-                              Low
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm font-medium text-slate-600">
-                        {formatQty(item.reorder_level)} {item.unit}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-medium text-slate-600">{item.supplier_name || '—'}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => openAdjust(item)} className="px-2.5 py-1.5 text-[11px] font-bold text-[#2b5c8f] bg-[#f0f4f8] rounded-lg hover:bg-[#e1e9f1]">
-                            Adjust
-                          </button>
-                          <button onClick={() => openReorder(item)} className="px-2.5 py-1.5 text-[11px] font-bold text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200">
-                            Reorder
-                          </button>
-                          <button onClick={() => openEditItem(item)} className="p-1.5 text-slate-500 hover:text-[#2b5c8f]">
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => setDeleteItem(item)} className="p-1.5 text-slate-500 hover:text-red-500">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        ) : tab === 'suppliers' ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left min-w-[700px]">
-              <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">Supplier</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">Contact</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">Items</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredSuppliers.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-16 text-center text-slate-500 font-medium">No suppliers yet.</td>
-                  </tr>
-                ) : (
-                  filteredSuppliers.map((s) => (
-                    <tr key={s.id} className="hover:bg-slate-50/50">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-xl bg-[#2b5c8f]/10">
-                            <Truck className="w-4 h-4 text-[#2b5c8f]" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-extrabold text-slate-800">{s.name}</p>
-                            <p className="text-xs font-medium text-slate-500">{s.email || s.phone || '—'}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm font-medium text-slate-600">
-                        {s.contact_person || '—'}
-                        {s.phone ? <span className="block text-xs text-slate-400">{s.phone}</span> : null}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-bold text-slate-700">{s.items_count ?? 0}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => openEditSupplier(s)} className="p-1.5 text-slate-500 hover:text-[#2b5c8f]">
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => setDeleteSupplier(s)} className="p-1.5 text-slate-500 hover:text-red-500">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        ) : tab === 'reorders' ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left min-w-[800px]">
-              <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">Item</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">Qty</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">Supplier</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">Status</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {reorders.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-16 text-center text-slate-500 font-medium">No reorder requests yet.</td>
-                  </tr>
-                ) : (
-                  reorders.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50/50">
-                      <td className="px-6 py-4">
-                        <p className="text-sm font-extrabold text-slate-800">{r.item_sku}</p>
-                        <p className="text-xs font-medium text-slate-500">{r.item_name}</p>
-                      </td>
-                      <td className="px-6 py-4 text-sm font-bold text-slate-700">{formatQty(r.quantity)}</td>
-                      <td className="px-6 py-4 text-sm font-medium text-slate-600">{r.supplier_name || '—'}</td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-slate-100 text-slate-700">
-                          {r.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-1">
-                          {r.status === 'pending' && (
-                            <button onClick={() => updateReorderStatus(r, 'ordered')} className="px-2.5 py-1.5 text-[11px] font-bold text-white bg-[#2b5c8f] rounded-lg">
-                              Mark Ordered
-                            </button>
-                          )}
-                          {r.status === 'ordered' && (
-                            <button onClick={() => updateReorderStatus(r, 'received')} className="px-2.5 py-1.5 text-[11px] font-bold text-white bg-emerald-600 rounded-lg">
-                              Mark Received
-                            </button>
-                          )}
-                          {(r.status === 'pending' || r.status === 'ordered') && (
-                            <button onClick={() => updateReorderStatus(r, 'cancelled')} className="px-2.5 py-1.5 text-[11px] font-bold text-slate-600 bg-slate-100 rounded-lg">
-                              Cancel
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left min-w-[800px]">
-              <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">Date</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">Item</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">Type</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">Qty</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">By</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {movements.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-16 text-center text-slate-500 font-medium">No stock movements yet.</td>
-                  </tr>
-                ) : (
-                  movements.map((m) => (
-                    <tr key={m.id} className="hover:bg-slate-50/50">
-                      <td className="px-6 py-4 text-sm font-medium text-slate-600">
-                        {new Date(m.created_at).toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="text-sm font-extrabold text-slate-800">{m.item_sku}</p>
-                        <p className="text-xs font-medium text-slate-500">{m.item_name}</p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
-                          m.movement_type === 'in' ? 'bg-emerald-100 text-emerald-700' :
-                          m.movement_type === 'out' ? 'bg-red-100 text-red-700' :
-                          'bg-slate-100 text-slate-700'
-                        }`}>
-                          {m.movement_type}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm font-bold text-slate-700">{formatQty(m.quantity)}</td>
-                      <td className="px-6 py-4 text-sm font-medium text-slate-600">{m.created_by_name || '—'}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {/* 5. Main Content Tables */}
+      {tab === 'items' && (
+        <div className="space-y-4">
+          <InventoryItemsTable
+            items={filteredItems}
+            loading={loading}
+            totalCount={totalItemsCount}
+            onAdjustStock={openAdjust}
+            onReorder={openReorder}
+            onEditItem={openEditItem}
+            onDeleteItem={(item) => setDeleteItem(item)}
+            onClearFilters={clearAllFilters}
+            onRetry={refreshAll}
+          />
+          <Pagination
+            totalCount={totalItemsCount}
+            currentPage={itemsPagination.currentPage}
+            pageSize={itemsPagination.pageSize}
+            onPageChange={itemsPagination.goToPage}
+            onPageSizeChange={itemsPagination.setPageSize}
+            loading={itemsQuery.isLoading}
+          />
+        </div>
+      )}
 
-      {/* Item Modal */}
-      <Modal open={itemModalOpen} onClose={() => setItemModalOpen(false)} title={editingItem ? 'Edit Item' : 'Add Item'} maxWidth="max-w-2xl">
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">SKU *</label>
-              <input value={itemForm.sku} onChange={(e) => setItemForm({ ...itemForm, sku: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Name *</label>
-              <input value={itemForm.name} onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
-              <select value={itemForm.category} onChange={(e) => setItemForm({ ...itemForm, category: e.target.value as InventoryCategory })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]">
-                {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Unit</label>
-              <select value={itemForm.unit} onChange={(e) => setItemForm({ ...itemForm, unit: e.target.value as InventoryUnit })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]">
-                {UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
-              </select>
-            </div>
-            {!editingItem && (
+      {tab === 'suppliers' && (
+        <div className="space-y-4">
+          <InventorySuppliersTable
+            suppliers={filteredSuppliers}
+            loading={loading}
+            totalCount={totalSuppliersCount}
+            onEditSupplier={openEditSupplier}
+            onDeleteSupplier={(s) => setDeleteSupplier(s)}
+            onClearFilters={() => setSearch('')}
+            onRetry={refreshAll}
+          />
+          <Pagination
+            totalCount={totalSuppliersCount}
+            currentPage={suppliersPagination.currentPage}
+            pageSize={suppliersPagination.pageSize}
+            onPageChange={suppliersPagination.goToPage}
+            onPageSizeChange={suppliersPagination.setPageSize}
+            loading={suppliersQuery.isLoading}
+          />
+        </div>
+      )}
+
+      {tab === 'reorders' && (
+        <div className="space-y-4">
+          <InventoryReordersTable
+            reorders={filteredReorders}
+            loading={loading}
+            onUpdateStatus={updateReorderStatus}
+            onClearFilters={() => setSearch('')}
+            onRetry={refreshAll}
+          />
+          <Pagination
+            totalCount={totalReordersCount}
+            currentPage={reordersPagination.currentPage}
+            pageSize={reordersPagination.pageSize}
+            onPageChange={reordersPagination.goToPage}
+            onPageSizeChange={reordersPagination.setPageSize}
+            loading={reordersQuery.isLoading}
+          />
+        </div>
+      )}
+
+      {tab === 'movements' && (
+        <div className="space-y-4">
+          <InventoryMovementsTable
+            movements={filteredMovements}
+            loading={loading}
+            onClearFilters={() => setSearch('')}
+            onRetry={refreshAll}
+          />
+          <Pagination
+            totalCount={totalMovementsCount}
+            currentPage={movementsPagination.currentPage}
+            pageSize={movementsPagination.pageSize}
+            onPageChange={movementsPagination.goToPage}
+            onPageSizeChange={movementsPagination.setPageSize}
+            loading={movementsQuery.isLoading}
+          />
+        </div>
+      )}
+
+      {/* ── Modal: Add / Edit Item ─────────────────────────────────── */}
+      <Modal
+        open={itemModalOpen}
+        onClose={() => setItemModalOpen(false)}
+        title={editingItem ? `Edit Item: ${editingItem.sku}` : 'Add New Stock Item'}
+        maxWidth="max-w-2xl"
+      >
+        <div className="space-y-5 max-h-[75vh] overflow-y-auto pr-1">
+          {/* Section: Basic Identity */}
+          <div>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">
+              1. Item Identity
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Opening Qty</label>
-                <input type="number" step="0.01" value={itemForm.quantity_on_hand} onChange={(e) => setItemForm({ ...itemForm, quantity_on_hand: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]" />
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  SKU Code *
+                </label>
+                <div className="relative">
+                  <Warehouse className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    required
+                    value={itemForm.sku}
+                    onChange={(e) => setItemForm({ ...itemForm, sku: e.target.value })}
+                    placeholder="e.g. FAB-LINEN-01"
+                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
+                  />
+                </div>
               </div>
-            )}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Reorder Level</label>
-              <input type="number" step="0.01" value={itemForm.reorder_level} onChange={(e) => setItemForm({ ...itemForm, reorder_level: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]" />
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Item Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={itemForm.name}
+                  onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })}
+                  placeholder="e.g. Belgian Pure Linen"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Category
+                </label>
+                <select
+                  value={itemForm.category}
+                  onChange={(e) => setItemForm({ ...itemForm, category: e.target.value as InventoryCategory })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all bg-white"
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Stock Unit
+                </label>
+                <select
+                  value={itemForm.unit}
+                  onChange={(e) => setItemForm({ ...itemForm, unit: e.target.value as InventoryUnit })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all bg-white"
+                >
+                  {UNITS.map((u) => (
+                    <option key={u.value} value={u.value}>
+                      {u.label} ({u.value})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Reorder Qty</label>
-              <input type="number" step="0.01" value={itemForm.reorder_quantity} onChange={(e) => setItemForm({ ...itemForm, reorder_quantity: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]" />
+          </div>
+
+          {/* Section: Stock Levels & Limits */}
+          <div className="pt-2 border-t border-slate-100">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">
+              2. Stock Levels & Thresholds
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              {!editingItem && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Initial Stock Qty
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={itemForm.quantity_on_hand}
+                    onChange={(e) => setItemForm({ ...itemForm, quantity_on_hand: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Reorder Level (Min)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={itemForm.reorder_level}
+                  onChange={(e) => setItemForm({ ...itemForm, reorder_level: e.target.value })}
+                  placeholder="e.g. 10"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Standard Reorder Qty
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={itemForm.reorder_quantity}
+                  onChange={(e) => setItemForm({ ...itemForm, reorder_quantity: e.target.value })}
+                  placeholder="e.g. 50"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Unit Cost (AED)</label>
-              <input type="number" step="0.01" value={itemForm.unit_cost} onChange={(e) => setItemForm({ ...itemForm, unit_cost: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]" />
+          </div>
+
+          {/* Section: Pricing, Storage & Supplier */}
+          <div className="pt-2 border-t border-slate-100">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">
+              3. Procurement & Storage
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Unit Cost (AED)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                    AED
+                  </span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={itemForm.unit_cost}
+                    onChange={(e) => setItemForm({ ...itemForm, unit_cost: e.target.value })}
+                    className="w-full pl-12 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Warehouse Location
+                </label>
+                <input
+                  type="text"
+                  value={itemForm.location || ''}
+                  onChange={(e) => setItemForm({ ...itemForm, location: e.target.value })}
+                  placeholder="e.g. Aisle 4, Shelf B"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Preferred Supplier
+                </label>
+                <select
+                  value={itemForm.supplier ?? ''}
+                  onChange={(e) => setItemForm({ ...itemForm, supplier: e.target.value ? Number(e.target.value) : null })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all bg-white"
+                >
+                  <option value="">None / Open Market</option>
+                  {suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              Item Notes & Specs
+            </label>
+            <textarea
+              value={itemForm.notes || ''}
+              onChange={(e) => setItemForm({ ...itemForm, notes: e.target.value })}
+              placeholder="Width, weight, color code, washing instructions..."
+              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all h-20 resize-none"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setItemModalOpen(false)}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={saveItem}
+              disabled={saving}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-[#2F5D8F] text-white text-sm font-bold hover:bg-[#23476E] transition-colors disabled:opacity-60 inline-flex items-center justify-center gap-2 shadow-sm"
+            >
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {editingItem ? 'Save Item Changes' : 'Create Stock Item'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Modal: Adjust Stock Level (Design Spells Micro-interactions) ── */}
+      <Modal
+        open={adjustModalOpen}
+        onClose={() => setAdjustModalOpen(false)}
+        title={`Adjust Stock — ${adjustItem?.sku || ''}`}
+        maxWidth="max-w-lg"
+      >
+        <div className="space-y-4">
+          {/* Item details card */}
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Location</label>
-              <input value={itemForm.location || ''} onChange={(e) => setItemForm({ ...itemForm, location: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]" />
+              <p className="text-xs font-semibold text-slate-400">Target Item</p>
+              <p className="text-sm font-bold text-slate-900">{adjustItem?.name}</p>
             </div>
+            <div className="text-right">
+              <p className="text-xs font-semibold text-slate-400">Current On Hand</p>
+              <p className="text-base font-extrabold text-slate-900 font-mono">
+                {adjustItem ? `${formatQty(adjustItem.quantity_on_hand)} ${adjustItem.unit}` : '—'}
+              </p>
+            </div>
+          </div>
+
+          {/* Interactive Movement Type Segment Selector */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              Adjustment Mode
+            </label>
+            <div className="grid grid-cols-3 gap-2 p-1 bg-slate-100 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setAdjustForm({ ...adjustForm, movement_type: 'in' })}
+                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                  adjustForm.movement_type === 'in'
+                    ? 'bg-white text-emerald-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <ArrowDownRight className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Stock In (+)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAdjustForm({ ...adjustForm, movement_type: 'out' })}
+                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                  adjustForm.movement_type === 'out'
+                    ? 'bg-white text-rose-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <ArrowUpRight className="w-3.5 h-3.5 text-rose-600" />
+                <span>Stock Out (−)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAdjustForm({ ...adjustForm, movement_type: 'adjust' })}
+                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                  adjustForm.movement_type === 'adjust'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-600" />
+                <span>Set Exact (=)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Quantity & Live Calculated Result Preview */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Supplier</label>
-              <select value={itemForm.supplier ?? ''} onChange={(e) => setItemForm({ ...itemForm, supplier: e.target.value ? Number(e.target.value) : null })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]">
-                <option value="">None</option>
-                {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                {adjustForm.movement_type === 'adjust' ? 'New Total Quantity *' : 'Quantity Delta *'}
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={adjustForm.quantity}
+                  onChange={(e) => setAdjustForm({ ...adjustForm, quantity: e.target.value })}
+                  placeholder="0.00"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-base font-bold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all font-mono"
+                />
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                  {adjustItem?.unit}
+                </span>
+              </div>
+            </div>
+
+            {/* Design Spells Live Result Preview */}
+            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/70 flex flex-col justify-center">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                Resulting Balance
+              </span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-base font-black text-slate-900 font-mono">
+                  {formatQty(calculatedNewQty)} {adjustItem?.unit}
+                </span>
+                {adjustForm.quantity && (
+                  <span
+                    className={`text-[10.5px] font-bold px-1.5 py-0.2 rounded ${
+                      adjustForm.movement_type === 'in'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : adjustForm.movement_type === 'out'
+                        ? 'bg-rose-100 text-rose-800'
+                        : 'bg-slate-200 text-slate-800'
+                    }`}
+                  >
+                    {adjustForm.movement_type === 'in'
+                      ? `+${adjustForm.quantity}`
+                      : adjustForm.movement_type === 'out'
+                      ? `−${adjustForm.quantity}`
+                      : 'Reset'}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              Reference / PO # (Optional)
+            </label>
+            <input
+              type="text"
+              value={adjustForm.reference}
+              onChange={(e) => setAdjustForm({ ...adjustForm, reference: e.target.value })}
+              placeholder="e.g. PO-2026-042 or Delivery Note #982"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              Adjustment Reason / Note
+            </label>
+            <textarea
+              value={adjustForm.notes}
+              onChange={(e) => setAdjustForm({ ...adjustForm, notes: e.target.value })}
+              placeholder="e.g. Damaged fabric discarded or received from supplier roll"
+              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all h-16 resize-none"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setAdjustModalOpen(false)}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={saveAdjust}
+              disabled={saving || !adjustForm.quantity}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-[#2F5D8F] text-white text-sm font-bold hover:bg-[#23476E] transition-colors disabled:opacity-60 inline-flex items-center justify-center gap-2 shadow-sm"
+            >
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              Apply Adjustment
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Modal: New Reorder ─────────────────────────────────────── */}
+      <Modal
+        open={reorderModalOpen}
+        onClose={() => setReorderModalOpen(false)}
+        title="Create Reorder Request"
+        maxWidth="max-w-lg"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              Select Item *
+            </label>
+            <select
+              value={reorderForm.item}
+              onChange={(e) => {
+                const id = Number(e.target.value);
+                const selected = items.find((i) => i.id === id);
+                setReorderForm({
+                  ...reorderForm,
+                  item: id,
+                  quantity: selected?.reorder_quantity || reorderForm.quantity,
+                  supplier: selected?.supplier || null,
+                });
+              }}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all bg-white"
+            >
+              <option value={0}>Choose a stock item...</option>
+              {items.map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.sku} — {i.name} (On Hand: {formatQty(i.quantity_on_hand)} {i.unit})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Reorder Quantity *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                required
+                value={reorderForm.quantity}
+                onChange={(e) => setReorderForm({ ...reorderForm, quantity: e.target.value })}
+                placeholder="e.g. 50"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Supplier Vendor
+              </label>
+              <select
+                value={reorderForm.supplier ?? ''}
+                onChange={(e) => setReorderForm({ ...reorderForm, supplier: e.target.value ? Number(e.target.value) : null })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all bg-white"
+              >
+                <option value="">None / Open Supplier</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
-            <textarea value={itemForm.notes || ''} onChange={(e) => setItemForm({ ...itemForm, notes: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f] h-20 resize-none" />
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              Reorder Notes / Priority
+            </label>
+            <textarea
+              value={reorderForm.notes}
+              onChange={(e) => setReorderForm({ ...reorderForm, notes: e.target.value })}
+              placeholder="Urgent for job #104, requested expedited shipment..."
+              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all h-20 resize-none"
+            />
           </div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={() => setItemModalOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium">Cancel</button>
-            <button onClick={saveItem} disabled={saving} className="flex-1 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white text-sm font-medium disabled:opacity-60 inline-flex items-center justify-center gap-2">
+
+          <div className="flex gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setReorderModalOpen(false)}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={saveReorder}
+              disabled={saving || !reorderForm.item || !reorderForm.quantity}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-[#2F5D8F] text-white text-sm font-bold hover:bg-[#23476E] transition-colors disabled:opacity-60 inline-flex items-center justify-center gap-2 shadow-sm"
+            >
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-              {editingItem ? 'Save Changes' : 'Create Item'}
+              Submit Reorder
             </button>
           </div>
         </div>
       </Modal>
 
-      {/* Supplier Modal */}
-      <Modal open={supplierModalOpen} onClose={() => setSupplierModalOpen(false)} title={editingSupplier ? 'Edit Supplier' : 'Add Supplier'}>
-        <div className="space-y-3">
+      {/* ── Modal: Add / Edit Supplier ─────────────────────────────── */}
+      <Modal
+        open={supplierModalOpen}
+        onClose={() => setSupplierModalOpen(false)}
+        title={editingSupplier ? `Edit Supplier: ${editingSupplier.name}` : 'Add New Supplier'}
+        maxWidth="max-w-lg"
+      >
+        <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Name *</label>
-            <input value={supplierForm.name} onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]" />
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              Supplier / Mill Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={supplierForm.name}
+              onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })}
+              placeholder="e.g. Al Habtoor Textiles LLC"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
+            />
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Contact Person</label>
-            <input value={supplierForm.contact_person || ''} onChange={(e) => setSupplierForm({ ...supplierForm, contact_person: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]" />
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              Contact Person
+            </label>
+            <input
+              type="text"
+              value={supplierForm.contact_person || ''}
+              onChange={(e) => setSupplierForm({ ...supplierForm, contact_person: e.target.value })}
+              placeholder="e.g. Tariq Mansoor"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
+            />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
-              <input value={supplierForm.phone || ''} onChange={(e) => setSupplierForm({ ...supplierForm, phone: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]" />
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                value={supplierForm.phone || ''}
+                onChange={(e) => setSupplierForm({ ...supplierForm, phone: e.target.value })}
+                placeholder="+971 4 000 0000"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all font-mono"
+              />
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-              <input type="email" value={supplierForm.email || ''} onChange={(e) => setSupplierForm({ ...supplierForm, email: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]" />
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={supplierForm.email || ''}
+                onChange={(e) => setSupplierForm({ ...supplierForm, email: e.target.value })}
+                placeholder="sales@supplier.ae"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
+              />
             </div>
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
-            <textarea value={supplierForm.address || ''} onChange={(e) => setSupplierForm({ ...supplierForm, address: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f] h-20 resize-none" />
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              Warehouse / Factory Address
+            </label>
+            <textarea
+              value={supplierForm.address || ''}
+              onChange={(e) => setSupplierForm({ ...supplierForm, address: e.target.value })}
+              placeholder="Warehouse #14, Al Quoz Industrial Area 3, Dubai"
+              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all h-16 resize-none"
+            />
           </div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={() => setSupplierModalOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium">Cancel</button>
-            <button onClick={saveSupplier} disabled={saving} className="flex-1 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white text-sm font-medium disabled:opacity-60 inline-flex items-center justify-center gap-2">
+
+          <div className="flex gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setSupplierModalOpen(false)}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={saveSupplier}
+              disabled={saving}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-[#2F5D8F] text-white text-sm font-bold hover:bg-[#23476E] transition-colors disabled:opacity-60 inline-flex items-center justify-center gap-2 shadow-sm"
+            >
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-              Save
+              {editingSupplier ? 'Save Supplier' : 'Add Supplier'}
             </button>
           </div>
         </div>
       </Modal>
 
-      {/* Adjust Stock Modal */}
-      <Modal open={adjustModalOpen} onClose={() => setAdjustModalOpen(false)} title={`Adjust Stock — ${adjustItem?.sku || ''}`}>
-        <div className="space-y-3">
-          <p className="text-sm text-slate-500 font-medium">
-            Current: <span className="font-bold text-slate-800">{adjustItem ? `${formatQty(adjustItem.quantity_on_hand)} ${adjustItem.unit}` : '—'}</span>
-          </p>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Movement Type</label>
-            <select value={adjustForm.movement_type} onChange={(e) => setAdjustForm({ ...adjustForm, movement_type: e.target.value as StockMovementType })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]">
-              <option value="in">Stock In (+)</option>
-              <option value="out">Stock Out (−)</option>
-              <option value="adjust">Set Absolute Qty</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Quantity *</label>
-            <input type="number" step="0.01" value={adjustForm.quantity} onChange={(e) => setAdjustForm({ ...adjustForm, quantity: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Reference</label>
-            <input value={adjustForm.reference} onChange={(e) => setAdjustForm({ ...adjustForm, reference: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]" placeholder="PO / job ref" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
-            <textarea value={adjustForm.notes} onChange={(e) => setAdjustForm({ ...adjustForm, notes: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f] h-20 resize-none" />
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={() => setAdjustModalOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium">Cancel</button>
-            <button onClick={saveAdjust} disabled={saving} className="flex-1 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white text-sm font-medium disabled:opacity-60 inline-flex items-center justify-center gap-2">
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-              Update Stock
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Reorder Modal */}
-      <Modal open={reorderModalOpen} onClose={() => setReorderModalOpen(false)} title="New Reorder">
-        <div className="space-y-3">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Item *</label>
-            <select value={reorderForm.item} onChange={(e) => {
-              const id = Number(e.target.value);
-              const item = items.find((i) => i.id === id);
-              setReorderForm({
-                ...reorderForm,
-                item: id,
-                quantity: item?.reorder_quantity || reorderForm.quantity,
-                supplier: item?.supplier || null,
-              });
-            }} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]">
-              <option value={0}>Select item</option>
-              {items.map((i) => <option key={i.id} value={i.id}>{i.sku} — {i.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Quantity *</label>
-            <input type="number" step="0.01" value={reorderForm.quantity} onChange={(e) => setReorderForm({ ...reorderForm, quantity: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Supplier</label>
-            <select value={reorderForm.supplier ?? ''} onChange={(e) => setReorderForm({ ...reorderForm, supplier: e.target.value ? Number(e.target.value) : null })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f]">
-              <option value="">None</option>
-              {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
-            <textarea value={reorderForm.notes} onChange={(e) => setReorderForm({ ...reorderForm, notes: e.target.value })} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-[#2b5c8f] h-20 resize-none" />
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={() => setReorderModalOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium">Cancel</button>
-            <button onClick={saveReorder} disabled={saving} className="flex-1 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white text-sm font-medium disabled:opacity-60 inline-flex items-center justify-center gap-2">
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-              Create Reorder
-            </button>
-          </div>
-        </div>
-      </Modal>
-
+      {/* ── Confirm Modals ─────────────────────────────────────────── */}
       <ConfirmModal
         open={!!deleteItem}
         onClose={() => setDeleteItem(null)}
         onConfirm={confirmDeleteItem}
-        title="Delete Item"
-        message={`Delete ${deleteItem?.sku} — ${deleteItem?.name}? This cannot be undone.`}
+        title="Delete Stock Item"
+        message={`Are you sure you want to delete "${deleteItem?.sku} — ${deleteItem?.name}"? This action cannot be undone.`}
         isLoading={saving}
       />
+
       <ConfirmModal
         open={!!deleteSupplier}
         onClose={() => setDeleteSupplier(null)}
         onConfirm={confirmDeleteSupplier}
         title="Delete Supplier"
-        message={`Delete supplier ${deleteSupplier?.name}?`}
+        message={`Are you sure you want to delete supplier "${deleteSupplier?.name}"?`}
         isLoading={saving}
       />
     </div>

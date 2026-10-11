@@ -22,7 +22,11 @@ export default function PermissionsPage() {
     queryFn: () => permissionsApi.list()
   });
 
-  const permissions = permissionsRes?.data || [];
+  const permissions = Array.isArray(permissionsRes?.data)
+    ? permissionsRes.data
+    : Array.isArray((permissionsRes?.data as any)?.results)
+    ? (permissionsRes?.data as any).results
+    : [];
   const loading = isLoading;
 
   const load = () => {

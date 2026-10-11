@@ -1,12 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Loader2,
-  Calendar,
-  ChevronRight,
-  Download,
   ChevronDown,
-  FilePlus,
   UserCheck
 } from 'lucide-react';
 import { appointmentsApi } from '../../api/appointments';
@@ -16,6 +12,12 @@ import Modal from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
 import type { AppointmentListItem, CreateAppointmentRequest, User } from '../../types';
 import { useQuery } from '@tanstack/react-query';
+import { StatusSummary } from '../../components/appointments/StatusSummary';
+import { AppointmentHeader } from '../../components/appointments/AppointmentHeader';
+import { FilterBar } from '../../components/appointments/FilterBar';
+import { AppointmentTable } from '../../components/appointments/AppointmentTable';
+import { Pagination } from '../../components/ui/Pagination';
+import { usePagination } from '../../hooks/usePagination';
 
 export default function AppointmentsPage() {
   const navigate = useNavigate();
@@ -24,12 +26,13 @@ export default function AppointmentsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [assigneeFilter, setAssigneeFilter] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const pagination = usePagination();
 
-  // Debounce search for backend call
+  // Debounce search for backend call by 250ms
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-    }, 500);
+    }, 250);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -49,12 +52,19 @@ export default function AppointmentsPage() {
     customer_first_name: '', customer_last_name: '', customer_phone: '', location_full_address: ''
   });
 
+  // Reset page when filters change
+  useEffect(() => {
+    pagination.resetPage();
+  }, [statusFilter, assigneeFilter, debouncedSearch]);
+
   const { data: listRes, isLoading: loadingList, refetch: refetchList } = useQuery({
-    queryKey: ['appointments', statusFilter, assigneeFilter, debouncedSearch],
+    queryKey: ['appointments', statusFilter, assigneeFilter, debouncedSearch, pagination.currentPage, pagination.pageSize],
     queryFn: () => appointmentsApi.list({
       status: statusFilter || undefined,
       assigned_to: assigneeFilter ? Number(assigneeFilter) : undefined,
       search: debouncedSearch || undefined,
+      limit: pagination.limit,
+      offset: pagination.offset,
     } as any),
   });
 
@@ -63,7 +73,17 @@ export default function AppointmentsPage() {
     queryFn: () => appointmentsApi.stats(),
   });
 
-  const appointments: AppointmentListItem[] = listRes?.data || [];
+  const { items: appointments, totalCount: paginatedTotal } = useMemo(() => {
+    const raw = listRes?.data;
+    // DRF paginated response: { count, results: [...] }
+    if (raw && typeof raw === 'object' && !Array.isArray(raw) && Array.isArray((raw as any).results)) {
+      return { items: (raw as any).results as AppointmentListItem[], totalCount: (raw as any).count as number };
+    }
+    // Fallback: plain array response
+    if (Array.isArray(raw)) return { items: raw, totalCount: raw.length };
+    if (Array.isArray(listRes)) return { items: listRes as any, totalCount: (listRes as any).length };
+    return { items: [] as AppointmentListItem[], totalCount: 0 };
+  }, [listRes]);
   const stats = statsRes?.data || null;
   const loading = loadingList || loadingStats;
 
@@ -77,12 +97,20 @@ export default function AppointmentsPage() {
   const [assignTarget, setAssignTarget] = useState<AppointmentListItem | null>(null);
   const [assignUserId, setAssignUserId] = useState<number | ''>('');
   const [assigning, setAssigning] = useState(false);
+  const [recentlyUpdatedId, setRecentlyUpdatedId] = useState<number | null>(null);
 
   const { data: usersRes } = useQuery({
     queryKey: ['users'],
     queryFn: () => usersApi.list()
   });
-  const users: User[] = usersRes?.data || [];
+  const users: User[] = useMemo(() => {
+    const raw = usersRes?.data;
+    if (Array.isArray(raw)) return raw;
+    if (Array.isArray((raw as any)?.results)) return (raw as any).results;
+    if (Array.isArray((raw as any)?.data)) return (raw as any).data;
+    if (Array.isArray(usersRes)) return usersRes as any;
+    return [];
+  }, [usersRes]);
 
   const openAssign = (a: AppointmentListItem) => {
     setAssignTarget(a);
@@ -96,6 +124,8 @@ export default function AppointmentsPage() {
     try {
       await appointmentsApi.assign(assignTarget.id, Number(assignUserId));
       showToast('Appointment assigned successfully', 'success');
+      setRecentlyUpdatedId(assignTarget.id);
+      setTimeout(() => setRecentlyUpdatedId(null), 1500);
       setAssignOpen(false);
       load();
     } catch (err: any) {
@@ -165,230 +195,73 @@ export default function AppointmentsPage() {
   };
 
   const filtered: AppointmentListItem[] = appointments;
-
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'scheduled': return 'bg-[#2b5c8f] text-white';
-      case 'in_progress': return 'bg-[#f97316] text-white';
-      case 'completed': return 'bg-[#10b981] text-white';
-      case 'cancelled': return 'bg-[#ef4444] text-white';
-      default: return 'bg-slate-200 text-slate-700';
-    }
-  };
+  const totalCount = paginatedTotal || stats?.total || appointments.length;
 
   return (
     <div className="space-y-6 animate-page-in font-sans">
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-[28px] font-extrabold text-[#1e293b] tracking-tight">
-            Appointment Management
-          </h1>
-          <div className="flex items-center gap-2 mt-1 text-[13px] font-medium text-slate-500">
-            <span>Curtain Master.</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-            <span className="text-[#2b5c8f]">Appointment List View</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 font-semibold text-sm rounded-xl shadow-sm hover:bg-slate-50 transition-all">
-            <Download className="w-4 h-4" strokeWidth={2.5} /> Export List
-          </button>
-          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 bg-[#2b5c8f] text-white font-semibold text-sm rounded-xl shadow-md shadow-indigo-200 hover:bg-[#1f456e] hover:-translate-y-0.5 transition-all">
-            <Calendar className="w-4 h-4" strokeWidth={2.5} /> Schedule New Appointment
-          </button>
-        </div>
-      </div>
+      {/* Redesigned Page Header (Design Spells Aesthetic) */}
+      <AppointmentHeader
+        onExport={() => {
+          showToast('Exporting appointments...', 'info');
+        }}
+        onSchedule={openCreate}
+      />
 
-      {/* Filters Bar */}
-      <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-wrap items-center gap-6">
-        <div className="flex items-center gap-4 flex-1">
-          <div>
-            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search</span>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search by title or customer..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl px-4 py-2 outline-none focus:border-[#2b5c8f] transition-colors w-60"
-              />
-            </div>
-          </div>
+      {/* Redesigned Filter Bar Card with Custom SelectMenu & Active Sync */}
+      <FilterBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        statusFilter={statusFilter}
+        onStatusChange={(status) => setStatusFilter(status)}
+        assigneeFilter={assigneeFilter}
+        onAssigneeChange={(assignee) => setAssigneeFilter(assignee)}
+        onClearFilters={() => {
+          setSearchQuery('');
+          setStatusFilter('');
+          setAssigneeFilter('');
+        }}
+        totalCount={totalCount}
+        filteredCount={appointments.length}
+        stats={stats}
+        users={users}
+        appointments={appointments}
+      />
 
-          <div>
-            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</span>
-            <div className="relative">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl px-4 py-2 pr-10 outline-none focus:border-[#2b5c8f] transition-colors w-40"
-              >
-                <option value="">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="scheduled">Scheduled</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-            </div>
-          </div>
+      {/* Modern Status Summary Row (Design Spells Micro-interactions) */}
+      <StatusSummary
+        stats={stats}
+        selectedStatus={statusFilter}
+        onSelectStatus={(status) => setStatusFilter(status)}
+        loading={loadingStats}
+      />
 
-          <div>
-            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Assigned To</span>
-            <div className="relative">
-              <select
-                value={assigneeFilter}
-                onChange={(e) => setAssigneeFilter(e.target.value)}
-                className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl px-4 py-2 pr-10 outline-none focus:border-[#2b5c8f] transition-colors w-40"
-              >
-                <option value="">All Staff</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.full_name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-            </div>
-          </div>
-        </div>
+      {/* Redesigned Appointment Table (Design Spells Aesthetic & Micro-interactions) */}
+      <AppointmentTable
+        appointments={filtered}
+        loading={loading}
+        totalCount={totalCount}
+        onSelectAppointment={(a) => navigate(`/appointments/${a.id}`)}
+        onAssign={(a) => openAssign(a)}
+        onQuote={(a) => navigate(`/appointments/${a.id}`)}
+        onClearFilters={() => {
+          setSearchQuery('');
+          setStatusFilter('');
+          setAssigneeFilter('');
+        }}
+        onCopyPhone={(phone) => showToast(`Phone ${phone} copied to clipboard`, 'info')}
+        recentlyUpdatedId={recentlyUpdatedId}
+      />
 
-        <div className="border border-slate-100 rounded-xl px-6 py-2.5 flex flex-col items-center justify-center min-w-30">
-          <span className="text-[15px] font-extrabold text-slate-800">Total: {stats?.total || 0}</span>
-          <span className="text-[11px] font-medium text-slate-500">Appointments</span>
-        </div>
-      </div>
-
-      {/* Indicators Row */}
-      <div className="flex flex-wrap items-center gap-4 mt-2 mb-6">
-        <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-slate-100 rounded-full shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#2b5c8f]"></div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[14px] font-extrabold text-slate-800">{stats?.by_status?.scheduled || 0}</span>
-            <span className="text-[13px] font-medium text-slate-500">Scheduled</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-slate-100 rounded-full shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#f97316]"></div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[14px] font-extrabold text-slate-800">{stats?.by_status?.in_progress || 0}</span>
-            <span className="text-[13px] font-medium text-slate-500">In Progress</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-slate-100 rounded-full shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#10b981]"></div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[14px] font-extrabold text-slate-800">{stats?.by_status?.completed || 0}</span>
-            <span className="text-[13px] font-medium text-slate-500">Completed</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-slate-100 rounded-full shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#ef4444]"></div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[14px] font-extrabold text-slate-800">{stats?.by_status?.cancelled || 0}</span>
-            <span className="text-[13px] font-medium text-slate-500">Cancelled</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Table Section */}
-      <div className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] overflow-hidden border border-slate-100">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-200">
-            <thead>
-              <tr className="border-b border-slate-100 bg-white">
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">ID</th>
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Customer Name</th>
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Phone</th>
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Booking Date & Time</th>
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Assignee</th>
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-16 text-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-[#2b5c8f] mx-auto" />
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-16 text-center text-slate-500 font-medium">
-                    No appointments found.
-                  </td>
-                </tr>
-              ) : filtered.map((a: AppointmentListItem) => (
-                <tr key={a.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => navigate(`/appointments/${a.id}`)}>
-                  <td className="px-6 py-5 align-middle">
-                    <span className="text-sm font-extrabold text-slate-800">
-                      #{a.id.toString()}
-                    </span>
-                  </td>
-                  <td className="px-6 py-5 align-middle">
-                    <span className="text-[14px] font-bold text-slate-700">{a.customer_name}</span>
-                  </td>
-                  <td className="px-6 py-5 align-middle">
-                    <span className="text-sm font-medium text-slate-500 whitespace-nowrap">{a.customer_phone}</span>
-                  </td>
-                  <td className="px-6 py-5 align-middle">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[14px] font-extrabold text-slate-800">{a.appointment_date}</span>
-                      <span className="text-[12px] text-slate-400 font-semibold">{a.appointment_time}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5 align-middle">
-                    <div className="flex items-center gap-3">
-                      {a.assigned_to_name ? (
-                        <>
-                          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[11px] font-bold text-slate-600">
-                            {a.assigned_to_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
-                          </div>
-                          <span className="text-[13px] font-bold text-slate-700">{a.assigned_to_name}</span>
-                        </>
-                      ) : (
-                        <span className="text-[13px] font-medium text-slate-400 italic">Unassigned</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-5 align-middle">
-                    <span className={`inline-flex items-center justify-center px-3 py-1.5 rounded-full text-[10px] font-extrabold uppercase tracking-[0.1em] ${getStatusStyle(a.status)}`}>
-                      {a.status.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className="px-6 py-5 align-middle text-right" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openAssign(a);
-                        }}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-[12px] rounded-lg transition-colors"
-                      >
-                        <UserCheck className="w-3.5 h-3.5" />
-                        {a.assigned_to_name ? 'Reassign' : 'Assign'}
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/appointments/${a.id}`);
-                        }}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-[#f1f0ff] text-[#2b5c8f] hover:bg-[#e4e2ff] font-bold text-[12px] rounded-lg transition-colors"
-                      >
-                        <FilePlus className="w-3.5 h-3.5" /> Quote
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Pagination */}
+      <Pagination
+        totalCount={totalCount}
+        currentPage={pagination.currentPage}
+        pageSize={pagination.pageSize}
+        onPageChange={pagination.goToPage}
+        onPageSizeChange={pagination.setPageSize}
+        loading={loadingList}
+      />
 
       {/* Create Modal */}
       <Modal open={formOpen} onClose={() => setFormOpen(false)} title="Create Appointment" maxWidth="max-w-2xl">
@@ -582,7 +455,7 @@ export default function AppointmentsPage() {
                   className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-[#2b5c8f] rounded-xl text-[14px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#2b5c8f]/10 transition-all"
                 >
                   <option value="">Select a staff member...</option>
-                  {users.map(u => (
+                  {(Array.isArray(users) ? users : []).map((u) => (
                     <option key={u.id} value={u.id}>{u.full_name} — {u.email}</option>
                   ))}
                 </select>

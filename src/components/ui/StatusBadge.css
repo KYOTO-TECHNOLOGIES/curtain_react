@@ -1,0 +1,177 @@
+/* ── Reusable StatusBadge Styles ───────────────────────────────── */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  border-width: 1px;
+  border-style: solid;
+  line-height: 1;
+}
+
+.status-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Status Badge Variants */
+.status-badge-pending {
+  background-color: #F5F3FF;
+  border-color: rgba(139, 92, 246, 0.2);
+  color: #7C3AED;
+}
+.status-badge-pending .status-badge-dot {
+  background-color: #8B5CF6;
+  --dot-pulse-color: rgba(139, 92, 246, 0.5);
+}
+
+.status-badge-scheduled,
+.status-badge-sent {
+  background-color: #EEF4FA;
+  border-color: rgba(47, 93, 143, 0.2);
+  color: #2F5D8F;
+}
+.status-badge-scheduled .status-badge-dot,
+.status-badge-sent .status-badge-dot {
+  background-color: #2F5D8F;
+}
+
+.status-badge-draft,
+.status-badge-in_progress,
+.status-badge-in-progress,
+.status-badge-pending_production {
+  background-color: #FFF4EA;
+  border-color: rgba(249, 115, 22, 0.2);
+  color: #EA580C;
+}
+.status-badge-draft .status-badge-dot,
+.status-badge-in_progress .status-badge-dot,
+.status-badge-in-progress .status-badge-dot,
+.status-badge-pending_production .status-badge-dot {
+  background-color: #F97316;
+  --dot-pulse-color: rgba(249, 115, 22, 0.5);
+}
+
+.status-badge-in_production,
+.status-badge-partially_paid {
+  background-color: #E0F2FE;
+  border-color: rgba(14, 165, 233, 0.2);
+  color: #0284C7;
+}
+.status-badge-in_production .status-badge-dot,
+.status-badge-partially_paid .status-badge-dot {
+  background-color: #0EA5E9;
+  --dot-pulse-color: rgba(14, 165, 233, 0.5);
+}
+
+.status-badge-shipped {
+  background-color: #F5F3FF;
+  border-color: rgba(139, 92, 246, 0.2);
+  color: #7C3AED;
+}
+.status-badge-shipped .status-badge-dot {
+  background-color: #8B5CF6;
+}
+
+.status-badge-completed,
+.status-badge-approved,
+.status-badge-accepted,
+.status-badge-installed,
+.status-badge-paid {
+  background-color: #E8F8F2;
+  border-color: rgba(16, 185, 129, 0.2);
+  color: #059669;
+}
+.status-badge-completed .status-badge-dot,
+.status-badge-approved .status-badge-dot,
+.status-badge-accepted .status-badge-dot,
+.status-badge-installed .status-badge-dot,
+.status-badge-paid .status-badge-dot {
+  background-color: #10B981;
+}
+
+.status-badge-closed {
+  background-color: #F1F5F9;
+  border-color: rgba(100, 116, 139, 0.2);
+  color: #475569;
+}
+.status-badge-closed .status-badge-dot {
+  background-color: #64748B;
+}
+
+.status-badge-cancelled,
+.status-badge-canceled,
+.status-badge-rejected,
+.status-badge-declined,
+.status-badge-expired,
+.status-badge-overdue {
+  background-color: #FEEFEF;
+  border-color: rgba(239, 68, 68, 0.2);
+  color: #DC2626;
+}
+.status-badge-cancelled .status-badge-dot,
+.status-badge-canceled .status-badge-dot,
+.status-badge-rejected .status-badge-dot,
+.status-badge-declined .status-badge-dot,
+.status-badge-expired .status-badge-dot,
+.status-badge-overdue .status-badge-dot {
+  background-color: #EF4444;
+  --dot-pulse-color: rgba(239, 68, 68, 0.5);
+}
+
+.status-badge-revised {
+  background-color: #F5F3FF;
+  border-color: rgba(139, 92, 246, 0.2);
+  color: #7C3AED;
+}
+.status-badge-revised .status-badge-dot {
+  background-color: #8B5CF6;
+}
+
+/* Pulsing dot */
+@keyframes statusDotPulse {
+  0% { box-shadow: 0 0 0 0 var(--dot-pulse-color, rgba(249, 115, 22, 0.5)); }
+  70% { box-shadow: 0 0 0 5px rgba(249, 115, 22, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+}
+
+.status-badge-dot-pulse {
+  animation: statusDotPulse 1.8s ease-out infinite;
+}
+
+/* Check icon draw for Completed / Accepted */
+@keyframes statusCheckDraw {
+  to { stroke-dashoffset: 0; }
+}
+
+.status-check-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.status-check-path {
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+  animation: statusCheckDraw 350ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: 200ms;
+}
+
+/* Prefers reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .status-badge-dot-pulse {
+    animation: none !important;
+  }
+  .status-check-path {
+    animation: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+}

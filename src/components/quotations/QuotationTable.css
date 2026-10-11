@@ -1,0 +1,180 @@
+/* ── Quotation Table Custom Styles ─────────────────────────────── */
+
+/* ── Column Widths ─────────────────────────────────────────────── */
+.qt-col-id { width: 135px; }
+.qt-col-customer { width: auto; min-width: 230px; }
+.qt-col-amount { width: 145px; }
+.qt-col-dates { width: 185px; }
+.qt-col-status { width: 135px; }
+.qt-col-actions { width: 145px; }
+
+/* ── Quote ID Chip ─────────────────────────────────────────────── */
+.quote-id-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background-color: #F8FAFC;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.quote-id-icon {
+  width: 14px;
+  height: 14px;
+  color: #94A3B8;
+  flex-shrink: 0;
+}
+
+/* ── Amount Cell ───────────────────────────────────────────────── */
+.quote-amount-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.quote-amount-val {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #0F172A;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.quote-type-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background-color: #F1F5F9;
+  color: #64748B;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  width: fit-content;
+}
+
+/* ── Dates Cell ────────────────────────────────────────────────── */
+.quote-dates-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.quote-date-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.quote-date-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #64748B;
+  min-width: 50px;
+}
+
+.quote-date-value {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #0F172A;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.quote-date-value-muted {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748B;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── Actions Cell ──────────────────────────────────────────────── */
+.quote-actions-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+.quote-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid rgba(47, 93, 143, 0.12);
+  background-color: #EEF4FA;
+  color: #2F5D8F;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease, color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+
+.quote-view-btn .quote-view-icon {
+  width: 14px;
+  height: 14px;
+  transition: transform 150ms ease;
+}
+
+.quote-view-btn:hover {
+  background-color: #2F5D8F;
+  color: #FFFFFF;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(47, 93, 143, 0.2);
+}
+
+.quote-view-btn:hover .quote-view-icon {
+  transform: scale(1.1);
+}
+
+.quote-view-btn:focus-visible {
+  outline: 2px solid #2F5D8F;
+  outline-offset: 1px;
+}
+
+/* ── Responsive ────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .quote-view-btn .quote-view-label {
+    display: none;
+  }
+  .quote-view-btn {
+    padding: 0 10px;
+  }
+}
+
+@media (max-width: 767px) {
+  .apt-table tbody tr {
+    position: relative;
+  }
+  .qt-col-status {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+  }
+  .quote-actions-cell {
+    width: 100%;
+    margin-top: 8px;
+  }
+  .quote-view-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .quote-view-btn .quote-view-label {
+    display: inline !important;
+  }
+}

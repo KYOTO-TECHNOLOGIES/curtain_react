@@ -70,10 +70,18 @@ export default function PricingBuilderPage() {
     queryFn: () => catalogApi.charges(),
   });
 
-  const customers = customersRes?.data || [];
-  const items = itemsRes?.data || [];
-  const motorTypes = motorsRes?.data || [];
-  const chargeTemplates = chargesRes?.data || [];
+  const toArray = <T,>(res: any): T[] => {
+    const d = res?.data;
+    if (Array.isArray(d)) return d;
+    if (Array.isArray(d?.results)) return d.results;
+    if (Array.isArray(res)) return res;
+    return [];
+  };
+
+  const customers = toArray<Customer>(customersRes);
+  const items = toArray<CatalogItem>(itemsRes);
+  const motorTypes = toArray<MotorType>(motorsRes);
+  const chargeTemplates = toArray<ChargeTemplate>(chargesRes);
 
   // Calculations
   const subtotal = [

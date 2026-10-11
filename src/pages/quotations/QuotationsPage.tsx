@@ -1,19 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import {
-  Plus,
-  Search,
-  Loader2,
-  ChevronRight,
-  Download,
-  ChevronDown,
-  FileText,
-  Eye
-} from 'lucide-react';
 import { quotationsApi } from '../../api/quotations';
 import { useToast } from '../../components/ui/Toast';
 import Modal from '../../components/ui/Modal';
+import { StatusSummary, QUOTATION_STATUS_CONFIGS } from '../../components/appointments/StatusSummary';
+import { QuotationPageHeader } from '../../components/quotations/QuotationPageHeader';
+import { QuotationFilterBar } from '../../components/quotations/QuotationFilterBar';
+import { QuotationTable } from '../../components/quotations/QuotationTable';
+import { Pagination } from '../../components/ui/Pagination';
+import { usePagination } from '../../hooks/usePagination';
 
 export default function QuotationsPage() {
   const navigate = useNavigate();
@@ -22,12 +18,13 @@ export default function QuotationsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [quoteTypeFilter, setQuoteTypeFilter] = useState('');
+  const pagination = usePagination();
 
-  // Debounce search
+  // Debounce search by 250ms
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-    }, 500);
+    }, 250);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -62,12 +59,19 @@ export default function QuotationsPage() {
     setSaving(false);
   };
 
+  // Reset page when filters change
+  useEffect(() => {
+    pagination.resetPage();
+  }, [statusFilter, quoteTypeFilter, debouncedSearch]);
+
   const { data: listRes, isLoading: loadingList, refetch: refetchList } = useQuery({
-    queryKey: ['quotations', statusFilter, quoteTypeFilter, debouncedSearch],
+    queryKey: ['quotations', statusFilter, quoteTypeFilter, debouncedSearch, pagination.currentPage, pagination.pageSize],
     queryFn: () => quotationsApi.list({
       status: statusFilter || undefined,
       quote_type: quoteTypeFilter || undefined,
       search: debouncedSearch || undefined,
+      limit: pagination.limit,
+      offset: pagination.offset,
     })
   });
 
@@ -76,7 +80,17 @@ export default function QuotationsPage() {
     queryFn: () => quotationsApi.stats().catch(() => ({ data: null }))
   });
 
-  const quotations = listRes?.data || [];
+  const { items: quotations, totalCount: paginatedTotal } = useMemo(() => {
+    const raw = listRes?.data;
+    // DRF paginated response: { count, results: [...] }
+    if (raw && typeof raw === 'object' && !Array.isArray(raw) && Array.isArray((raw as any).results)) {
+      return { items: (raw as any).results, totalCount: (raw as any).count as number };
+    }
+    // Fallback: plain array
+    if (Array.isArray(raw)) return { items: raw, totalCount: raw.length };
+    if (Array.isArray(listRes)) return { items: listRes as any, totalCount: (listRes as any).length };
+    return { items: [], totalCount: 0 };
+  }, [listRes]);
   const stats = statsRes?.data || null;
   const loading = loadingList || loadingStats;
 
@@ -86,220 +100,68 @@ export default function QuotationsPage() {
   };
 
   const filtered = quotations;
-
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'accepted': return 'bg-[#10b981] text-white';
-      case 'sent': return 'bg-[#2b5c8f] text-white';
-      case 'pending': return 'bg-[#8b5cf6] text-white';
-      case 'cancelled': return 'bg-[#ef4444] text-white';
-      case 'draft': return 'bg-[#f97316] text-white';
-      default: return 'bg-slate-200 text-slate-700';
-    }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AE', { style: 'currency', currency: 'AED' }).format(amount || 0);
-  };
+  const totalCount = paginatedTotal || stats?.total || filtered.length;
 
   return (
     <div className="space-y-6 animate-page-in font-sans">
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-[28px] font-extrabold text-[#1e293b] tracking-tight">
-            Quotation Management
-          </h1>
-          <div className="flex items-center gap-2 mt-1 text-[13px] font-medium text-slate-500">
-            <span>Curtain Master.</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-            <span className="text-[#2b5c8f]">Quotation List View</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 font-semibold text-sm rounded-xl shadow-sm hover:bg-slate-50 transition-all">
-            <Download className="w-4 h-4" strokeWidth={2.5} /> Export List
-          </button>
-          <button onClick={() => navigate('/quotations/create')} className="flex items-center gap-2 px-4 py-2.5 bg-[#2b5c8f] text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-900/20 hover:bg-[#1f456e] hover:-translate-y-0.5 transition-all">
-            <Plus className="w-4 h-4" strokeWidth={2.5} /> New Quotation
-          </button>
-        </div>
-      </div>
+      {/* Redesigned Page Header (Design Spells Aesthetic) */}
+      <QuotationPageHeader
+        onExport={() => showToast('Exporting quotations...', 'info')}
+        onNewQuotation={() => navigate('/quotations/create')}
+      />
 
-      {/* Filters Bar */}
-      <div className="bg-white p-5 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-wrap items-center gap-6">
-        <div className="flex items-center gap-4 flex-1">
-          <div className="flex-1 max-w-sm">
-            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search</span>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search quotes..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl outline-none focus:border-[#2b5c8f] transition-colors"
-              />
-            </div>
-          </div>
+      {/* Redesigned Filter Bar Card */}
+      <QuotationFilterBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        statusFilter={statusFilter}
+        onStatusChange={(status) => setStatusFilter(status)}
+        quoteTypeFilter={quoteTypeFilter}
+        onQuoteTypeChange={(type) => setQuoteTypeFilter(type)}
+        onClearFilters={() => {
+          setSearchQuery('');
+          setStatusFilter('');
+          setQuoteTypeFilter('');
+        }}
+        totalCount={totalCount}
+        filteredCount={filtered.length}
+        stats={stats}
+        quotations={quotations}
+      />
 
-          <div>
-            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</span>
-            <div className="relative">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl px-4 py-2 pr-10 outline-none focus:border-[#2b5c8f] transition-colors w-40"
-              >
-                <option value="">All Status</option>
-                <option value="draft">Draft</option>
-                <option value="pending">Pending</option>
-                <option value="sent">Sent</option>
-                <option value="accepted">Accepted</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-            </div>
-          </div>
+      {/* Modern Status Summary Row (Design Spells Micro-interactions) */}
+      <StatusSummary
+        stats={stats}
+        configs={QUOTATION_STATUS_CONFIGS}
+        selectedStatus={statusFilter}
+        onSelectStatus={(status) => setStatusFilter(status)}
+        loading={loadingStats}
+      />
 
-          <div>
-            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Type</span>
-            <div className="relative">
-              <select
-                value={quoteTypeFilter}
-                onChange={(e) => setQuoteTypeFilter(e.target.value)}
-                className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl px-4 py-2 pr-10 outline-none focus:border-[#2b5c8f] transition-colors w-40"
-              >
-                <option value="">All Types</option>
-                <option value="b2c">B2C (Retail)</option>
-                <option value="b2b">B2B (Business)</option>
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-            </div>
-          </div>
-        </div>
+      {/* Redesigned Quotation Table (Design Spells Aesthetic & Micro-interactions) */}
+      <QuotationTable
+        quotations={filtered}
+        loading={loading}
+        totalCount={totalCount}
+        onSelectQuotation={(q) => navigate(`/quotations/${q.id}`)}
+        onClearFilters={() => {
+          setSearchQuery('');
+          setStatusFilter('');
+          setQuoteTypeFilter('');
+        }}
+        onCopyPhone={(phone) => showToast(`Phone ${phone} copied to clipboard`, 'info')}
+      />
 
-        <div className="border border-slate-100 rounded-xl px-6 py-2.5 flex flex-col items-center justify-center min-w-[120px]">
-          <span className="text-[15px] font-extrabold text-slate-800">Total: {stats?.total || filtered.length}</span>
-          <span className="text-[11px] font-medium text-slate-500">Quotations</span>
-        </div>
-      </div>
-
-      {/* Indicators Row */}
-      <div className="flex flex-wrap items-center gap-4 mt-2 mb-6">
-        <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-slate-100 rounded-full shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#10b981]"></div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[14px] font-extrabold text-slate-800">{stats?.by_status?.accepted || 0}</span>
-            <span className="text-[13px] font-medium text-slate-500">Accepted</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-slate-100 rounded-full shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#2b5c8f]"></div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[14px] font-extrabold text-slate-800">{stats?.by_status?.sent || 0}</span>
-            <span className="text-[13px] font-medium text-slate-500">Sent</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-slate-100 rounded-full shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#8b5cf6]"></div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[14px] font-extrabold text-slate-800">{stats?.by_status?.pending || 0}</span>
-            <span className="text-[13px] font-medium text-slate-500">Pending</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-slate-100 rounded-full shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#f97316]"></div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[14px] font-extrabold text-slate-800">{stats?.by_status?.draft || 0}</span>
-            <span className="text-[13px] font-medium text-slate-500">Draft</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-slate-100 rounded-full shadow-[0_2px_10px_rgb(0,0,0,0.02)]">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#ef4444]"></div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[14px] font-extrabold text-slate-800">{stats?.by_status?.cancelled || 0}</span>
-            <span className="text-[13px] font-medium text-slate-500">Cancelled</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Table Section */}
-      <div className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] overflow-hidden border border-slate-100">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[900px]">
-            <thead>
-              <tr className="border-b border-slate-100 bg-white">
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Quote #</th>
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Customer</th>
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Contact</th>
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Amount</th>
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Dates</th>
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-16 text-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-[#2b5c8f] mx-auto" />
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-16 text-center text-slate-500 font-medium">
-                    No quotations found. Try adjusting your filters.
-                  </td>
-                </tr>
-              ) : filtered.map(q => (
-                <tr key={q.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-5 align-middle">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-slate-400" />
-                      <span className="text-sm font-extrabold text-slate-800">{q.id}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5 align-middle">
-                    <span className="text-[14px] font-bold text-slate-700">{q.customer_name}</span>
-                  </td>
-                  <td className="px-6 py-5 align-middle">
-                    <span className="text-sm font-medium text-slate-500 whitespace-nowrap">{q.customer_phone || 'N/A'}</span>
-                  </td>
-                  <td className="px-6 py-5 align-middle">
-                    <span className="text-[15px] font-extrabold text-slate-800 tracking-tight">
-                      {formatCurrency(parseFloat(q.total || '0'))}
-                    </span>
-                  </td>
-                  <td className="px-6 py-5 align-middle">
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[13px] font-bold text-slate-700">Created:</span>
-                        <span className="text-[12px] text-slate-500 font-medium">{q.created_at?.split('T')[0] || 'Unknown'}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[13px] font-bold text-slate-700">Valid Till:</span>
-                        <span className="text-[12px] text-slate-500 font-medium">{q.valid_until?.split('T')[0] || 'N/A'}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5 align-middle">
-                    <span className={`inline-flex items-center justify-center px-3 py-1.5 rounded-full text-[10px] font-extrabold uppercase tracking-[0.1em] ${getStatusStyle(q.status)}`}>
-                      {q.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-5 align-middle text-right">
-                    <button onClick={() => navigate(`/quotations/${q.id}`)} className="inline-flex items-center gap-2 px-4 py-2 bg-[#f0f4f8] text-[#2b5c8f] hover:bg-[#e1e9f1] font-bold text-[12px] rounded-lg transition-colors">
-                      <Eye className="w-3.5 h-3.5" /> View Details
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Pagination */}
+      <Pagination
+        totalCount={totalCount}
+        currentPage={pagination.currentPage}
+        pageSize={pagination.pageSize}
+        onPageChange={pagination.goToPage}
+        onPageSizeChange={pagination.setPageSize}
+        loading={loadingList}
+      />
 
       {/* Create Modal */}
       <Modal open={formOpen} onClose={() => setFormOpen(false)} title="Create Draft Quotation" maxWidth="max-w-xl">

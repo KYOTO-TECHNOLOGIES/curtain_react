@@ -167,7 +167,15 @@ export default function AppointmentDetailsPage() {
     queryFn: () => usersApi.list(),
   });
 
-  const users: User[] = usersRes?.data || [];
+  const users: User[] = useMemo(() => {
+    const raw = usersRes?.data;
+    if (Array.isArray(raw)) return raw;
+    if (Array.isArray((raw as any)?.results)) return (raw as any).results;
+    if (Array.isArray((raw as any)?.data)) return (raw as any).data;
+    if (Array.isArray(usersRes)) return usersRes as any;
+    return [];
+  }, [usersRes]);
+
   const appointment = data?.data as AppointmentDetail | undefined;
 
   useEffect(() => {
@@ -179,7 +187,7 @@ export default function AppointmentDetailsPage() {
   const assigneeOptions = useMemo(
     () => [
       { value: '', label: 'Unassigned' },
-      ...users.map((user) => ({ value: String(user.id), label: user.full_name || user.email })),
+      ...(Array.isArray(users) ? users : []).map((user) => ({ value: String(user.id), label: user.full_name || user.email })),
     ],
     [users],
   );

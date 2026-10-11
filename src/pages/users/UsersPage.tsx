@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,6 +9,8 @@ import type { User, UpdateUserRequest } from '../../types';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
 import { createUserSchema, editUserSchema, type CreateUserFormValues, type EditUserFormValues } from '../../lib/validationSchemas';
+import { Pagination } from '../../components/ui/Pagination';
+import { usePagination } from '../../hooks/usePagination';
 
 // Shared field styles
 const inputCls = (hasError?: boolean) =>
@@ -24,6 +26,21 @@ const ErrorMsg = ({ message }: { message?: string }) =>
 export default function UsersPage() {
   const { showToast } = useToast();
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const pagination = usePagination();
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Reset page when search changes
+  useEffect(() => {
+    pagination.resetPage();
+  }, [debouncedSearch]);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -44,8 +61,12 @@ export default function UsersPage() {
   });
 
   const { data: usersRes, isLoading: loadingUsers, refetch: refetchUsers } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => usersApi.list()
+    queryKey: ['users', debouncedSearch, pagination.currentPage, pagination.pageSize],
+    queryFn: () => usersApi.list({
+      search: debouncedSearch || undefined,
+      limit: pagination.limit,
+      offset: pagination.offset,
+    })
   });
 
   const { data: rolesRes, isLoading: loadingRoles, refetch: refetchRoles } = useQuery({
@@ -53,8 +74,21 @@ export default function UsersPage() {
     queryFn: () => rolesApi.list()
   });
 
-  const users = usersRes?.data || [];
-  const roles = rolesRes?.data || [];
+  const { items: users, totalCount } = useMemo(() => {
+    const raw = usersRes?.data;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw) && Array.isArray((raw as any).results)) {
+      return { items: (raw as any).results as User[], totalCount: (raw as any).count as number };
+    }
+    if (Array.isArray(raw)) return { items: raw, totalCount: raw.length };
+    if (Array.isArray(usersRes)) return { items: usersRes as any, totalCount: (usersRes as any).length };
+    return { items: [] as User[], totalCount: 0 };
+  }, [usersRes]);
+
+  const roles = Array.isArray(rolesRes?.data)
+    ? rolesRes.data
+    : Array.isArray((rolesRes?.data as any)?.results)
+    ? (rolesRes?.data as any).results
+    : [];
   const loading = loadingUsers || loadingRoles;
 
   const load = () => {
@@ -116,10 +150,7 @@ export default function UsersPage() {
     setDeleting(false);
   };
 
-  const filtered = users.filter((u) =>
-    u.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    u.email.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = users;
 
   return (
     <div className="space-y-6 animate-page-in">
@@ -200,6 +231,16 @@ export default function UsersPage() {
           </table>
         </div>
       </div>
+
+      {/* Pagination */}
+      <Pagination
+        totalCount={totalCount}
+        currentPage={pagination.currentPage}
+        pageSize={pagination.pageSize}
+        onPageChange={pagination.goToPage}
+        onPageSizeChange={pagination.setPageSize}
+        loading={loadingUsers}
+      />
 
       {/* Form Modal */}
       <Modal open={formOpen} onClose={() => setFormOpen(false)} title={editingUser ? 'Edit User' : 'Create User'}>

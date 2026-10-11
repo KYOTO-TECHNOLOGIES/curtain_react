@@ -1,0 +1,223 @@
+/* ── Payment Table Custom Styles ───────────────────────────────── */
+
+/* ── Column Widths ─────────────────────────────────────────────── */
+.pay-col-id { width: 125px; }
+.pay-col-invoice { width: 165px; }
+.pay-col-amount { width: 155px; }
+.pay-col-method { width: 155px; }
+.pay-col-details { width: auto; min-width: 200px; }
+.pay-col-actions { width: 160px; }
+
+/* ── Payment ID Chip ───────────────────────────────────────────── */
+.pay-id-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background-color: #F8FAFC;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #0F172A;
+  white-space: nowrap;
+}
+
+.pay-id-icon {
+  width: 14px;
+  height: 14px;
+  color: #64748B;
+  flex-shrink: 0;
+}
+
+/* ── Invoice Reference Container ───────────────────────────────── */
+.pay-inv-container {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pay-inv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 7px;
+  background-color: #EEF4FA;
+  border: 1px solid rgba(47, 93, 143, 0.15);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #2F5D8F;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  width: fit-content;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.pay-inv-chip:hover {
+  background-color: #2F5D8F;
+  color: #FFFFFF;
+}
+
+.pay-ref-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #64748B;
+  padding-left: 2px;
+  white-space: nowrap;
+}
+
+.pay-ref-val {
+  font-weight: 600;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Amount Cell ───────────────────────────────────────────────── */
+.pay-amount-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.pay-amount-val {
+  font-size: 15px;
+  font-weight: 800;
+  color: #059669;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Payment Method Badges ─────────────────────────────────────── */
+.pay-method-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  border-width: 1px;
+  border-style: solid;
+  line-height: 1;
+}
+
+.pay-method-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.pay-method-bank_transfer {
+  background-color: #EEF4FA;
+  border-color: rgba(47, 93, 143, 0.2);
+  color: #2F5D8F;
+}
+
+.pay-method-card {
+  background-color: #E8F8F2;
+  border-color: rgba(16, 185, 129, 0.2);
+  color: #059669;
+}
+
+.pay-method-cash {
+  background-color: #FFFBEB;
+  border-color: rgba(245, 158, 11, 0.25);
+  color: #D97706;
+}
+
+.pay-method-cheque {
+  background-color: #F5F3FF;
+  border-color: rgba(139, 92, 246, 0.2);
+  color: #7C3AED;
+}
+
+/* ── Details Cell ──────────────────────────────────────────────── */
+.pay-details-container {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pay-details-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.pay-details-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748B;
+  width: 38px;
+  flex-shrink: 0;
+}
+
+.pay-details-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+}
+
+.pay-notes-tooltip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #94A3B8;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Actions Cell ──────────────────────────────────────────────── */
+.pay-actions-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.pay-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid rgba(47, 93, 143, 0.15);
+  background-color: #EEF4FA;
+  color: #2F5D8F;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease, color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+
+.pay-view-btn:hover {
+  background-color: #2F5D8F;
+  color: #FFFFFF;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(47, 93, 143, 0.2);
+}
+
+.pay-view-btn:focus-visible {
+  outline: 2px solid #2F5D8F;
+  outline-offset: 1px;
+}

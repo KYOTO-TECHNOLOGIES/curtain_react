@@ -1,0 +1,338 @@
+/* ── FilterBar Card & Grid Styles (Design Spells Aesthetic) ── */
+
+:root {
+  --cm-filter-brand-blue: #2F5D8F;
+  --cm-filter-border: #E2E8F0;
+  --cm-filter-border-hover: #CBD5E1;
+  --cm-filter-ring: rgba(47, 93, 143, 0.14);
+}
+
+/* ── Filter Card Container ─────────────────────────────────────── */
+.cm-filter-card {
+  background: #FFFFFF;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 16px -8px rgba(15, 23, 42, 0.08);
+  padding: 16px 20px;
+  margin-top: 16px;
+  margin-bottom: 16px;
+  transition: box-shadow 200ms ease;
+}
+
+/* ── Responsive CSS Grid ───────────────────────────────────────── */
+.cm-filter-grid {
+  display: grid;
+  align-items: end;
+  gap: 12px;
+  grid-template-columns: minmax(240px, 1.6fr) 200px 200px auto 1fr auto;
+}
+
+/* Tablet / intermediate (640px to 1023px) */
+@media (max-width: 1023px) and (min-width: 640px) {
+  .cm-filter-grid {
+    grid-template-columns: 1fr 1fr auto 1fr auto;
+  }
+  .cm-filter-cell-search {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Mobile (<640px) */
+@media (max-width: 639px) {
+  .cm-filter-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .cm-filter-spacer {
+    display: none;
+  }
+  .cm-filter-cell-total {
+    border-left: none !important;
+    border-top: 1px solid #F1F5F9;
+    padding-left: 0 !important;
+    padding-top: 12px;
+    align-items: flex-start !important;
+  }
+}
+
+/* ── Field Labels ──────────────────────────────────────────────── */
+.cm-filter-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94A3B8;
+  margin-bottom: 6px;
+  user-select: none;
+  transition: color 150ms ease;
+}
+
+.cm-filter-cell.is-active .cm-filter-label,
+.cm-filter-cell:focus-within .cm-filter-label {
+  color: var(--cm-filter-brand-blue);
+}
+
+/* ── Search Input Box ──────────────────────────────────────────── */
+.cm-search-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 44px;
+  background-color: #FFFFFF;
+  border: 1px solid var(--cm-filter-border);
+  border-radius: 12px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.cm-search-control:hover {
+  border-color: var(--cm-filter-border-hover);
+}
+
+.cm-search-control.is-focused {
+  border-color: var(--cm-filter-brand-blue);
+  box-shadow: 0 0 0 3px var(--cm-filter-ring);
+}
+
+.cm-search-icon {
+  position: absolute;
+  left: 14px;
+  width: 16px;
+  height: 16px;
+  color: #94A3B8;
+  pointer-events: none;
+  transition: color 150ms ease;
+}
+
+.cm-search-control.is-focused .cm-search-icon {
+  color: var(--cm-filter-brand-blue);
+}
+
+.cm-search-input {
+  width: 100%;
+  height: 100%;
+  padding-left: 40px;
+  padding-right: 42px;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: #0F172A;
+}
+
+.cm-search-input::placeholder {
+  color: #94A3B8;
+  font-weight: 400;
+}
+
+/* Keyboard hint chip '/' */
+.cm-kbd-chip {
+  position: absolute;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94A3B8;
+  background-color: #F1F5F9;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  pointer-events: none;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+/* Clear (x) button */
+.cm-search-clear-btn {
+  position: absolute;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background-color: #F1F5F9;
+  color: #64748B;
+  border: none;
+  cursor: pointer;
+  transition: transform 150ms cubic-bezier(0.22, 1, 0.36, 1),
+              background-color 150ms ease,
+              color 150ms ease,
+              opacity 150ms ease;
+}
+
+.cm-search-clear-btn:hover {
+  background-color: #E2E8F0;
+  color: #0F172A;
+}
+
+.cm-search-clear-btn.is-hidden {
+  opacity: 0;
+  transform: scale(0.6);
+  pointer-events: none;
+}
+
+.cm-search-clear-btn.is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.cm-search-clear-btn:focus-visible {
+  outline: 2px solid var(--cm-filter-brand-blue);
+  outline-offset: 1px;
+}
+
+/* ── Clear Filters Ghost Button ────────────────────────────────── */
+.cm-clear-filters-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 12px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748B;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  animation: clearSlideIn 180ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.cm-clear-filters-btn:hover {
+  color: var(--cm-filter-brand-blue);
+  background-color: #F8FAFC;
+}
+
+.cm-clear-filters-btn:active {
+  background-color: #F1F5F9;
+}
+
+.cm-clear-filters-btn .clear-icon {
+  width: 14px;
+  height: 14px;
+  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cm-clear-filters-btn.is-spinning .clear-icon {
+  transform: rotate(-180deg);
+}
+
+.cm-clear-filters-btn:focus-visible {
+  outline: 2px solid var(--cm-filter-brand-blue);
+  outline-offset: 2px;
+}
+
+@keyframes clearSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ── Total Chip Block ──────────────────────────────────────────── */
+.cm-filter-cell-total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  border-left: 1px solid rgba(226, 232, 240, 0.9);
+  padding-left: 18px;
+  min-height: 44px;
+}
+
+.cm-total-number {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  color: #0F172A;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cm-total-number.roll-animation {
+  animation: countRoll 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes countRoll {
+  0% {
+    opacity: 0.3;
+    transform: translateY(-4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cm-total-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.cm-total-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748B;
+  user-select: none;
+}
+
+/* Pulsing brand blue dot */
+.cm-pulse-dot {
+  position: relative;
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--cm-filter-brand-blue);
+}
+
+.cm-pulse-dot::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background-color: var(--cm-filter-brand-blue);
+  opacity: 0.45;
+  animation: pulseDotWave 1.8s ease-out infinite;
+}
+
+@keyframes pulseDotWave {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+/* ── Prefers-Reduced-Motion ─────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .cm-clear-filters-btn,
+  .cm-total-number.roll-animation,
+  .cm-pulse-dot::before,
+  .cm-search-clear-btn {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

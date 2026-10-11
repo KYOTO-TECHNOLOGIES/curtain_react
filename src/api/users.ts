@@ -1,9 +1,17 @@
 import { api } from './client';
 import type { User, CreateUserRequest, UpdateUserRequest } from '../types';
 
+export interface UserListParams {
+  search?: string;
+  limit?: number;
+  offset?: number;
+  role?: number;
+  [key: string]: any;
+}
+
 export const usersApi = {
-  list: () =>
-    api.get<User[]>('users/'),
+  list: (params?: UserListParams) =>
+    api.get<User[]>('users/', { params }),
 
   get: (id: number) =>
     api.get<User>(`users/${id}/`),

@@ -94,11 +94,19 @@ export default function QuotationBuilderPage() {
     queryFn: () => catalogApi.motors(),
   });
 
-  const appointments: AppointmentListItem[] = appointmentsRes?.data || [];
-  const fabricTypes = fabricTypesRes?.data || [];
-  const models = modelsRes?.data || [];
-  const items = itemsRes?.data || [];
-  const motors = motorsRes?.data || [];
+  const toArray = <T,>(res: any): T[] => {
+    const d = res?.data;
+    if (Array.isArray(d)) return d;
+    if (Array.isArray(d?.results)) return d.results;
+    if (Array.isArray(res)) return res;
+    return [];
+  };
+
+  const appointments: AppointmentListItem[] = toArray<AppointmentListItem>(appointmentsRes);
+  const fabricTypes = toArray<FabricType>(fabricTypesRes);
+  const models = toArray<CatalogModel>(modelsRes);
+  const items = toArray<CatalogItem>(itemsRes);
+  const motors = toArray<MotorType>(motorsRes);
 
   const selectedAppointmentSummary = appointments.find(
     (appointment) => String(appointment.id) === selectedAppointmentId

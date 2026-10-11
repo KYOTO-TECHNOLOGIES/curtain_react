@@ -1,0 +1,197 @@
+/* ── Page Header Styles (Design Spells Aesthetic) ── */
+
+:root {
+  --cm-header-brand-blue: #2F5D8F;
+  --cm-header-brand-dark: #2A5483;
+}
+
+/* ── Entrance Stagger Animation ────────────────────────────────── */
+.header-stagger-item {
+  opacity: 0;
+  animation: headerFadeSlideUp 450ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.header-stagger-1 {
+  animation-delay: 0ms;
+}
+
+.header-stagger-2 {
+  animation-delay: 60ms;
+}
+
+.header-stagger-3 {
+  animation-delay: 120ms;
+}
+
+@keyframes headerFadeSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Breadcrumb Link with Sliding Underline ────────────────────── */
+.cm-breadcrumb-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: #64748B;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.cm-breadcrumb-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 100%;
+  height: 1.5px;
+  background-color: var(--cm-header-brand-blue);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cm-breadcrumb-link:hover {
+  color: #0F172A;
+}
+
+.cm-breadcrumb-link:hover::after {
+  transform: scaleX(1);
+}
+
+.cm-breadcrumb-link:focus-visible {
+  outline: 2px solid var(--cm-header-brand-blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Export Button (Secondary) ─────────────────────────────────── */
+.btn-export-list {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  background-color: #FFFFFF;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 3px 8px -2px rgba(15, 23, 42, 0.06);
+  cursor: pointer;
+  user-select: none;
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 180ms ease,
+              box-shadow 180ms ease,
+              background-color 180ms ease;
+}
+
+.btn-export-list .export-icon {
+  width: 16px;
+  height: 16px;
+  color: #64748B;
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms ease;
+}
+
+.btn-export-list:hover {
+  transform: translateY(-1px);
+  border-color: rgba(15, 23, 42, 0.18);
+  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.08);
+  color: #0F172A;
+}
+
+.btn-export-list:hover .export-icon {
+  transform: translateY(2px);
+  color: #0F172A;
+}
+
+.btn-export-list:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.btn-export-list:focus-visible {
+  outline: 2px solid var(--cm-header-brand-blue);
+  outline-offset: 2px;
+}
+
+/* ── Schedule Button (Primary) ─────────────────────────────────── */
+.btn-schedule-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  background: linear-gradient(180deg, #336699 0%, #2A5483 100%);
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #FFFFFF;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15),
+              0 6px 16px -6px rgba(47, 93, 143, 0.5);
+  cursor: pointer;
+  user-select: none;
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 180ms ease,
+              filter 180ms ease;
+}
+
+.btn-schedule-primary .schedule-icon {
+  width: 16px;
+  height: 16px;
+  color: #FFFFFF;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.btn-schedule-primary:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22),
+              0 8px 20px -6px rgba(47, 93, 143, 0.65);
+}
+
+.btn-schedule-primary:hover .schedule-icon {
+  transform: rotate(-10deg);
+}
+
+.btn-schedule-primary:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.1),
+              0 3px 10px -4px rgba(47, 93, 143, 0.4);
+}
+
+.btn-schedule-primary:focus-visible {
+  outline: 2px solid var(--cm-header-brand-blue);
+  outline-offset: 2px;
+}
+
+/* ── Prefers-Reduced-Motion ─────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .header-stagger-item {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .cm-breadcrumb-link::after {
+    transition: none !important;
+  }
+  .btn-export-list,
+  .btn-export-list .export-icon,
+  .btn-schedule-primary,
+  .btn-schedule-primary .schedule-icon {
+    transition: none !important;
+    transform: none !important;
+  }
+}

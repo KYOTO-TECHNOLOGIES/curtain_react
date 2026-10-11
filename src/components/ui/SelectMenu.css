@@ -1,0 +1,344 @@
+/* ── Reusable SelectMenu Dropdown Styles (Design Spells Aesthetic) ── */
+
+:root {
+  --cm-brand-blue: #2F5D8F;
+  --cm-brand-hover: #264C75;
+  --cm-brand-focus-ring: rgba(47, 93, 143, 0.14);
+}
+
+/* ── Trigger Button ────────────────────────────────────────────── */
+.select-menu-trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1E293B;
+  text-align: left;
+  user-select: none;
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.select-menu-trigger:hover:not(:disabled) {
+  border-color: #CBD5E1;
+}
+
+.select-menu-trigger.is-open,
+.select-menu-trigger:focus-visible {
+  border-color: var(--cm-brand-blue) !important;
+  box-shadow: 0 0 0 3px var(--cm-brand-focus-ring) !important;
+  outline: none;
+}
+
+.select-menu-trigger:focus-visible {
+  outline: 2px solid var(--cm-brand-blue);
+  outline-offset: 2px;
+}
+
+/* Chevron indicator */
+.select-menu-chevron {
+  width: 16px;
+  height: 16px;
+  color: #94A3B8;
+  flex-shrink: 0;
+  margin-left: 8px;
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), color 150ms ease;
+}
+
+.select-menu-trigger.is-open .select-menu-chevron {
+  transform: rotate(180deg);
+  color: var(--cm-brand-blue);
+}
+
+/* ── Multi-dot Cluster (for "All Status") ───────────────────────── */
+.dot-cluster {
+  display: grid;
+  grid-template-columns: repeat(2, 4px);
+  gap: 2.5px;
+  width: 11px;
+  height: 11px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dot-cluster-pip {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+}
+
+/* ── Staff Initials Avatar ─────────────────────────────────────── */
+.staff-avatar-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #EEF4FA;
+  color: var(--cm-brand-blue);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+  border: 1px solid rgba(47, 93, 143, 0.15);
+}
+
+/* ── Popover Menu ──────────────────────────────────────────────── */
+.select-menu-popover {
+  position: absolute;
+  z-index: 9999;
+  background: #FFFFFF;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 6px;
+  box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.06);
+  min-width: 220px;
+  overflow: hidden;
+  will-change: transform, opacity;
+}
+
+.select-menu-popover.placement-bottom {
+  transform-origin: top center;
+  animation: popoverEnterBottom 160ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.select-menu-popover.placement-top {
+  transform-origin: bottom center;
+  animation: popoverEnterTop 160ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes popoverEnterBottom {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes popoverEnterTop {
+  0% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── Inline Search in Popover ──────────────────────────────────── */
+.select-menu-search-wrapper {
+  position: relative;
+  margin-bottom: 6px;
+  padding: 0 4px;
+}
+
+.select-menu-search-input {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px 0 32px;
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #1E293B;
+  outline: none;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.select-menu-search-input:focus {
+  border-color: var(--cm-brand-blue);
+  background-color: #FFFFFF;
+}
+
+.select-menu-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  color: #94A3B8;
+  pointer-events: none;
+}
+
+/* ── Options List & Row ────────────────────────────────────────── */
+.select-menu-options-list {
+  max-height: 260px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior: contain;
+}
+
+/* Option Row */
+.select-menu-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  text-align: left;
+  user-select: none;
+  transition: background-color 120ms ease, color 120ms ease;
+  animation: optionFadeIn 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--opt-idx, 0) * 15ms);
+}
+
+@keyframes optionFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.select-menu-option:hover,
+.select-menu-option.is-highlighted {
+  background-color: #F8FAFC;
+  color: #0F172A;
+}
+
+.select-menu-option.is-selected {
+  font-weight: 600;
+  color: #0F172A;
+}
+
+/* Dot scaling on hover */
+.select-menu-option-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: transform 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.select-menu-option:hover .select-menu-option-dot,
+.select-menu-option.is-highlighted .select-menu-option-dot {
+  transform: scale(1.25);
+}
+
+/* Muted count badge */
+.select-menu-count-badge {
+  font-size: 12px;
+  font-weight: 500;
+  color: #94A3B8;
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background-color: rgba(15, 23, 42, 0.03);
+}
+
+/* Check icon draw animation */
+.select-menu-check-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--cm-brand-blue);
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+.select-menu-check-path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: checkDraw 250ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes checkDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ── Mobile Bottom Sheet (<640px) ──────────────────────────────── */
+.select-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 9998;
+  animation: backdropFadeIn 180ms ease forwards;
+}
+
+@keyframes backdropFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.select-menu-bottom-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #FFFFFF;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  padding: 12px 16px 24px;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  animation: sheetSlideUp 220ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes sheetSlideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.select-menu-drag-handle {
+  width: 40px;
+  height: 5px;
+  border-radius: 999px;
+  background-color: #CBD5E1;
+  margin: 0 auto 12px;
+}
+
+/* ── Prefers-Reduced-Motion ─────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .select-menu-popover,
+  .select-menu-bottom-sheet,
+  .select-menu-backdrop,
+  .select-menu-option,
+  .select-menu-check-path {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+  .select-menu-check-path {
+    stroke-dashoffset: 0 !important;
+  }
+}

@@ -1,0 +1,293 @@
+/* ── Shared Design Spells DataTable Tokens & Styles ───────────────── */
+:root {
+  --dt-card-radius: 20px;
+  --dt-card-border: rgba(15, 23, 42, 0.06);
+  --dt-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -12px rgba(15, 23, 42, 0.08);
+  --dt-row-divider: rgba(15, 23, 42, 0.05);
+  --dt-row-height: 68px;
+  --dt-cell-px: 16px;
+  --dt-brand: #2F5D8F;
+  --dt-brand-tint: #EEF4FA;
+  --dt-hover-bg: #F8FAFC;
+  --dt-header-height: 44px;
+  --dt-footer-height: 52px;
+}
+
+/* ── Table Card Shell ──────────────────────────────────────────── */
+.apt-table-card {
+  background: #FFFFFF;
+  border-radius: var(--dt-card-radius, 20px);
+  border: 1px solid var(--dt-card-border, rgba(15, 23, 42, 0.06));
+  box-shadow: var(--dt-card-shadow);
+  overflow: hidden;
+  position: relative;
+}
+
+.apt-table-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Sticky Header ─────────────────────────────────────────────── */
+.apt-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  table-layout: fixed;
+  min-width: 980px;
+}
+
+.apt-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.apt-table thead tr {
+  height: var(--dt-header-height, 44px);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--dt-row-divider, rgba(15, 23, 42, 0.05));
+}
+
+.apt-table th {
+  padding: 0 var(--dt-cell-px, 16px);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94A3B8;
+  white-space: nowrap;
+  vertical-align: middle;
+  user-select: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Sortable Header Button ────────────────────────────────────── */
+.apt-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.apt-sort-btn:hover {
+  color: #334155;
+}
+
+.apt-sort-chevron {
+  width: 12px;
+  height: 12px;
+  opacity: 0;
+  transition: opacity 150ms ease, transform 180ms ease, color 150ms ease;
+}
+
+.apt-sort-btn:hover .apt-sort-chevron {
+  opacity: 0.5;
+}
+
+.apt-sort-btn[aria-sort="ascending"] .apt-sort-chevron,
+.apt-sort-btn[aria-sort="descending"] .apt-sort-chevron {
+  opacity: 1;
+  color: var(--dt-brand, #2F5D8F);
+}
+
+.apt-sort-btn[aria-sort="descending"] .apt-sort-chevron {
+  transform: rotate(180deg);
+}
+
+/* ── Row Styles ────────────────────────────────────────────────── */
+.apt-table tbody tr {
+  height: var(--dt-row-height, 68px);
+  border-bottom: 1px solid var(--dt-row-divider, rgba(15, 23, 42, 0.05));
+  position: relative;
+  transition: background-color 150ms ease;
+  cursor: pointer;
+}
+
+.apt-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.apt-table tbody tr:hover {
+  background-color: var(--dt-hover-bg, #F8FAFC);
+}
+
+.apt-table tbody tr:active {
+  transform: scale(0.998);
+}
+
+.apt-table tbody tr:focus-visible {
+  outline: 2px solid var(--dt-brand, #2F5D8F);
+  outline-offset: -2px;
+  border-radius: 2px;
+}
+
+.apt-table td {
+  padding: 0 var(--dt-cell-px, 16px);
+  vertical-align: middle;
+  height: var(--dt-row-height, 68px);
+  overflow: hidden;
+}
+
+/* ── Left Status Accent Bar (Inside first td to preserve table column layout) ────────────────────────────────────── */
+.apt-table tbody td:first-child {
+  position: relative;
+}
+
+.apt-table tbody td:first-child::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background-color: var(--row-status-color, transparent);
+  transform: scaleY(0);
+  transform-origin: center;
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.apt-table tbody tr:hover td:first-child::before {
+  transform: scaleY(1);
+}
+
+/* ── Row Entrance Animation ────────────────────────────────────── */
+@keyframes dtRowEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.apt-row-enter {
+  animation: dtRowEnter 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Row Flash on Update ───────────────────────────────────────── */
+@keyframes dtRowFlash {
+  0% { background-color: var(--row-flash-color, rgba(47, 93, 143, 0.12)); }
+  100% { background-color: transparent; }
+}
+
+.apt-row-flash {
+  animation: dtRowFlash 1.2s ease-out forwards;
+}
+
+/* ── Skeleton ──────────────────────────────────────────────────── */
+@keyframes dtShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.apt-skeleton-block {
+  border-radius: 8px;
+  background: linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%);
+  background-size: 200% 100%;
+  animation: dtShimmer 1.5s ease-in-out infinite;
+}
+
+/* ── Empty State ───────────────────────────────────────────────── */
+.apt-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  gap: 12px;
+}
+
+.apt-empty-icon-badge {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background-color: #F1F5F9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94A3B8;
+}
+
+.apt-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.apt-empty-hint {
+  font-size: 13px;
+  color: #94A3B8;
+}
+
+.apt-empty-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dt-brand, #2F5D8F);
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.apt-empty-clear-btn:hover {
+  background-color: var(--dt-brand-tint, #EEF4FA);
+}
+
+/* ── Table Footer ──────────────────────────────────────────────── */
+.apt-table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--dt-footer-height, 52px);
+  padding: 0 var(--dt-cell-px, 16px);
+  border-top: 1px solid var(--dt-row-divider, rgba(15, 23, 42, 0.05));
+}
+
+.apt-footer-count {
+  font-size: 13px;
+  color: #64748B;
+  font-variant-numeric: tabular-nums;
+}
+
+.apt-footer-count strong {
+  color: #334155;
+  font-weight: 600;
+}
+
+/* ── Prefers Reduced Motion ────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .apt-row-enter {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .apt-row-flash {
+    animation: none !important;
+  }
+  .apt-table tbody td:first-child::before {
+    transition: none !important;
+  }
+  .apt-sort-chevron {
+    transition: none !important;
+  }
+}

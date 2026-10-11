@@ -63,15 +63,31 @@ const normalizeAppointmentResponse = <T>(data: T): T => {
   return data;
 };
 
-const normalizeApiResponse = (response: any) => ({
-  ...response,
-  data: Array.isArray(response.data)
-    ? response.data.map((item: any) => normalizeAppointmentResponse(item))
-    : normalizeAppointmentResponse(response.data),
-});
+const normalizeApiResponse = (response: any) => {
+  if (!response || !response.data) return response;
+  if (Array.isArray(response.data)) {
+    return {
+      ...response,
+      data: response.data.map((item: any) => normalizeAppointmentResponse(item)),
+    };
+  }
+  if (typeof response.data === 'object' && Array.isArray(response.data.results)) {
+    return {
+      ...response,
+      data: {
+        ...response.data,
+        results: response.data.results.map((item: any) => normalizeAppointmentResponse(item)),
+      },
+    };
+  }
+  return {
+    ...response,
+    data: normalizeAppointmentResponse(response.data),
+  };
+};
 
 export const appointmentsApi = {
-  list: (filters?: AppointmentFilters) =>
+  list: (filters?: AppointmentFilters & { limit?: number; offset?: number }) =>
     api.get<AppointmentListItem[]>('appointments/', { params: filters }).then(normalizeApiResponse),
 
   get: (id: number | string) =>
