@@ -59,19 +59,6 @@ export interface CatalogItem {
   updated_at?: string;
 }
 
-export interface ActivityLog {
-  id: number;
-  action: string;
-  details: Record<string, any>;
-  content_type: number;
-  object_id: number;
-  target_type: string;
-  target_id: number;
-  user: number;
-  user_email: string;
-  created_at: string;
-}
-
 export const catalogApi = {
   // Work Types
   workTypes: () =>
@@ -150,9 +137,4 @@ export const catalogApi = {
 
   deleteCharge: (id: number) =>
     api.delete(`catalog/charges/${id}/`),
-};
-
-export const activitiesApi = {
-  logs: (contentType?: string) =>
-    api.get<ActivityLog[]>('activities/activity-logs/', { params: contentType ? { content_type: contentType } : undefined }),
 };

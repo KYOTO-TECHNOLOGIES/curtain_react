@@ -74,7 +74,7 @@ export default function CustomerDetailPage() {
         first_name: formData.first_name,
         last_name: formData.last_name,
         email: formData.email,
-        phone_number: formData.phone_number,
+        phone: formData.phone,
         company_name: formData.company_name,
         address_line_1: formData.address_line_1,
         address_line_2: formData.address_line_2,
@@ -253,16 +253,16 @@ export default function CustomerDetailPage() {
                 {isEditing ? (
                   <input
                     type="tel"
-                    value={displayData.phone_number || ''}
-                    onChange={(e) => handleInputChange('phone_number', e.target.value)}
+                    value={displayData.phone || ''}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 ) : (
                   <a
-                    href={`tel:${customer.phone_number}`}
+                    href={`tel:${customer.phone}`}
                     className="text-blue-600 hover:text-blue-700"
                   >
-                    {customer.phone_number}
+                    {customer.phone}
                   </a>
                 )}
               </div>

@@ -114,7 +114,7 @@ export default function CreateAppointmentPage() {
       setExistingCustomer(customer || null);
       setValue('firstName', customer?.first_name || editAppointment.customer_first_name || '');
       setValue('lastName', customer?.last_name || editAppointment.customer_last_name || '');
-      setValue('phone', customer?.phone_number || editAppointment.customer_phone || '');
+      setValue('phone', customer?.phone || editAppointment.customer_phone || '');
       setValue('email', customer?.email || editAppointment.customer_email || '');
       setValue('building', editAppointment.location?.building_name || editAppointment.location_building || '');
       setValue('room', editAppointment.location?.unit_number || editAppointment.location_unit || '');
@@ -136,7 +136,7 @@ export default function CreateAppointmentPage() {
         setExistingCustomer(c);
         setValue('firstName', c.first_name);
         setValue('lastName', c.last_name);
-        setValue('phone', c.phone_number || '');
+        setValue('phone', c.phone || '');
         setValue('email', c.email || '');
         setValue('address', c.address_line_1 || '');
       } else {
@@ -283,7 +283,7 @@ export default function CreateAppointmentPage() {
                     </div>
                     <div>
                       <p className="text-[16px] font-extrabold text-slate-800">{existingCustomer.first_name} {existingCustomer.last_name}</p>
-                      <p className="text-[13px] text-slate-500 font-medium">{existingCustomer.phone_number || existingCustomer.email}</p>
+                      <p className="text-[13px] text-slate-500 font-medium">{existingCustomer.phone || existingCustomer.email}</p>
                     </div>
                   </div>
                 )}

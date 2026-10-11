@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, Pencil, Trash2, Loader2, MapPin, AlertCircle, User, Mail, Globe, Building2, CheckCircle2 } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Loader2, MapPin, User, Mail, Globe, Building2, CheckCircle2 } from 'lucide-react';
 import { customersApi } from '../../api/customers';
 import type { Customer, UpdateCustomerRequest } from '../../types';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
@@ -37,7 +37,7 @@ export default function CustomersPage() {
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerSchema),
     defaultValues: {
-      first_name: '', last_name: '', email: '', phone_number: '',
+      first_name: '', last_name: '', email: '', phone: '',
       company_name: '', address_line_1: '', address_line_2: '', city: '', country: '', notes: ''
     }
   });
@@ -59,7 +59,7 @@ export default function CustomersPage() {
   const openCreate = () => {
     setEditingCustomer(null);
     reset({
-      first_name: '', last_name: '', email: '', phone_number: '',
+      first_name: '', last_name: '', email: '', phone: '',
       company_name: '', address_line_1: '', address_line_2: '', city: '', country: '', notes: ''
     });
     setFormOpen(true);
@@ -71,7 +71,7 @@ export default function CustomersPage() {
       first_name: c.first_name,
       last_name: c.last_name,
       email: c.email || '',
-      phone_number: c.phone_number || '',
+      phone: c.phone || '',
       company_name: c.company_name || '',
       address_line_1: c.address_line_1 || '',
       address_line_2: c.address_line_2 || '',
@@ -192,7 +192,7 @@ export default function CustomersPage() {
                     <span className="text-sm font-medium text-slate-600">{c.company_name || 'Individual'}</span>
                   </td>
                   <td className="px-6 py-5 align-middle">
-                    <span className="text-sm font-medium text-slate-500 whitespace-nowrap">{c.phone_number || '—'}</span>
+                    <span className="text-sm font-medium text-slate-500 whitespace-nowrap">{c.phone || '—'}</span>
                   </td>
                   <td className="px-6 py-5 align-middle">
                     <span className="text-sm font-medium text-slate-600 truncate max-w-[220px] inline-block">{c.email || '—'}</span>
@@ -242,14 +242,14 @@ export default function CustomersPage() {
               <FormInput label="Email Address" type="email" icon={Mail} error={errors.email?.message} {...register('email')} placeholder="customer@example.com" />
               <div>
                 <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Phone Number</label>
-                <div className={`flex border ${errors.phone_number ? 'border-red-300' : 'border-slate-200'} rounded-xl overflow-hidden focus-within:border-[#2b5c8f] focus-within:ring-2 focus-within:ring-[#2b5c8f]/10 transition-all bg-white`}>
+                <div className={`flex border ${errors.phone ? 'border-red-300' : 'border-slate-200'} rounded-xl overflow-hidden focus-within:border-[#2b5c8f] focus-within:ring-2 focus-within:ring-[#2b5c8f]/10 transition-all bg-white`}>
                   <div className="flex items-center gap-1.5 px-3 bg-slate-50/80 border-r border-slate-200">
                     <span className="text-base">🇦🇪</span>
                     <span className="text-[13px] font-bold text-slate-700">+971</span>
                   </div>
-                  <input type="tel" {...register('phone_number')} placeholder="50 000 0000" className="flex-1 px-4 py-3 bg-transparent text-slate-800 text-[14px] font-semibold outline-none" />
+                  <input type="tel" {...register('phone')} placeholder="50 000 0000" className="flex-1 px-4 py-3 bg-transparent text-slate-800 text-[14px] font-semibold outline-none" />
                 </div>
-                {errors.phone_number && <p className="text-[12px] text-red-500 font-medium mt-1">{errors.phone_number.message}</p>}
+                {errors.phone && <p className="text-[12px] text-red-500 font-medium mt-1">{errors.phone.message}</p>}
               </div>
               <div className="sm:col-span-2">
                 <FormInput label="Company Name" icon={Building2} error={errors.company_name?.message} {...register('company_name')} placeholder="e.g. ACME LLC" />

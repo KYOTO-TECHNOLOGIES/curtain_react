@@ -110,7 +110,7 @@ export default function QuotationBuilderPage() {
     selectedAppointment?.customer?.full_name || selectedAppointmentSummary?.customer_name || '';
   const selectedCustomerEmail = selectedAppointment?.customer?.email || '';
   const selectedCustomerPhone =
-    selectedAppointment?.customer?.phone_number || selectedAppointmentSummary?.customer_phone || '';
+    selectedAppointment?.customer?.phone || selectedAppointmentSummary?.customer_phone || '';
 
   const handleAddArea = () => {
     if (!newAreaData.type || !newAreaData.display_name) {

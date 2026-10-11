@@ -262,7 +262,7 @@ export default function PricingBuilderPage() {
               <option value="">Select a customer...</option>
               {customers.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.full_name} ({c.phone_number || 'No phone'})
+                  {c.full_name} ({c.phone || 'No phone'})
                 </option>
               ))}
             </select>

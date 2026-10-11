@@ -11,15 +11,20 @@ import PermissionsPage from './pages/permissions/PermissionsPage';
 import AppointmentsPage from './pages/appointments/AppointmentsPage';
 import AppointmentDetailsPage from './pages/appointments/AppointmentDetailsPage';
 import CreateAppointmentPage from './pages/appointments/CreateAppointmentPage';
-import AppointmentDetailPage from './pages/appointments/AppointmentDetailPage';
 import QuotationsPage from './pages/quotations/QuotationsPage';
 import QuotationDetailPage from './pages/quotations/QuotationDetailPage';
 import QuotationBuilderPage from './pages/quotations/QuotationBuilderPage';
 import CatalogPage from './pages/catalog/CatalogPage';
 import PricingBuilderPage from './pages/pricing/PricingBuilderPage';
 import OrdersPage from './pages/orders/OrdersPage';
+import OrderDetailPage from './pages/orders/OrderDetailPage';
 import InvoicesPage from './pages/invoices/InvoicesPage';
+import InvoiceDetailPage from './pages/invoices/InvoiceDetailPage';
 import PaymentsPage from './pages/payments/PaymentsPage';
+import ActivitiesPage from './pages/activities/ActivitiesPage';
+import ProductionPage from './pages/production/ProductionPage';
+import InstallationPage from './pages/installation/InstallationPage';
+import InventoryPage from './pages/inventory/InventoryPage';
 import SettingsDashboard from './pages/settings/SettingsDashboard';
 import ProfilePage from './pages/profile/ProfilePage';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -42,18 +47,23 @@ function App() {
               <Route path="/customers" element={<CustomersPage />} />
               <Route path="/customers/:id" element={<CustomerDetailPage />} />
               <Route path="/appointments" element={<AppointmentsPage />} />
-              <Route path="/appointments/:id" element={<AppointmentDetailsPage />} />
               <Route path="/appointments/create" element={<CreateAppointmentPage />} />
-              <Route path="/appointments/:id" element={<AppointmentDetailPage />} />
+              <Route path="/appointments/:id" element={<AppointmentDetailsPage />} />
               <Route path="/quotations" element={<QuotationsPage />} />
               <Route path="/quotations/create" element={<QuotationBuilderPage />} />
               <Route path="/quotations/:id" element={<QuotationDetailPage />} />
               <Route path="/catalog" element={<CatalogPage />} />
               <Route path="/pricing" element={<PricingBuilderPage />} />
               <Route path="/orders" element={<OrdersPage />} />
+              <Route path="/orders/:id" element={<OrderDetailPage />} />
               <Route path="/invoices" element={<InvoicesPage />} />
+              <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
               <Route path="/payments" element={<PaymentsPage />} />
-              
+              <Route path="/activities" element={<ActivitiesPage />} />
+              <Route path="/production" element={<ProductionPage />} />
+              <Route path="/installation" element={<InstallationPage />} />
+              <Route path="/inventory" element={<InventoryPage />} />
+
               <Route path="/settings" element={<SettingsDashboard />} />
               <Route path="/settings/roles" element={<RolesPage />} />
               <Route path="/settings/permissions" element={<PermissionsPage />} />

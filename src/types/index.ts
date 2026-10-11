@@ -36,7 +36,7 @@ export interface Customer {
   last_name: string;
   full_name: string;
   email: string;
-  phone_number: string;
+  phone: string;
   company_name: string;
   address_line_1: string;
   address_line_2: string;
@@ -45,7 +45,8 @@ export interface Customer {
   postal_code: string;
   country: string;
   notes: string;
-  is_active: boolean;
+  is_active?: boolean;
+  created_by?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -123,7 +124,7 @@ export interface CreateCustomerRequest {
   first_name: string;
   last_name: string;
   email?: string;
-  phone_number?: string;
+  phone?: string;
   company_name?: string;
   address_line_1?: string;
   address_line_2?: string;
@@ -399,6 +400,21 @@ export interface OrderStats {
   closed: number;
 }
 
+export type OrderDetail = OrderListItem;
+
+export interface ActivityLog {
+  id: number;
+  action: string;
+  details: Record<string, unknown>;
+  content_type: number | string;
+  object_id: number;
+  target_type: string;
+  target_id: number;
+  user: number;
+  user_email: string;
+  created_at: string;
+}
+
 // 💳 Payments 💳
 
 export type PaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'cheque';
@@ -415,6 +431,14 @@ export interface Payment {
   created_by?: number;
   created_by_name?: string;
   created_at?: string;
+}
+
+export interface AddPaymentRequest {
+  amount: number | string;
+  method: PaymentMethod;
+  reference?: string;
+  payment_date: string;
+  notes?: string;
 }
 
 // 🧾 Invoices 🧾
@@ -453,4 +477,135 @@ export interface InvoiceStats {
   total_paid: string;
   total_due: string;
   overdue: number;
+}
+
+// 📦 Inventory 📦
+
+export type InventoryCategory = 'fabric' | 'track' | 'motor' | 'accessory' | 'other';
+export type InventoryUnit = 'roll' | 'm' | 'm2' | 'pcs' | 'box' | 'set';
+export type StockMovementType = 'in' | 'out' | 'adjust';
+export type ReorderStatus = 'pending' | 'ordered' | 'received' | 'cancelled';
+
+export interface Supplier {
+  id: number;
+  name: string;
+  contact_person: string;
+  phone: string;
+  email: string;
+  address: string;
+  notes: string;
+  is_active: boolean;
+  items_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InventoryItem {
+  id: number;
+  sku: string;
+  name: string;
+  category: InventoryCategory;
+  unit: InventoryUnit;
+  quantity_on_hand: string;
+  reorder_level: string;
+  reorder_quantity: string;
+  unit_cost: string;
+  location: string;
+  supplier: number | null;
+  supplier_name?: string | null;
+  catalog_item: number | null;
+  catalog_item_name?: string | null;
+  notes: string;
+  is_active: boolean;
+  is_low_stock: boolean;
+  stock_value: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StockMovement {
+  id: number;
+  item: number;
+  item_sku: string;
+  item_name: string;
+  movement_type: StockMovementType;
+  quantity: string;
+  reference: string;
+  notes: string;
+  created_by?: number | null;
+  created_by_name?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReorderRequest {
+  id: number;
+  item: number;
+  item_sku: string;
+  item_name: string;
+  supplier: number | null;
+  supplier_name?: string | null;
+  quantity: string;
+  status: ReorderStatus;
+  notes: string;
+  ordered_at: string | null;
+  received_at: string | null;
+  created_by?: number | null;
+  created_by_name?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InventoryStats {
+  total_items: number;
+  low_stock_count: number;
+  total_stock_value: string;
+  by_category: Record<string, number>;
+  pending_reorders: number;
+  active_suppliers: number;
+}
+
+export interface CreateInventoryItemRequest {
+  sku: string;
+  name: string;
+  category: InventoryCategory;
+  unit: InventoryUnit;
+  quantity_on_hand?: number | string;
+  reorder_level?: number | string;
+  reorder_quantity?: number | string;
+  unit_cost?: number | string;
+  location?: string;
+  supplier?: number | null;
+  catalog_item?: number | null;
+  notes?: string;
+  is_active?: boolean;
+}
+
+export type UpdateInventoryItemRequest = Partial<CreateInventoryItemRequest>;
+
+export interface CreateSupplierRequest {
+  name: string;
+  contact_person?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
+  is_active?: boolean;
+}
+
+export type UpdateSupplierRequest = Partial<CreateSupplierRequest>;
+
+export interface CreateStockMovementRequest {
+  item: number;
+  movement_type: StockMovementType;
+  quantity: number | string;
+  reference?: string;
+  notes?: string;
+}
+
+export interface CreateReorderRequest {
+  item: number;
+  supplier?: number | null;
+  quantity: number | string;
+  notes?: string;
 }

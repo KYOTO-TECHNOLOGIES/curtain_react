@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Search, 
@@ -14,6 +15,7 @@ import { ordersApi } from '../../api/orders';
 import { useToast } from '../../components/ui/Toast';
 
 export default function OrdersPage() {
+  const navigate = useNavigate();
   const { showToast } = useToast();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -218,7 +220,10 @@ export default function OrdersPage() {
                           Generate Invoice
                         </button>
                       )}
-                      <button className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-800 text-white hover:bg-slate-700 font-bold text-[11px] rounded-lg transition-colors">
+                      <button
+                        onClick={() => navigate(`/orders/${o.id}`)}
+                        className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-800 text-white hover:bg-slate-700 font-bold text-[11px] rounded-lg transition-colors"
+                      >
                         <Eye className="w-3.5 h-3.5" /> View
                       </button>
                     </div>

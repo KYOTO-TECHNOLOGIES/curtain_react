@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Search, 
@@ -11,10 +12,9 @@ import {
   Plus
 } from 'lucide-react';
 import { paymentsApi } from '../../api/payments';
-import { useToast } from '../../components/ui/Toast';
 
 export default function PaymentsPage() {
-  const { showToast } = useToast();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [methodFilter, setMethodFilter] = useState('');
   const { data: listRes, isLoading } = useQuery({
@@ -67,7 +67,7 @@ export default function PaymentsPage() {
           <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 font-semibold text-sm rounded-xl shadow-sm hover:bg-slate-50 transition-all">
             <Download className="w-4 h-4" strokeWidth={2.5} /> Export Ledger
           </button>
-          <button onClick={() => showToast('Log Payment from the Invoice Details page', 'success')} className="flex items-center gap-2 px-4 py-2.5 bg-[#2b5c8f] text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-900/20 hover:bg-[#1f456e] hover:-translate-y-0.5 transition-all">
+          <button onClick={() => navigate('/invoices')} className="flex items-center gap-2 px-4 py-2.5 bg-[#2b5c8f] text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-900/20 hover:bg-[#1f456e] hover:-translate-y-0.5 transition-all">
             <Plus className="w-4 h-4" strokeWidth={2.5} /> Log Payment
           </button>
         </div>
@@ -181,8 +181,11 @@ export default function PaymentsPage() {
                     </div>
                   </td>
                   <td className="px-6 py-5 align-middle text-right">
-                    <button className="inline-flex items-center gap-2 px-4 py-2 bg-[#f0f4f8] text-[#2b5c8f] hover:bg-[#e1e9f1] font-bold text-[12px] rounded-lg transition-colors">
-                      <Eye className="w-3.5 h-3.5" /> Receipt
+                    <button
+                      onClick={() => navigate(`/invoices/${p.invoice_number || p.invoice}`)}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-[#f0f4f8] text-[#2b5c8f] hover:bg-[#e1e9f1] font-bold text-[12px] rounded-lg transition-colors"
+                    >
+                      <Eye className="w-3.5 h-3.5" /> View Invoice
                     </button>
                   </td>
                 </tr>

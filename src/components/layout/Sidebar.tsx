@@ -7,13 +7,16 @@ import {
   Receipt,
   CreditCard,
   Activity,
-  Wrench,
   Package,
   Users,
+  UserCog,
   Tag,
   LogOut,
   X,
-  Settings
+  Settings,
+  Factory,
+  Wrench,
+  Warehouse,
 } from 'lucide-react';
 import type { AppDispatch } from '../../store';
 import { logoutUser } from '../../store/slices/authSlice';
@@ -30,6 +33,7 @@ const navSections = [
       { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { to: '/appointments', label: 'Appointments', icon: Calendar },
       { to: '/quotations', label: 'Quotations', icon: FileText },
+      { to: '/orders', label: 'Orders', icon: Package },
       { to: '/invoices', label: 'Invoices', icon: Receipt },
       { to: '/payments', label: 'Payments', icon: CreditCard },
     ],
@@ -38,9 +42,9 @@ const navSections = [
     label: 'OPERATIONS',
     items: [
       { to: '/activities', label: 'Activities', icon: Activity },
-      { to: '/orders', label: 'Orders', icon: Activity },
+      { to: '/production', label: 'Production', icon: Factory },
       { to: '/installation', label: 'Installation', icon: Wrench },
-      { to: '/inventory', label: 'Inventory', icon: Package },
+      { to: '/inventory', label: 'Inventory', icon: Warehouse },
       { to: '/customers', label: 'Customers', icon: Users },
       { to: '/catalog', label: 'Catalog & Pricing', icon: Tag },
     ],
@@ -48,6 +52,7 @@ const navSections = [
   {
     label: 'SYSTEM',
     items: [
+      { to: '/users', label: 'Users', icon: UserCog },
       { to: '/settings', label: 'Settings', icon: Settings },
     ],
   }

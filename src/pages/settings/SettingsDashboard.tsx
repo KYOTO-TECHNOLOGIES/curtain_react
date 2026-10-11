@@ -1,10 +1,18 @@
 import { useNavigate } from 'react-router-dom';
-import { Shield, KeyRound, ChevronRight } from 'lucide-react';
+import { Shield, KeyRound, ChevronRight, UserCog } from 'lucide-react';
 
 export default function SettingsDashboard() {
   const navigate = useNavigate();
 
   const settingsItems = [
+    {
+      title: 'Users Management',
+      description: 'Create and manage staff accounts linked to roles',
+      icon: UserCog,
+      to: '/users',
+      color: 'text-[#2b5c8f]',
+      bg: 'bg-[#2b5c8f]/10'
+    },
     {
       title: 'Roles Management',
       description: 'Manage user roles and system access levels',

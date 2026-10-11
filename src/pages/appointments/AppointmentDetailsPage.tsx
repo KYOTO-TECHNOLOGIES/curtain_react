@@ -85,7 +85,7 @@ const buildFormState = (appointment: AppointmentDetail): AppointmentFormState =>
   assigned_to: appointment.assigned_to ? String(appointment.assigned_to) : '',
   customer_first_name: (appointment as any).customer_first_name ?? appointment.customer?.first_name ?? '',
   customer_last_name: (appointment as any).customer_last_name ?? appointment.customer?.last_name ?? '',
-  customer_phone: (appointment as any).customer_phone ?? appointment.customer?.phone_number ?? '',
+  customer_phone: (appointment as any).customer_phone ?? appointment.customer?.phone ?? '',
   customer_email: (appointment as any).customer_email ?? appointment.customer?.email ?? '',
   customer_company_name: (appointment as any).customer_company_name ?? appointment.customer?.company_name ?? '',
   location_building: appointment.location?.building_name || '',
@@ -492,7 +492,7 @@ export default function AppointmentDetailsPage() {
               </div>
               <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
                 <Phone className="h-4 w-4 text-slate-500" />
-                <span className="font-semibold text-slate-700">{appointment.customer?.phone_number || '—'}</span>
+                <span className="font-semibold text-slate-700">{appointment.customer?.phone || '—'}</span>
               </div>
               <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
                 <FileText className="h-4 w-4 text-slate-500" />

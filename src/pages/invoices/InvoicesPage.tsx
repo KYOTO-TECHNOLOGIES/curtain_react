@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -26,6 +27,7 @@ const ErrorMsg = ({ message }: { message?: string }) =>
   ) : null;
 
 export default function InvoicesPage() {
+  const navigate = useNavigate();
   const { showToast } = useToast();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -39,9 +41,9 @@ export default function InvoicesPage() {
     resolver: zodResolver(paymentSchema),
     defaultValues: {
       amount: '',
-      payment_method: 'bank_transfer',
+      method: 'bank_transfer',
       payment_date: new Date().toISOString().split('T')[0],
-      reference_number: '',
+      reference: '',
       notes: ''
     }
   });
@@ -92,9 +94,9 @@ export default function InvoicesPage() {
     setSelectedInvoiceId(invoiceId);
     paymentForm.reset({
       amount: '',
-      payment_method: 'bank_transfer',
+      method: 'bank_transfer',
       payment_date: new Date().toISOString().split('T')[0],
-      reference_number: '',
+      reference: '',
       notes: ''
     });
     setPaymentModalOpen(true);
@@ -106,9 +108,9 @@ export default function InvoicesPage() {
     try {
       await invoicesApi.addPayment(selectedInvoiceId, {
         amount: parseFloat(data.amount),
-        payment_method: data.payment_method,
+        method: data.method,
         payment_date: data.payment_date,
-        reference_number: data.reference_number,
+        reference: data.reference,
         notes: data.notes
       });
       showToast('Payment logged successfully', 'success');
@@ -304,7 +306,10 @@ export default function InvoicesPage() {
                           Log Payment
                         </button>
                       )}
-                      <button className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-800 text-white hover:bg-slate-700 font-bold text-[11px] rounded-lg transition-colors">
+                      <button
+                        onClick={() => navigate(`/invoices/${i.id}`)}
+                        className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-800 text-white hover:bg-slate-700 font-bold text-[11px] rounded-lg transition-colors"
+                      >
                         <Eye className="w-3.5 h-3.5" /> View
                       </button>
                     </div>
@@ -333,15 +338,15 @@ export default function InvoicesPage() {
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Payment Method <span className="text-red-500">*</span></label>
             <select
-              {...paymentForm.register('payment_method')}
-              className={`w-full px-4 py-2.5 rounded-xl border ${paymentForm.formState.errors.payment_method ? 'border-red-400 bg-red-50' : 'border-slate-200'} outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm`}
+              {...paymentForm.register('method')}
+              className={`w-full px-4 py-2.5 rounded-xl border ${paymentForm.formState.errors.method ? 'border-red-400 bg-red-50' : 'border-slate-200'} outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm`}
             >
               <option value="cash">Cash</option>
               <option value="card">Credit/Debit Card</option>
               <option value="bank_transfer">Bank Transfer</option>
               <option value="cheque">Cheque</option>
             </select>
-            <ErrorMsg message={paymentForm.formState.errors.payment_method?.message} />
+            <ErrorMsg message={paymentForm.formState.errors.method?.message} />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Payment Date <span className="text-red-500">*</span></label>
@@ -356,7 +361,7 @@ export default function InvoicesPage() {
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Reference Number <span className="text-slate-400 font-normal text-xs">(optional)</span></label>
             <input
               type="text"
-              {...paymentForm.register('reference_number')}
+              {...paymentForm.register('reference')}
               className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm"
               placeholder="e.g. TXN-12345"
             />

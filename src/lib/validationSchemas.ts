@@ -27,7 +27,7 @@ export const customerSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
   last_name: z.string().min(1, 'Last name is required'),
   email: z.string().email('Invalid email address').or(z.literal('')).optional(),
-  phone_number: z.string().optional(),
+  phone: z.string().optional(),
   company_name: z.string().optional(),
   address_line_1: z.string().optional(),
   address_line_2: z.string().optional(),
@@ -58,11 +58,11 @@ export const paymentSchema = z.object({
     .string()
     .min(1, 'Amount is required')
     .refine((v) => !isNaN(parseFloat(v)) && parseFloat(v) > 0, 'Must be a positive number'),
-  payment_method: z.enum(['cash', 'card', 'bank_transfer', 'cheque'], {
+  method: z.enum(['cash', 'card', 'bank_transfer', 'cheque'], {
     message: 'Please select a payment method',
   }),
   payment_date: z.string().min(1, 'Payment date is required'),
-  reference_number: z.string().optional(),
+  reference: z.string().optional(),
   notes: z.string().optional(),
 });
 export type PaymentFormValues = z.infer<typeof paymentSchema>;
