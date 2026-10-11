@@ -37,14 +37,14 @@ export default function ActivitiesPage() {
     }),
   });
 
-  const { logs, totalCount } = useMemo(() => {
+  const { logs, totalCount }: { logs: ActivityLog[]; totalCount: number } = useMemo(() => {
     const raw = activitiesQuery.data?.data;
     if (raw && typeof raw === 'object' && !Array.isArray(raw) && Array.isArray((raw as any).results)) {
       return { logs: (raw as any).results as ActivityLog[], totalCount: (raw as any).count as number };
     }
-    if (Array.isArray(raw)) return { logs: raw, totalCount: raw.length };
-    if (Array.isArray(activitiesQuery.data)) return { logs: activitiesQuery.data as any, totalCount: (activitiesQuery.data as any).length };
-    return { logs: [], totalCount: 0 };
+    if (Array.isArray(raw)) return { logs: raw as ActivityLog[], totalCount: raw.length };
+    if (Array.isArray(activitiesQuery.data)) return { logs: activitiesQuery.data as unknown as ActivityLog[], totalCount: (activitiesQuery.data as any).length };
+    return { logs: [] as ActivityLog[], totalCount: 0 };
   }, [activitiesQuery.data]);
 
   const filteredLogs = logs;

@@ -13,7 +13,13 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react';
-import { catalogApi } from '../../api/catalog';
+import {
+  catalogApi,
+  type FabricType,
+  type CatalogModel,
+  type CatalogItem,
+  type MotorType,
+} from '../../api/catalog';
 import { quotationsApi } from '../../api/quotations';
 import { useToast } from '../../components/ui/Toast';
 import Modal from '../../components/ui/Modal';

@@ -125,7 +125,7 @@ export function DataTable<T>({
               ) : (
                 Array.from({ length: skeletonCount }).map((_, idx) => (
                   <tr key={`default-skeleton-${idx}`}>
-                    {columns.map((col, cIdx) => (
+                    {columns.map((_, cIdx) => (
                       <td key={`skel-col-${cIdx}`}>
                         <div
                           className="apt-skeleton-block"

@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import React from 'react';
+import { useState, useEffect } from 'react';
 import {
   Plus,
   Trash2,
@@ -14,7 +13,15 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { catalogApi } from '../../api/catalog';
+import {
+  catalogApi,
+  type WorkType,
+  type FabricType,
+  type CatalogModel,
+  type CatalogItem,
+  type MotorType,
+  type ChargeTemplate,
+} from '../../api/catalog';
 import { useToast } from '../../components/ui/Toast';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import { FormInput } from '../../components/ui/FormInput';
@@ -33,7 +40,7 @@ export default function CatalogPage() {
   const [formData, setFormData] = useState<any>({});
 
   // Debounce search
-  React.useEffect(() => {
+  useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
     }, 500);

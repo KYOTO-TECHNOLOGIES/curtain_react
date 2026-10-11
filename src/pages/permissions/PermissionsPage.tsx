@@ -22,10 +22,10 @@ export default function PermissionsPage() {
     queryFn: () => permissionsApi.list()
   });
 
-  const permissions = Array.isArray(permissionsRes?.data)
-    ? permissionsRes.data
+  const permissions: Permission[] = Array.isArray(permissionsRes?.data)
+    ? (permissionsRes.data as Permission[])
     : Array.isArray((permissionsRes?.data as any)?.results)
-    ? (permissionsRes?.data as any).results
+    ? ((permissionsRes?.data as any).results as Permission[])
     : [];
   const loading = isLoading;
 

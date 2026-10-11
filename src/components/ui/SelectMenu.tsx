@@ -447,7 +447,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
         )}
 
         <ul className="select-menu-options-list flex-1 overflow-y-auto">
-          {filteredOptions.map((opt, idx) => {
+          {filteredOptions.map((opt) => {
             const isSelected = opt.value === value;
             return (
               <li

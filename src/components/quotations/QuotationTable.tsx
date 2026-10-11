@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { FileText, Eye, Calendar } from 'lucide-react';
+import { FileText, Eye } from 'lucide-react';
 import type { QuotationListItem } from '../../types';
 import { DataTable, type DataTableColumn, type SortDirection } from '../ui/DataTable';
 import { StatusBadge } from '../ui/StatusBadge';

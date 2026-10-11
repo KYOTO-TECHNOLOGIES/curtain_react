@@ -28,7 +28,6 @@ export const InvoiceFilterBar: React.FC<InvoiceFilterBarProps> = ({
   filteredCount,
   totalCollected,
   stats,
-  invoices = [],
 }) => {
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
