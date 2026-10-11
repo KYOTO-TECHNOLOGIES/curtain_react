@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -59,13 +58,13 @@ export default function CustomersPage() {
     })
   });
 
-  const { items: customers, totalCount } = useMemo(() => {
+  const { items: customers, totalCount }: { items: Customer[]; totalCount: number } = useMemo(() => {
     const raw = customersRes?.data;
     if (raw && typeof raw === 'object' && !Array.isArray(raw) && Array.isArray((raw as any).results)) {
       return { items: (raw as any).results as Customer[], totalCount: (raw as any).count as number };
     }
-    if (Array.isArray(raw)) return { items: raw, totalCount: raw.length };
-    if (Array.isArray(customersRes)) return { items: customersRes as any, totalCount: (customersRes as any).length };
+    if (Array.isArray(raw)) return { items: raw as Customer[], totalCount: raw.length };
+    if (Array.isArray(customersRes)) return { items: customersRes as unknown as Customer[], totalCount: (customersRes as any).length };
     return { items: [] as Customer[], totalCount: 0 };
   }, [customersRes]);
   const loading = isLoading;

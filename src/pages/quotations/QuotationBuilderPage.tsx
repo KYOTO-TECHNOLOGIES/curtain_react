@@ -3,7 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Trash2, Save, Loader2, AlertCircle, ChevronRight } from 'lucide-react';
 import { appointmentsApi } from '../../api/appointments';
-import { catalogApi } from '../../api/catalog';
+import {
+  catalogApi,
+  type FabricType,
+  type CatalogModel,
+  type CatalogItem,
+  type MotorType,
+} from '../../api/catalog';
 import { quotationsApi } from '../../api/quotations';
 import { useToast } from '../../components/ui/Toast';
 import Modal from '../../components/ui/Modal';

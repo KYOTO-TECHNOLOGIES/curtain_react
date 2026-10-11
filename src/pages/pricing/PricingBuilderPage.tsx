@@ -8,8 +8,9 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { catalogApi } from '../../api/catalog';
+import { catalogApi, type CatalogItem, type MotorType, type ChargeTemplate } from '../../api/catalog';
 import { customersApi } from '../../api/customers';
+import type { Customer } from '../../types';
 import { useToast } from '../../components/ui/Toast';
 
 interface QuotationLineItem {

@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Search, Pencil, Trash2, Loader2, AlertCircle } from 'lucide-react';
 import { usersApi } from '../../api/users';
 import { rolesApi } from '../../api/roles';
-import type { User, UpdateUserRequest } from '../../types';
+import type { User, Role, UpdateUserRequest } from '../../types';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
 import { createUserSchema, editUserSchema, type CreateUserFormValues, type EditUserFormValues } from '../../lib/validationSchemas';
@@ -74,20 +74,20 @@ export default function UsersPage() {
     queryFn: () => rolesApi.list()
   });
 
-  const { items: users, totalCount } = useMemo(() => {
+  const { items: users, totalCount }: { items: User[]; totalCount: number } = useMemo(() => {
     const raw = usersRes?.data;
     if (raw && typeof raw === 'object' && !Array.isArray(raw) && Array.isArray((raw as any).results)) {
       return { items: (raw as any).results as User[], totalCount: (raw as any).count as number };
     }
-    if (Array.isArray(raw)) return { items: raw, totalCount: raw.length };
-    if (Array.isArray(usersRes)) return { items: usersRes as any, totalCount: (usersRes as any).length };
+    if (Array.isArray(raw)) return { items: raw as User[], totalCount: raw.length };
+    if (Array.isArray(usersRes)) return { items: usersRes as unknown as User[], totalCount: (usersRes as any).length };
     return { items: [] as User[], totalCount: 0 };
   }, [usersRes]);
 
-  const roles = Array.isArray(rolesRes?.data)
-    ? rolesRes.data
+  const roles: Role[] = Array.isArray(rolesRes?.data)
+    ? (rolesRes.data as Role[])
     : Array.isArray((rolesRes?.data as any)?.results)
-    ? (rolesRes?.data as any).results
+    ? ((rolesRes?.data as any).results as Role[])
     : [];
   const loading = loadingUsers || loadingRoles;
 

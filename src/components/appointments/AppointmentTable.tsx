@@ -19,7 +19,7 @@ export interface AppointmentTableProps {
   onClearFilters?: () => void;
   onCopyPhone?: (phone: string) => void;
   totalCount?: number;
-  recentlyUpdatedId?: number | null;
+  recentlyUpdatedId?: number | string | null;
 }
 
 const STATUS_ACCENT_COLORS: Record<string, string> = {

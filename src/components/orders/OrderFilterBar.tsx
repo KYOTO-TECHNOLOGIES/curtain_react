@@ -26,7 +26,6 @@ export const OrderFilterBar: React.FC<OrderFilterBarProps> = ({
   totalCount,
   filteredCount,
   stats,
-  orders = [],
 }) => {
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const [isSearchFocused, setIsSearchFocused] = useState(false);

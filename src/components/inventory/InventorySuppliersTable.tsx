@@ -30,7 +30,6 @@ export const InventorySuppliersTable: React.FC<InventorySuppliersTableProps> = (
   onEditSupplier,
   onDeleteSupplier,
   onClearFilters,
-  totalCount,
 }) => {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);

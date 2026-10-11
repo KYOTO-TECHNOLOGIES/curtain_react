@@ -7,10 +7,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   SlidersHorizontal,
-  Package,
-  Building2,
   Warehouse,
-  Truck,
   RotateCcw,
 } from 'lucide-react';
 import { inventoryApi } from '../../api/inventory';
@@ -24,6 +21,7 @@ import type {
   InventoryUnit,
   ReorderRequest,
   ReorderStatus,
+  StockMovement,
   StockMovementType,
   Supplier,
 } from '../../types';
@@ -206,44 +204,44 @@ export default function InventoryPage() {
     queryFn: () => inventoryApi.stats(),
   });
 
-  const { items, paginatedItemsTotal } = useMemo(() => {
+  const { items, paginatedItemsTotal }: { items: InventoryItem[]; paginatedItemsTotal: number } = useMemo(() => {
     const raw = itemsQuery.data?.data;
     if (raw && typeof raw === 'object' && !Array.isArray(raw) && Array.isArray((raw as any).results)) {
       return { items: (raw as any).results as InventoryItem[], paginatedItemsTotal: (raw as any).count as number };
     }
-    if (Array.isArray(raw)) return { items: raw, paginatedItemsTotal: raw.length };
-    if (Array.isArray(itemsQuery.data)) return { items: itemsQuery.data as any, paginatedItemsTotal: (itemsQuery.data as any).length };
-    return { items: [], paginatedItemsTotal: 0 };
+    if (Array.isArray(raw)) return { items: raw as InventoryItem[], paginatedItemsTotal: raw.length };
+    if (Array.isArray(itemsQuery.data)) return { items: itemsQuery.data as unknown as InventoryItem[], paginatedItemsTotal: (itemsQuery.data as any).length };
+    return { items: [] as InventoryItem[], paginatedItemsTotal: 0 };
   }, [itemsQuery.data]);
 
-  const { suppliers, paginatedSuppliersTotal } = useMemo(() => {
+  const { suppliers, paginatedSuppliersTotal }: { suppliers: Supplier[]; paginatedSuppliersTotal: number } = useMemo(() => {
     const raw = suppliersQuery.data?.data;
     if (raw && typeof raw === 'object' && !Array.isArray(raw) && Array.isArray((raw as any).results)) {
       return { suppliers: (raw as any).results as Supplier[], paginatedSuppliersTotal: (raw as any).count as number };
     }
-    if (Array.isArray(raw)) return { suppliers: raw, paginatedSuppliersTotal: raw.length };
-    if (Array.isArray(suppliersQuery.data)) return { suppliers: suppliersQuery.data as any, paginatedSuppliersTotal: (suppliersQuery.data as any).length };
-    return { suppliers: [], paginatedSuppliersTotal: 0 };
+    if (Array.isArray(raw)) return { suppliers: raw as Supplier[], paginatedSuppliersTotal: raw.length };
+    if (Array.isArray(suppliersQuery.data)) return { suppliers: suppliersQuery.data as unknown as Supplier[], paginatedSuppliersTotal: (suppliersQuery.data as any).length };
+    return { suppliers: [] as Supplier[], paginatedSuppliersTotal: 0 };
   }, [suppliersQuery.data]);
 
-  const { reorders, paginatedReordersTotal } = useMemo(() => {
+  const { reorders, paginatedReordersTotal }: { reorders: ReorderRequest[]; paginatedReordersTotal: number } = useMemo(() => {
     const raw = reordersQuery.data?.data;
     if (raw && typeof raw === 'object' && !Array.isArray(raw) && Array.isArray((raw as any).results)) {
       return { reorders: (raw as any).results as ReorderRequest[], paginatedReordersTotal: (raw as any).count as number };
     }
-    if (Array.isArray(raw)) return { reorders: raw, paginatedReordersTotal: raw.length };
-    if (Array.isArray(reordersQuery.data)) return { reorders: reordersQuery.data as any, paginatedReordersTotal: (reordersQuery.data as any).length };
-    return { reorders: [], paginatedReordersTotal: 0 };
+    if (Array.isArray(raw)) return { reorders: raw as ReorderRequest[], paginatedReordersTotal: raw.length };
+    if (Array.isArray(reordersQuery.data)) return { reorders: reordersQuery.data as unknown as ReorderRequest[], paginatedReordersTotal: (reordersQuery.data as any).length };
+    return { reorders: [] as ReorderRequest[], paginatedReordersTotal: 0 };
   }, [reordersQuery.data]);
 
-  const { movements, paginatedMovementsTotal } = useMemo(() => {
+  const { movements, paginatedMovementsTotal }: { movements: StockMovement[]; paginatedMovementsTotal: number } = useMemo(() => {
     const raw = movementsQuery.data?.data;
     if (raw && typeof raw === 'object' && !Array.isArray(raw) && Array.isArray((raw as any).results)) {
       return { movements: (raw as any).results as StockMovement[], paginatedMovementsTotal: (raw as any).count as number };
     }
-    if (Array.isArray(raw)) return { movements: raw, paginatedMovementsTotal: raw.length };
-    if (Array.isArray(movementsQuery.data)) return { movements: movementsQuery.data as any, paginatedMovementsTotal: (movementsQuery.data as any).length };
-    return { movements: [], paginatedMovementsTotal: 0 };
+    if (Array.isArray(raw)) return { movements: raw as StockMovement[], paginatedMovementsTotal: raw.length };
+    if (Array.isArray(movementsQuery.data)) return { movements: movementsQuery.data as unknown as StockMovement[], paginatedMovementsTotal: (movementsQuery.data as any).length };
+    return { movements: [] as StockMovement[], paginatedMovementsTotal: 0 };
   }, [movementsQuery.data]);
 
   const stats = statsQuery.data?.data || null;
@@ -583,7 +581,7 @@ export default function InventoryPage() {
       `"${(i.supplier_name || '').replace(/"/g, '""')}"`,
     ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e: any[]) => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);

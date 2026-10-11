@@ -6,8 +6,6 @@ import {
   Landmark, 
   Banknote, 
   FileCheck,
-  Calendar,
-  User,
   ArrowDownLeft
 } from 'lucide-react';
 import type { Payment, PaymentMethod } from '../../types';

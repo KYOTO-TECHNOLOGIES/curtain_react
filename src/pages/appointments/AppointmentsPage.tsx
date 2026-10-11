@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Loader2,
@@ -97,7 +97,7 @@ export default function AppointmentsPage() {
   const [assignTarget, setAssignTarget] = useState<AppointmentListItem | null>(null);
   const [assignUserId, setAssignUserId] = useState<number | ''>('');
   const [assigning, setAssigning] = useState(false);
-  const [recentlyUpdatedId, setRecentlyUpdatedId] = useState<number | null>(null);
+  const [recentlyUpdatedId, setRecentlyUpdatedId] = useState<number | string | null>(null);
 
   const { data: usersRes } = useQuery({
     queryKey: ['users'],

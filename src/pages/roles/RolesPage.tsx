@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Plus, Search, Pencil, Trash2, Loader2, ShieldAlert } from 'lucide-react';
 import { rolesApi } from '../../api/roles';
 import { permissionsApi } from '../../api/permissions';
-import type { Role, CreateRoleRequest, UpdateRoleRequest } from '../../types';
+import type { Role, Permission, CreateRoleRequest, UpdateRoleRequest } from '../../types';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
 
