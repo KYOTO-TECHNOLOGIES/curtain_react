@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Plus, 
-  Search, 
-  Loader2, 
-  ChevronRight, 
-  Download, 
-  ChevronDown, 
+import {
+  Plus,
+  Search,
+  Loader2,
+  ChevronRight,
+  Download,
+  ChevronDown,
   FileText,
   Eye
 } from 'lucide-react';
@@ -97,14 +97,14 @@ export default function QuotationsPage() {
       default: return 'bg-slate-200 text-slate-700';
     }
   };
-  
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-AE', { style: 'currency', currency: 'AED' }).format(amount || 0);
   };
 
   return (
     <div className="space-y-6 animate-page-in font-sans">
-      
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -134,7 +134,7 @@ export default function QuotationsPage() {
             <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search</span>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input 
+              <input
                 type="text"
                 placeholder="Search quotes..."
                 value={searchQuery}
@@ -143,11 +143,11 @@ export default function QuotationsPage() {
               />
             </div>
           </div>
-          
+
           <div>
             <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</span>
             <div className="relative">
-              <select 
+              <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl px-4 py-2 pr-10 outline-none focus:border-[#2b5c8f] transition-colors w-40"
@@ -162,11 +162,11 @@ export default function QuotationsPage() {
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
           </div>
-          
+
           <div>
             <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Type</span>
             <div className="relative">
-              <select 
+              <select
                 value={quoteTypeFilter}
                 onChange={(e) => setQuoteTypeFilter(e.target.value)}
                 className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl px-4 py-2 pr-10 outline-none focus:border-[#2b5c8f] transition-colors w-40"
@@ -333,7 +333,7 @@ export default function QuotationsPage() {
               <input type="number" min="0" max="100" value={form.discount_percentage} onChange={(e) => setForm({ ...form, discount_percentage: Number(e.target.value) })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
             </div>
           </div>
-          
+
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mt-4">
             <p className="text-[13px] text-slate-500 font-medium">
               Note: This will create a <strong className="text-slate-700">Draft</strong> quotation. You can add areas and specific item calculations later from the Quotation Detail view.

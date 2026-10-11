@@ -806,16 +806,23 @@ export default function QuotationDetailPage() {
                                       </select>
                                     </div>
                                     <div>
-                                      <label className="block text-xs font-medium text-slate-600 mb-1">Price/m² (AED)</label>
+                                      <label className="block text-xs font-medium text-slate-600 mb-1">Surface Price (AED)</label>
                                       <input
                                         type="number"
                                         step="0.01"
-                                        value={surface.spec.unit_price_per_m2}
-                                        onChange={(e) =>
+                                        value={(() => {
+                                          const areaM2 = (Number(surface.width_cm) * Number(surface.height_cm)) / 10000;
+                                          const unitPrice = parseFloat(String(surface.spec.unit_price_per_m2)) || 0;
+                                          return areaM2 > 0 ? (areaM2 * unitPrice).toFixed(2) : '0.00';
+                                        })()}
+                                        onChange={(e) => {
+                                          const areaM2 = (Number(surface.width_cm) * Number(surface.height_cm)) / 10000;
+                                          const newSurfacePrice = parseFloat(e.target.value) || 0;
+                                          const newUnitPrice = areaM2 > 0 ? (newSurfacePrice / areaM2).toFixed(4) : '0';
                                           handleUpdateSurfaceSpec(aIdx, sIdx, {
-                                            unit_price_per_m2: e.target.value,
-                                          })
-                                        }
+                                            unit_price_per_m2: newUnitPrice,
+                                          });
+                                        }}
                                         className="w-full px-2 py-1.5 rounded text-sm border border-slate-200"
                                       />
                                     </div>

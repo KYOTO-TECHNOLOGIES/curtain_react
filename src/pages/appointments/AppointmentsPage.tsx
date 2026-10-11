@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Loader2, 
-  Calendar, 
-  ChevronRight, 
-  Download, 
-  ChevronDown, 
+import {
+  Loader2,
+  Calendar,
+  ChevronRight,
+  Download,
+  ChevronDown,
   FilePlus,
   UserCheck
 } from 'lucide-react';
@@ -120,14 +120,14 @@ export default function AppointmentsPage() {
     try {
       const params = lookupType === 'email' ? { email: lookupQuery } : { phone: lookupQuery };
       const res = await customersApi.lookup(params);
-      
+
       setLookupOpen(false);
-      navigate('/appointments/create', { 
-        state: { 
-          lookupResult: res.data, 
+      navigate('/appointments/create', {
+        state: {
+          lookupResult: res.data,
           lookupQuery,
-          lookupType 
-        } 
+          lookupType
+        }
       });
     } catch (error: any) {
       if (error?.response?.status === 404 || error?.response?.data?.found === false) {
@@ -141,12 +141,12 @@ export default function AppointmentsPage() {
 
   const handleCreateNewCustomer = () => {
     setLookupOpen(false);
-    navigate('/appointments/create', { 
-      state: { 
-        lookupResult: { found: false }, 
+    navigate('/appointments/create', {
+      state: {
+        lookupResult: { found: false },
         lookupQuery,
-        lookupType 
-      } 
+        lookupType
+      }
     });
   };
 
@@ -178,7 +178,7 @@ export default function AppointmentsPage() {
 
   return (
     <div className="space-y-6 animate-page-in font-sans">
-      
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -220,7 +220,7 @@ export default function AppointmentsPage() {
           <div>
             <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status</span>
             <div className="relative">
-              <select 
+              <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl px-4 py-2 pr-10 outline-none focus:border-[#2b5c8f] transition-colors w-40"
@@ -235,11 +235,11 @@ export default function AppointmentsPage() {
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
           </div>
-          
+
           <div>
             <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Assigned To</span>
             <div className="relative">
-              <select 
+              <select
                 value={assigneeFilter}
                 onChange={(e) => setAssigneeFilter(e.target.value)}
                 className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl px-4 py-2 pr-10 outline-none focus:border-[#2b5c8f] transition-colors w-40"
@@ -408,7 +408,7 @@ export default function AppointmentsPage() {
               <input type="tel" required value={form.customer_phone} onChange={(e) => setForm({ ...form, customer_phone: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
             </div>
           </div>
-          
+
           <h4 className="font-medium text-slate-800 pb-2 border-b border-slate-100 mt-6">Appointment Details</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
@@ -437,7 +437,7 @@ export default function AppointmentsPage() {
               <input type="text" required value={form.location_full_address} onChange={(e) => setForm({ ...form, location_full_address: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
             </div>
           </div>
-          
+
           <div className="flex gap-3 pt-4">
             <button type="button" onClick={() => setFormOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors">Cancel</button>
             <button type="submit" disabled={saving} className="flex-1 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white font-medium text-sm hover:bg-[#1f456e] transition-colors disabled:opacity-60">
@@ -465,8 +465,8 @@ export default function AppointmentsPage() {
               <label className="text-[13px] font-bold text-slate-700">
                 {lookupType === 'phone' ? 'Phone Number' : 'Email Address'} <span className="text-red-500">*</span>
               </label>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => {
                   setLookupType(lookupType === 'phone' ? 'email' : 'phone');
                   setLookupQuery('');
@@ -479,7 +479,7 @@ export default function AppointmentsPage() {
                 Switch to {lookupType === 'phone' ? 'Email' : 'Phone'}
               </button>
             </div>
-            
+
             {lookupType === 'phone' ? (
               <div className="flex border border-slate-200 rounded-xl overflow-hidden focus-within:border-[#2b5c8f] focus-within:ring-2 focus-within:ring-[#2b5c8f]/20 transition-all bg-slate-50">
                 <div className="flex items-center gap-2 px-3 bg-white border-r border-slate-200">
@@ -487,7 +487,7 @@ export default function AppointmentsPage() {
                   <span className="text-[14px] font-bold text-slate-700">+971</span>
                   <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                 </div>
-                <input 
+                <input
                   type="tel"
                   value={lookupQuery}
                   onChange={(e) => setLookupQuery(e.target.value)}
@@ -497,7 +497,7 @@ export default function AppointmentsPage() {
                 />
               </div>
             ) : (
-              <input 
+              <input
                 type="email"
                 value={lookupQuery}
                 onChange={(e) => setLookupQuery(e.target.value)}
@@ -541,8 +541,8 @@ export default function AppointmentsPage() {
             </div>
           )}
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={isLookingUp || !lookupQuery.trim()}
             className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#2b5c8f] text-white font-bold text-[15px] rounded-xl shadow-md shadow-indigo-500/20 hover:bg-[#1f456e] transition-all disabled:opacity-70 mt-2"
           >
@@ -552,34 +552,49 @@ export default function AppointmentsPage() {
         </form>
       </Modal>
       {/* Assign Modal */}
-      <Modal open={assignOpen} onClose={() => setAssignOpen(false)} title="Assign Appointment" maxWidth="max-w-sm">
-        <div className="space-y-5">
-          {assignTarget && (
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-              <p className="text-[13px] font-bold text-slate-700 truncate">{assignTarget.title || `Appointment #${assignTarget.id}`}</p>
-              <p className="text-[12px] font-medium text-slate-500 mt-0.5">{assignTarget.customer_name}</p>
+      <Modal open={assignOpen} onClose={() => setAssignOpen(false)} title="Assign Appointment" maxWidth="max-w-md">
+        <div className="space-y-6">
+          <div className="bg-slate-50/50 rounded-2xl border border-slate-100 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3 bg-white">
+              <div className="w-8 h-8 rounded-lg bg-[#eef2ff] flex items-center justify-center text-[#2b5c8f]">
+                <UserCheck className="w-4 h-4" />
+              </div>
+              <h3 className="text-[15px] font-bold text-[#1e293b]">Assignment Details</h3>
             </div>
-          )}
+            <div className="p-5 space-y-5">
+              {assignTarget && (
+                <div className="flex items-center gap-4 p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+                  <div className="w-10 h-10 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center text-[13px] font-bold border border-slate-100">
+                    #{assignTarget.id}
+                  </div>
+                  <div>
+                    <p className="text-[14px] font-extrabold text-slate-800">{assignTarget.title || 'Appointment'}</p>
+                    <p className="text-[13px] text-slate-500 font-medium">{assignTarget.customer_name}</p>
+                  </div>
+                </div>
+              )}
 
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Assign To <span className="text-red-500">*</span></label>
-            <select
-              value={assignUserId}
-              onChange={(e) => setAssignUserId(e.target.value === '' ? '' : Number(e.target.value))}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm"
-            >
-              <option value="">Select a staff member...</option>
-              {users.map(u => (
-                <option key={u.id} value={u.id}>{u.full_name} — {u.email}</option>
-              ))}
-            </select>
+              <div>
+                <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Assign To <span className="text-red-500">*</span></label>
+                <select
+                  value={assignUserId}
+                  onChange={(e) => setAssignUserId(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-[#2b5c8f] rounded-xl text-[14px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#2b5c8f]/10 transition-all"
+                >
+                  <option value="">Select a staff member...</option>
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>{u.full_name} — {u.email}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex items-center justify-between pt-2">
             <button
               type="button"
               onClick={() => setAssignOpen(false)}
-              className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors"
+              className="px-6 py-3 rounded-xl border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-colors"
             >
               Cancel
             </button>
@@ -587,10 +602,10 @@ export default function AppointmentsPage() {
               type="button"
               onClick={handleAssign}
               disabled={assigning || assignUserId === ''}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white font-medium text-sm hover:bg-[#1f456e] transition-colors disabled:opacity-60"
+              className="flex items-center gap-2 px-8 py-3 bg-[#2b5c8f] text-white font-bold text-sm rounded-xl shadow-md shadow-[#2b5c8f]/20 hover:bg-[#1f456e] hover:-translate-y-0.5 transition-all disabled:opacity-70"
             >
-              {assigning && <Loader2 className="w-4 h-4 animate-spin" />}
-              {assigning ? 'Assigning...' : 'Assign'}
+              {assigning ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+              {assigning ? 'Assigning...' : 'Assign Staff'}
             </button>
           </div>
         </div>

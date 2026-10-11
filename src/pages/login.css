@@ -1,0 +1,561 @@
+/* ═══════════════════════════════════════════════════════════════
+   Curtain Master · "Ink & Soft Depth" Design System
+   Editorial, high-contrast, tactile. 2026.
+   ═══════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap');
+
+/* ── Design Tokens ─────────────────────────────────────────── */
+:root {
+  --ink:           #0B1B33;
+  --ink-soft:      #1E293B;
+  --muted:         #64748B;
+  --accent:        #2A5FA8;
+  --surface:       #FFFFFF;
+  --field:         #FFFFFF;
+  --border:        #E2E8F0;
+  --border-hover:  #CBD5E1;
+  --ring:          rgba(42, 95, 168, 0.16);
+  --danger:        #DC3B41;
+  --danger-ring:   rgba(220, 59, 65, 0.14);
+  --success:       #16A34A;
+  --shadow-field:  0 1px 2px rgba(10, 18, 32, 0.04), 0 4px 12px -4px rgba(10, 18, 32, 0.06);
+  --shadow-btn:    0 8px 20px -6px rgba(42, 95, 168, 0.45);
+  --icon-rest:     #94A3B8;
+  --label-text:    #334155;
+  --placeholder:   #94A3B8;
+}
+
+/* ── Panel Layout ───────────────────────────────────────────── */
+.ink-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 52px 24px;
+  position: relative;
+  font-family: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+/* Soft blue-white background */
+.ink-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(165deg, #F6F8FB 0%, #EAF1FB 100%);
+  z-index: 0;
+}
+
+/* 3% grain texture overlay */
+.ink-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ink-form-wrap {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 400px;
+}
+
+/* ── Eyebrow Pill ───────────────────────────────────────────── */
+.ink-eyebrow-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #EEF3FA;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 16px;
+}
+
+.ink-eyebrow-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+/* ── Heading Block ──────────────────────────────────────────── */
+.ink-heading {
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  color: var(--ink);
+  margin: 0 0 12px 0;
+  font-optical-sizing: auto;
+}
+
+.ink-heading-period {
+  color: var(--accent);
+}
+
+.ink-subtext {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ── API Error Banner ───────────────────────────────────────── */
+.ink-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #FFF5F5;
+  border: 1px solid #FECACA;
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 20px;
+}
+
+/* ── Static Label ───────────────────────────────────────────── */
+.ink-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--label-text);
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+/* ── Input Shell ────────────────────────────────────────────── */
+.ink-field-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.ink-input-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ink-input {
+  width: 100%;
+  height: 56px;
+  background: var(--field);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 0 48px 0 48px;
+  font-size: 16px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--ink);
+  outline: none;
+  box-shadow: var(--shadow-field);
+  box-sizing: border-box;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.ink-input::placeholder {
+  color: var(--placeholder);
+  font-weight: 400;
+}
+
+.ink-input:hover {
+  border-color: var(--border-hover);
+}
+
+.ink-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--ring), 0 4px 12px -4px rgba(10, 18, 32, 0.06);
+}
+
+/* Autofill override */
+.ink-input:-webkit-autofill,
+.ink-input:-webkit-autofill:hover,
+.ink-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 100px var(--field) inset,
+                      0 1px 2px rgba(10, 18, 32, 0.04),
+                      0 4px 12px -4px rgba(10, 18, 32, 0.06) !important;
+  -webkit-text-fill-color: var(--ink) !important;
+  caret-color: var(--ink);
+  transition: background-color 600000s 0s;
+}
+
+/* ── Leading Icon ───────────────────────────────────────────── */
+.ink-leading-icon {
+  position: absolute;
+  left: 16px;
+  width: 20px;
+  height: 20px;
+  color: var(--icon-rest);
+  pointer-events: none;
+  transition: color 180ms ease;
+  z-index: 2;
+}
+
+.ink-input-shell:focus-within .ink-leading-icon {
+  color: var(--ink);
+}
+
+/* ── Right Slot: green check OR eye toggle (never both) ─────── */
+.ink-right-slot {
+  position: absolute;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  z-index: 2;
+}
+
+.ink-valid-check {
+  color: var(--success);
+  display: flex;
+  align-items: center;
+  animation: inkCheckIn 200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.ink-valid-check svg {
+  width: 16px;
+  height: 16px;
+}
+
+@keyframes inkCheckIn {
+  from { opacity: 0; transform: scale(0.8) rotate(-8deg); }
+  to   { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+.ink-eye-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--icon-rest);
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.ink-eye-btn:hover {
+  background: rgba(10, 18, 32, 0.06);
+  color: var(--ink);
+}
+
+.ink-eye-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.ink-eye-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* ── Validation Error ───────────────────────────────────────── */
+.ink-field-error .ink-input {
+  border-color: var(--danger) !important;
+}
+
+.ink-field-error .ink-input:focus {
+  box-shadow: 0 0 0 4px var(--danger-ring), 0 4px 12px -4px rgba(10, 18, 32, 0.06) !important;
+}
+
+.ink-field-shake {
+  animation: inkShake 340ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes inkShake {
+  0%, 100% { transform: translateX(0); }
+  18%       { transform: translateX(-4px); }
+  38%       { transform: translateX(4px); }
+  58%       { transform: translateX(-3px); }
+  78%       { transform: translateX(2px); }
+}
+
+.ink-error-caption {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--danger);
+  margin-top: 6px;
+}
+
+.ink-error-caption svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* ── Remember / Forgot row ──────────────────────────────────── */
+.ink-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ink-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  cursor: pointer;
+  user-select: none;
+}
+
+.ink-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 17px;
+  height: 17px;
+  border: 1.5px solid var(--border-hover);
+  border-radius: 5px;
+  background: var(--surface);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.ink-checkbox:hover {
+  border-color: var(--ink-soft);
+}
+
+.ink-checkbox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.ink-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1.5px;
+  width: 5px;
+  height: 9px;
+  border: 2px solid #FFFFFF;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
+.ink-checkbox:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.ink-forgot-link {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  transition: color 160ms ease;
+}
+
+.ink-forgot-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── Dark Ink Button ────────────────────────────────────────── */
+.ink-submit-btn {
+  position: relative;
+  width: 100%;
+  height: 56px;
+  border-radius: 16px;
+  border: none;
+  background: linear-gradient(180deg, #3366B2 0%, #2A5FA8 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), var(--shadow-btn);
+  color: #FFFFFF;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  overflow: hidden;
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 200ms ease;
+}
+
+.ink-submit-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 12px 26px -8px rgba(42, 95, 168, 0.55);
+}
+
+.ink-submit-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 6px 14px -6px rgba(10, 18, 32, 0.4);
+}
+
+.ink-submit-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    var(--shadow-btn),
+    0 0 0 2px #FFFFFF,
+    0 0 0 5px var(--ring);
+}
+
+.ink-submit-btn:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+/* Arrow slides 4px on hover */
+.ink-btn-arrow {
+  width: 18px;
+  height: 18px;
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ink-submit-btn:hover:not(:disabled) .ink-btn-arrow {
+  transform: translateX(4px);
+}
+
+/* Spinner */
+.ink-btn-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  border-top-color: #FFFFFF;
+  border-radius: 50%;
+  animation: inkSpin 600ms linear infinite;
+}
+
+@keyframes inkSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Thin Divider with centered text ────────────────────────── */
+.ink-divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ink-divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.ink-divider-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ── Footer (no pill) ───────────────────────────────────────── */
+.ink-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.ink-footer svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+/* ── Entrance Stagger Animation ─────────────────────────────── */
+@keyframes inkFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ink-motion {
+  animation: inkFadeUp 550ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.ink-s0 { animation-delay: 0ms; }
+.ink-s1 { animation-delay: 70ms; }
+.ink-s2 { animation-delay: 140ms; }
+.ink-s3 { animation-delay: 210ms; }
+.ink-s4 { animation-delay: 280ms; }
+.ink-s5 { animation-delay: 350ms; }
+.ink-s6 { animation-delay: 420ms; }
+
+/* ── Reduced Motion ─────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .ink-motion,
+  .ink-submit-btn,
+  .ink-input,
+  .ink-btn-arrow,
+  .ink-eye-btn {
+    animation: none !important;
+    transition: none !important;
+  }
+  .ink-field-shake { animation: none !important; }
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .ink-panel {
+    border-radius: 2rem 2rem 0 0;
+    margin-top: -2rem;
+    padding: 36px 20px 32px;
+  }
+
+  .ink-heading {
+    font-size: 34px;
+  }
+
+  .ink-input,
+  .ink-submit-btn {
+    height: 52px;
+    min-height: 48px;
+  }
+}
+
+@media (max-width: 360px) {
+  .ink-panel {
+    padding: 28px 16px 24px;
+  }
+
+  .ink-heading {
+    font-size: 30px;
+  }
+
+  .ink-input,
+  .ink-submit-btn {
+    height: 50px;
+    min-height: 48px;
+  }
+}

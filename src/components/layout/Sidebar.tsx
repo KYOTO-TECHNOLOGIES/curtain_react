@@ -92,10 +92,10 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         {/* Logo */}
         <div className="flex items-center justify-between px-6 py-8">
           <div>
-            <h1 className="text-white font-extrabold text-[22px] tracking-tight leading-none mb-1">
-              CurtainMaster
+            <h1 className="text-white font-bold text-[23px] tracking-tight leading-none mb-1 font-['Bricolage_Grotesque']">
+              CurtainMaster<span className="text-[#93c5fd]">.</span>
             </h1>
-            <span className="text-white/60 text-[10px] font-bold tracking-[0.2em] uppercase">
+            <span className="text-white/60 text-[10px] font-semibold tracking-[0.2em] uppercase">
               Enterprise Suite
             </span>
           </div>

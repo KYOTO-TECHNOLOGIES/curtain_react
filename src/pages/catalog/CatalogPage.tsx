@@ -11,11 +11,13 @@ import {
   Zap,
   Grid3X3,
   FileText,
+  CheckCircle2,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { catalogApi } from '../../api/catalog';
 import { useToast } from '../../components/ui/Toast';
-import Modal from '../../components/ui/Modal';
+import Modal, { ConfirmModal } from '../../components/ui/Modal';
+import { FormInput } from '../../components/ui/FormInput';
 
 type TabType = 'work-types' | 'fabric-types' | 'models' | 'items' | 'motors' | 'charges';
 
@@ -399,7 +401,6 @@ export default function CatalogPage() {
         </div>
       </div>
 
-      {/* Form Modal */}
       <Modal
         open={formOpen}
         onClose={() => setFormOpen(false)}
@@ -411,239 +412,142 @@ export default function CatalogPage() {
             e.preventDefault();
             handleSave();
           }}
-          className="space-y-4"
+          className="space-y-6"
         >
-          {activeTab === 'work-types' && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. Roller"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-                />
+          <div className="bg-slate-50/50 rounded-2xl border border-slate-100 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3 bg-white">
+              <div className="w-8 h-8 rounded-lg bg-[#eef2ff] flex items-center justify-center text-[#2b5c8f]">
+                {getTabIcon(activeTab)}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Pricing Unit
-                </label>
-                <input
-                  type="text"
-                  value={formData.pricing_unit || ''}
-                  onChange={(e) => setFormData({ ...formData, pricing_unit: e.target.value })}
-                  placeholder="e.g. m2"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-                />
-              </div>
-            </>
-          )}
+              <h3 className="text-[15px] font-bold text-[#1e293b]">{getTabLabel(activeTab)} Details</h3>
+            </div>
+            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {activeTab === 'work-types' && (
+                <>
+                  <div className="sm:col-span-2">
+                    <FormInput label="Name" required value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Roller" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <FormInput label="Pricing Unit" value={formData.pricing_unit || ''} onChange={(e) => setFormData({ ...formData, pricing_unit: e.target.value })} placeholder="e.g. m2" />
+                  </div>
+                </>
+              )}
 
-          {activeTab === 'fabric-types' && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Work Type <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.work_type || ''}
-                  onChange={(e) => setFormData({ ...formData, work_type: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-                >
-                  <option value="">Select work type</option>
-                  {workTypes.map((wt) => (
-                    <option key={wt.id} value={wt.id}>
-                      {wt.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. Blackout"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-                />
-              </div>
-            </>
-          )}
+              {activeTab === 'fabric-types' && (
+                <>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Work Type <span className="text-red-500">*</span></label>
+                    <select
+                      value={formData.work_type || ''}
+                      onChange={(e) => setFormData({ ...formData, work_type: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 focus:border-[#2b5c8f] rounded-xl text-[14px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#2b5c8f]/10 transition-all"
+                    >
+                      <option value="">Select work type</option>
+                      {workTypes.map((wt) => (
+                        <option key={wt.id} value={wt.id}>{wt.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <FormInput label="Name" required value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Blackout" />
+                  </div>
+                </>
+              )}
 
-          {activeTab === 'models' && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Fabric Type <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.fabric_type || ''}
-                  onChange={(e) => setFormData({ ...formData, fabric_type: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-                >
-                  <option value="">Select fabric type</option>
-                  {fabricTypes.map((ft) => (
-                    <option key={ft.id} value={ft.id}>
-                      {ft.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. Classic"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-                />
-              </div>
-            </>
-          )}
+              {activeTab === 'models' && (
+                <>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Fabric Type <span className="text-red-500">*</span></label>
+                    <select
+                      value={formData.fabric_type || ''}
+                      onChange={(e) => setFormData({ ...formData, fabric_type: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 focus:border-[#2b5c8f] rounded-xl text-[14px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#2b5c8f]/10 transition-all"
+                    >
+                      <option value="">Select fabric type</option>
+                      {fabricTypes.map((ft) => (
+                        <option key={ft.id} value={ft.id}>{ft.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <FormInput label="Name" required value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Classic" />
+                  </div>
+                </>
+              )}
 
-          {activeTab === 'items' && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Model <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.model || ''}
-                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-                >
-                  <option value="">Select model</option>
-                  {models.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. Premium Shade"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Price Per Unit <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.price_per_unit || ''}
-                  onChange={(e) => setFormData({ ...formData, price_per_unit: e.target.value })}
-                  placeholder="e.g. 150.00"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-                />
-              </div>
-            </>
-          )}
+              {activeTab === 'items' && (
+                <>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Model <span className="text-red-500">*</span></label>
+                    <select
+                      value={formData.model || ''}
+                      onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 focus:border-[#2b5c8f] rounded-xl text-[14px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#2b5c8f]/10 transition-all"
+                    >
+                      <option value="">Select model</option>
+                      {models.map((m) => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <FormInput label="Name" required value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Premium Shade" />
+                  </div>
+                  <div>
+                    <FormInput type="number" step="0.01" label="Price Per Unit" required value={formData.price_per_unit || ''} onChange={(e) => setFormData({ ...formData, price_per_unit: e.target.value })} placeholder="e.g. 150.00" />
+                  </div>
+                </>
+              )}
 
-          {activeTab === 'motors' && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. Tubular"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Price Per m2
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.price_per_m2 || ''}
-                  onChange={(e) => setFormData({ ...formData, price_per_m2: e.target.value })}
-                  placeholder="e.g. 120.00"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-                />
-              </div>
-            </>
-          )}
+              {activeTab === 'motors' && (
+                <>
+                  <div>
+                    <FormInput label="Name" required value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Tubular" />
+                  </div>
+                  <div>
+                    <FormInput type="number" step="0.01" label="Price Per m2" value={formData.price_per_m2 || ''} onChange={(e) => setFormData({ ...formData, price_per_m2: e.target.value })} placeholder="e.g. 120.00" />
+                  </div>
+                </>
+              )}
 
-          {activeTab === 'charges' && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. Manual Control"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Price
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.price || ''}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  placeholder="e.g. 50.00"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Unit
-                </label>
-                <select
-                  value={formData.unit || 'flat'}
-                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-                >
-                  <option value="flat">Flat</option>
-                  <option value="per_m2">Per m2</option>
-                </select>
-              </div>
-            </>
-          )}
+              {activeTab === 'charges' && (
+                <>
+                  <div className="sm:col-span-2">
+                    <FormInput label="Name" required value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Manual Control" />
+                  </div>
+                  <div>
+                    <FormInput type="number" step="0.01" label="Price" value={formData.price || ''} onChange={(e) => setFormData({ ...formData, price: e.target.value })} placeholder="e.g. 50.00" />
+                  </div>
+                  <div>
+                    <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Unit</label>
+                    <select
+                      value={formData.unit || 'flat'}
+                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 focus:border-[#2b5c8f] rounded-xl text-[14px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#2b5c8f]/10 transition-all"
+                    >
+                      <option value="flat">Flat</option>
+                      <option value="per_m2">Per m2</option>
+                    </select>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex items-center justify-between mt-6 pt-6 border-t border-slate-200">
             <button
               type="button"
               onClick={() => setFormOpen(false)}
-              className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors"
+              className="px-6 py-3 rounded-xl border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white font-medium text-sm hover:bg-[#1f456e] transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+              className="flex items-center gap-2 px-8 py-3 bg-[#2b5c8f] text-white font-bold text-sm rounded-xl shadow-md shadow-[#2b5c8f]/20 hover:bg-[#1f456e] hover:-translate-y-0.5 transition-all disabled:opacity-70"
             >
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
               {saving ? 'Saving…' : editingItem ? 'Update' : 'Create'}
             </button>
           </div>
@@ -651,31 +555,13 @@ export default function CatalogPage() {
       </Modal>
 
       {/* Delete Confirmation Modal */}
-      <Modal
+      <ConfirmModal
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        title={`Delete ${editingItem ? getTabLabel(activeTab) : 'Item'}`}
-      >
-        <div className="space-y-4">
-          <p className="text-gray-600">
-            Are you sure you want to delete this item? This action cannot be undone.
-          </p>
-          <div className="flex gap-3 justify-end">
-            <button
-              onClick={() => setDeleteTarget(null)}
-              className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleDelete}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </Modal>
+        onConfirm={handleDelete}
+        title={`Delete ${deleteTarget ? getTabLabel(activeTab) : 'Item'}`}
+        message="Are you sure you want to delete this item? This action cannot be undone."
+      />
     </div>
   );
 }

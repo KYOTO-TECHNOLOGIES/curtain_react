@@ -4,22 +4,15 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, Pencil, Trash2, Loader2, MapPin, AlertCircle } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Loader2, MapPin, AlertCircle, User, Mail, Globe, Building2, CheckCircle2 } from 'lucide-react';
 import { customersApi } from '../../api/customers';
 import type { Customer, UpdateCustomerRequest } from '../../types';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
+import { FormInput } from '../../components/ui/FormInput';
 import { useToast } from '../../components/ui/Toast';
 import { customerSchema, type CustomerFormValues } from '../../lib/validationSchemas';
 
-const inputCls = (hasError?: boolean) =>
-  `w-full px-4 py-2.5 rounded-xl border ${hasError ? 'border-red-400 bg-red-50' : 'border-slate-200'} outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm`;
 
-const ErrorMsg = ({ message }: { message?: string }) =>
-  message ? (
-    <p className="flex items-center gap-1 text-red-500 text-xs mt-1.5 font-medium">
-      <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {message}
-    </p>
-  ) : null;
 
 export default function CustomersPage() {
   const navigate = useNavigate();
@@ -234,54 +227,61 @@ export default function CustomersPage() {
 
       {/* Form Modal */}
       <Modal open={formOpen} onClose={() => setFormOpen(false)} title={editingCustomer ? 'Edit Customer' : 'Create Customer'} maxWidth="max-w-2xl">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">First Name <span className="text-red-500">*</span></label>
-              <input type="text" placeholder="e.g. Abdullah" {...register('first_name')} className={inputCls(!!errors.first_name)} />
-              <ErrorMsg message={errors.first_name?.message} />
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Personal Information */}
+          <div className="bg-slate-50/50 rounded-2xl border border-slate-100 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3 bg-white">
+              <div className="w-8 h-8 rounded-lg bg-[#eef2ff] flex items-center justify-center text-[#2b5c8f]">
+                <User className="w-4 h-4" />
+              </div>
+              <h3 className="text-[15px] font-bold text-[#1e293b]">Personal Information</h3>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Last Name <span className="text-red-500">*</span></label>
-              <input type="text" placeholder="e.g. Ahmed" {...register('last_name')} className={inputCls(!!errors.last_name)} />
-              <ErrorMsg message={errors.last_name?.message} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
-              <input type="email" placeholder="customer@example.com" {...register('email')} className={inputCls(!!errors.email)} />
-              <ErrorMsg message={errors.email?.message} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Phone Number</label>
-              <input type="tel" placeholder="+971 50 123 4567" {...register('phone_number')} className={inputCls(!!errors.phone_number)} />
-              <ErrorMsg message={errors.phone_number?.message} />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Company Name</label>
-              <input type="text" placeholder="e.g. ACME LLC" {...register('company_name')} className={inputCls()} />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Address Line 1</label>
-              <input type="text" placeholder="Street address" {...register('address_line_1')} className={inputCls()} />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Address Line 2</label>
-              <input type="text" placeholder="Apartment, suite, building, etc." {...register('address_line_2')} className={inputCls()} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">City</label>
-              <input type="text" placeholder="Dubai" {...register('city')} className={inputCls()} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Country</label>
-              <input type="text" placeholder="UAE" {...register('country')} className={inputCls()} />
+            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <FormInput label="First Name" icon={User} required error={errors.first_name?.message} {...register('first_name')} placeholder="e.g. Abdullah" />
+              <FormInput label="Last Name" icon={User} required error={errors.last_name?.message} {...register('last_name')} placeholder="e.g. Ahmed" />
+              <FormInput label="Email Address" type="email" icon={Mail} error={errors.email?.message} {...register('email')} placeholder="customer@example.com" />
+              <div>
+                <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Phone Number</label>
+                <div className={`flex border ${errors.phone_number ? 'border-red-300' : 'border-slate-200'} rounded-xl overflow-hidden focus-within:border-[#2b5c8f] focus-within:ring-2 focus-within:ring-[#2b5c8f]/10 transition-all bg-white`}>
+                  <div className="flex items-center gap-1.5 px-3 bg-slate-50/80 border-r border-slate-200">
+                    <span className="text-base">🇦🇪</span>
+                    <span className="text-[13px] font-bold text-slate-700">+971</span>
+                  </div>
+                  <input type="tel" {...register('phone_number')} placeholder="50 000 0000" className="flex-1 px-4 py-3 bg-transparent text-slate-800 text-[14px] font-semibold outline-none" />
+                </div>
+                {errors.phone_number && <p className="text-[12px] text-red-500 font-medium mt-1">{errors.phone_number.message}</p>}
+              </div>
+              <div className="sm:col-span-2">
+                <FormInput label="Company Name" icon={Building2} error={errors.company_name?.message} {...register('company_name')} placeholder="e.g. ACME LLC" />
+              </div>
             </div>
           </div>
-          <div className="flex gap-3 pt-4">
-            <button type="button" onClick={() => setFormOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors">Cancel</button>
-            <button type="submit" disabled={saving} className="flex-1 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white font-medium text-sm hover:bg-[#1f456e] transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-              {saving ? 'Saving…' : editingCustomer ? 'Update' : 'Create'}
+
+          {/* Location Details */}
+          <div className="bg-slate-50/50 rounded-2xl border border-slate-100 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3 bg-white">
+              <div className="w-8 h-8 rounded-lg bg-[#ecfdf5] flex items-center justify-center text-[#10b981]">
+                <MapPin className="w-4 h-4" />
+              </div>
+              <h3 className="text-[15px] font-bold text-[#1e293b]">Location Details</h3>
+            </div>
+            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="sm:col-span-2">
+                <FormInput label="Address Line 1" icon={MapPin} error={errors.address_line_1?.message} {...register('address_line_1')} placeholder="Street address" />
+              </div>
+              <div className="sm:col-span-2">
+                <FormInput label="Address Line 2" icon={MapPin} error={errors.address_line_2?.message} {...register('address_line_2')} placeholder="Apartment, suite, building, etc." />
+              </div>
+              <FormInput label="City" icon={Globe} error={errors.city?.message} {...register('city')} placeholder="Dubai" />
+              <FormInput label="Country" icon={Globe} error={errors.country?.message} {...register('country')} placeholder="UAE" />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mt-6 pt-6 border-t border-slate-200">
+            <button type="button" onClick={() => setFormOpen(false)} className="px-6 py-3 rounded-xl border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-colors">Cancel</button>
+            <button type="submit" disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-[#2b5c8f] text-white font-bold text-sm rounded-xl shadow-md shadow-[#2b5c8f]/20 hover:bg-[#1f456e] hover:-translate-y-0.5 transition-all disabled:opacity-70">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              {saving ? 'Saving…' : editingCustomer ? 'Update Customer' : 'Create Customer'}
             </button>
           </div>
         </form>
