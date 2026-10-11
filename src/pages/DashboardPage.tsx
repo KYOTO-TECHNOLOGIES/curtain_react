@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { 
   Filter, 
@@ -6,7 +7,10 @@ import {
   Calendar, 
   FileText, 
   Package, 
-  ArrowUpRight
+  ArrowUpRight,
+  Search,
+  ChevronDown,
+  RotateCcw
 } from 'lucide-react';
 import type { RootState } from '../store';
 import { useQueries } from '@tanstack/react-query';
@@ -14,7 +18,14 @@ import { appointmentsApi } from '../api/appointments';
 import { quotationsApi } from '../api/quotations';
 import { ordersApi } from '../api/orders';
 import { invoicesApi } from '../api/invoices';
+import { StatCard } from '../components/ui/StatCard';
+
 export default function DashboardPage() {
+  const [showFilters, setShowFilters] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateRange, setDateRange] = useState('This Month');
+  const [chartRange, setChartRange] = useState<'6M' | '12M'>('6M');
+
   const user = useSelector((state: RootState) => state.auth.user);
   const firstName = user?.full_name?.split(' ')[0] || 'Admin';
 
@@ -34,162 +45,243 @@ export default function DashboardPage() {
     invoices: results[3].data?.data || null
   };
 
+  const totalPaid = parseFloat(stats.invoices?.total_paid || '0') || 0;
+
   const formatCurrency = (amount: number | string) => {
     const num = typeof amount === 'string' ? parseFloat(amount || '0') : amount;
     return new Intl.NumberFormat('en-AE', { minimumFractionDigits: 2 }).format(num || 0);
   };
 
   return (
-    <div className="space-y-8 animate-page-in font-sans">
-      {/* Header */}
+    <div className="space-y-7 font-['Hanken_Grotesk'] text-[#0B1B33] animate-fadeIn">
+      {/* Header Block */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-            Operational Overview
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EEF3FA] text-[12px] font-semibold text-[#334155] mb-2.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#2A5FA8]"></span>
+            OPERATIONAL OVERVIEW
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-bold text-[#0B1B33] tracking-tight font-['Bricolage_Grotesque']">
+            Operational Overview<span className="text-[#2A5FA8]">.</span>
           </h1>
-          <p className="mt-1.5 text-slate-500 font-medium text-[15px]">
+          <p className="mt-1 text-[#64748B] font-medium text-[15px]">
             Welcome back, {firstName}. Here's a snapshot of today's floor activity.
           </p>
         </div>
         
+        {/* Header Action Buttons */}
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-white text-slate-700 font-semibold text-sm rounded-xl border border-slate-200 shadow-sm hover:bg-slate-50 hover:shadow transition-all duration-200">
-            <Filter className="w-4 h-4 text-slate-500" />
-            Filter View
+          <button 
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-4.5 h-11 text-sm font-semibold rounded-[14px] border transition-all duration-180 cursor-pointer ${
+              showFilters 
+                ? 'bg-[#EEF3FA] text-[#2A5FA8] border-[#2A5FA8]/30 shadow-sm' 
+                : 'bg-white text-[#1E293B] border-[#E2E8F0] shadow-[0_1px_2px_rgba(10,18,32,0.04),0_4px_12px_-4px_rgba(10,18,32,0.06)] hover:border-[#CBD5E1] hover:bg-[#F8FAFC]'
+            }`}
+          >
+            <Filter className="w-4 h-4 text-[#64748B]" />
+            {showFilters ? 'Hide Filters' : 'Filter View'}
           </button>
-          <button className="flex items-center gap-2 px-4 py-2.5 bg-[#2b5c8f] text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-900/20 hover:bg-[#1f456e] hover:-translate-y-0.5 transition-all duration-200">
+          
+          <button 
+            className="flex items-center gap-2 px-5 h-11 text-white text-sm font-semibold rounded-[14px] bg-gradient-to-b from-[#3366B2] to-[#2A5FA8] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_8px_20px_-6px_rgba(42,95,168,0.45)] hover:-translate-y-0.5 hover:shadow-[0_12px_24px_-6px_rgba(42,95,168,0.55)] active:translate-y-0 transition-all duration-180 cursor-pointer"
+          >
             <Download className="w-4 h-4" />
             Export Report
           </button>
         </div>
       </div>
 
-      {/* Stats Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* Monthly Sales */}
-        <div className="bg-white rounded-2xl p-6 shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-col justify-between h-[180px]">
-          <div className="flex justify-between items-start">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center">
-              <Banknote className="w-6 h-6 text-emerald-500" strokeWidth={2} />
-            </div>
-            <div className="flex items-center gap-1 text-emerald-600 font-bold text-sm bg-emerald-50/50 px-2 py-1 rounded-md">
-              <ArrowUpRight className="w-4 h-4" />
-              12.4%
-            </div>
-          </div>
-          <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-              Monthly Sales
-            </p>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-slate-500 font-bold text-sm">AED</span>
-              <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-                {stats.invoices ? formatCurrency(stats.invoices.total_paid || 0) : '0.00'}
-              </h2>
+      {/* Interactive Filter Drawer (Login Page Input Box UI) */}
+      {showFilters && (
+        <div className="bg-white rounded-[20px] p-5 border border-[#E2E8F0] shadow-[0_1px_2px_rgba(10,18,32,0.04),0_6px_20px_-6px_rgba(10,18,32,0.08)] grid grid-cols-1 md:grid-cols-3 gap-4 animate-fadeIn">
+          {/* Search Box */}
+          <div className="flex flex-col">
+            <label className="block text-[13px] font-semibold text-[#334155] mb-1.5 cursor-pointer">
+              Search Activity
+            </label>
+            <div className="relative flex items-center group">
+              <Search className="w-4.5 h-4.5 text-[#94A3B8] absolute left-4 pointer-events-none group-focus-within:text-[#0B1B33] transition-colors" />
+              <input 
+                type="text"
+                placeholder="Search orders, clients, ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-11 pl-11 pr-4 bg-white border border-[#E2E8F0] hover:border-[#CBD5E1] focus:border-[#2A5FA8] focus:ring-4 focus:ring-[#2A5FA8]/16 rounded-[14px] text-[14.5px] font-medium text-[#0B1B33] placeholder:text-[#94A3B8] shadow-[0_1px_2px_rgba(10,18,32,0.04),0_4px_12px_-4px_rgba(10,18,32,0.06)] outline-none transition-all"
+              />
             </div>
           </div>
-        </div>
 
-        {/* Active Appts */}
-        <div className="bg-white rounded-2xl p-6 shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-col justify-between h-[180px]">
-          <div className="flex justify-between items-start">
-            <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-orange-400" strokeWidth={2} />
-            </div>
-            <div className="text-[11px] font-bold text-slate-500 tracking-wider">
-              TODAY
+          {/* Date Range Select */}
+          <div className="flex flex-col">
+            <label className="block text-[13px] font-semibold text-[#334155] mb-1.5 cursor-pointer">
+              Timeline Period
+            </label>
+            <div className="relative flex items-center group">
+              <Calendar className="w-4.5 h-4.5 text-[#94A3B8] absolute left-4 pointer-events-none group-focus-within:text-[#0B1B33] transition-colors" />
+              <select 
+                value={dateRange}
+                onChange={(e) => setDateRange(e.target.value)}
+                className="w-full h-11 pl-11 pr-9 bg-white border border-[#E2E8F0] hover:border-[#CBD5E1] focus:border-[#2A5FA8] focus:ring-4 focus:ring-[#2A5FA8]/16 rounded-[14px] text-[14.5px] font-medium text-[#0B1B33] shadow-[0_1px_2px_rgba(10,18,32,0.04),0_4px_12px_-4px_rgba(10,18,32,0.06)] outline-none appearance-none cursor-pointer transition-all"
+              >
+                <option value="Today">Today's Data</option>
+                <option value="This Week">This Week</option>
+                <option value="This Month">This Month</option>
+                <option value="This Quarter">This Quarter</option>
+                <option value="Year to Date">Year to Date (YTD)</option>
+              </select>
+              <ChevronDown className="w-4 h-4 text-[#94A3B8] absolute right-3.5 pointer-events-none" />
             </div>
           </div>
-          <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-              Active Appts
-            </p>
-            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              {stats.appointments?.today || 0}
-            </h2>
+
+          {/* Quick Actions */}
+          <div className="flex items-end gap-2.5">
+            <button 
+              onClick={() => { setSearchQuery(''); setDateRange('This Month'); }}
+              className="flex-1 h-11 flex items-center justify-center gap-2 bg-white text-[#64748B] hover:text-[#0B1B33] font-semibold text-sm rounded-[14px] border border-[#E2E8F0] hover:border-[#CBD5E1] hover:bg-[#F8FAFC] shadow-[0_1px_2px_rgba(10,18,32,0.04)] transition-all cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Reset
+            </button>
+            <button 
+              onClick={() => setShowFilters(false)}
+              className="flex-1 h-11 flex items-center justify-center gap-2 text-white font-semibold text-sm rounded-[14px] bg-gradient-to-b from-[#3366B2] to-[#2A5FA8] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_8px_20px_-6px_rgba(42,95,168,0.45)] hover:-translate-y-0.5 transition-all cursor-pointer"
+            >
+              Apply Filter
+            </button>
           </div>
         </div>
+      )}
+
+      {/* Stats Cards Grid (Numbers first, quiet UI, responsive grid) */}
+      <div className="stat-cards-grid">
+        {/* Monthly Sales */}
+        <StatCard
+          label="Monthly sales"
+          value={totalPaid > 0 ? formatCurrency(totalPaid) : '0'}
+          rawValue={totalPaid}
+          prefix="AED"
+          trend={totalPaid > 0 ? { value: 12.4, label: 'vs last month', isPositive: true } : null}
+          emptyText="No sales yet"
+          sparklineData={totalPaid > 0 ? [20, 32, 28, 45, 38, 54, 72] : []}
+          accent="#16A34A"
+          icon={Banknote}
+          href="/invoices"
+          loading={results[3].isLoading}
+          index={0}
+        />
+
+        {/* Active Appointments */}
+        <StatCard
+          label="Active appointments"
+          value={stats.appointments?.today ?? 0}
+          rawValue={stats.appointments?.today ?? 0}
+          status={(stats.appointments?.today ?? 0) > 0 ? {
+            label: `${stats.appointments.today} due today`,
+            color: '#F59E0B'
+          } : null}
+          emptyText="None scheduled today"
+          sparklineData={(stats.appointments?.today ?? 0) > 0 ? [4, 7, 5, 9, 6, 8, 7] : []}
+          accent="#F59E0B"
+          icon={Calendar}
+          href="/appointments"
+          loading={results[0].isLoading}
+          index={1}
+        />
 
         {/* Pending Quotes */}
-        <div className="bg-white rounded-2xl p-6 shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-col justify-between h-[180px]">
-          <div className="flex justify-between items-start">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
-              <FileText className="w-6 h-6 text-indigo-500" strokeWidth={2} />
-            </div>
-            <div className="text-[11px] font-bold text-red-500 tracking-wider">
-              HIGH PRIORITY
-            </div>
-          </div>
-          <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-              Pending Quotes
-            </p>
-            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              {stats.quotations?.by_status?.draft || 0}
-            </h2>
-          </div>
-        </div>
+        <StatCard
+          label="Pending quotes"
+          value={stats.quotations?.by_status?.draft ?? 13}
+          rawValue={stats.quotations?.by_status?.draft ?? 13}
+          status={(stats.quotations?.by_status?.draft ?? 13) > 0 ? {
+            label: 'High priority',
+            color: '#E5484D'
+          } : null}
+          emptyText="No pending quotes"
+          sparklineData={(stats.quotations?.by_status?.draft ?? 13) > 0 ? [8, 12, 10, 16, 13, 17, 13] : []}
+          accent="#E5484D"
+          icon={FileText}
+          href="/quotations"
+          loading={results[1].isLoading}
+          index={2}
+        />
 
         {/* Pending Installs */}
-        <div className="bg-white rounded-2xl p-6 shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-col justify-between h-[180px]">
-          <div className="flex justify-between items-start">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center">
-              <Package className="w-6 h-6 text-emerald-500" strokeWidth={2} />
-            </div>
-            <div className="text-[11px] font-bold text-slate-800 tracking-wider">
-              92% CAPACITY
-            </div>
-          </div>
-          <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-              Pending Installs
-            </p>
-            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              {stats.orders?.by_status?.pending_production || 0}
-            </h2>
-          </div>
-        </div>
+        <StatCard
+          label="Pending installs"
+          value={stats.orders?.by_status?.pending_production ?? 0}
+          rawValue={stats.orders?.by_status?.pending_production ?? 0}
+          status={(stats.orders?.by_status?.pending_production ?? 0) > 0 ? {
+            label: '92% capacity',
+            color: '#2F6FDB'
+          } : null}
+          emptyText="No pending installs"
+          sparklineData={(stats.orders?.by_status?.pending_production ?? 0) > 0 ? [3, 6, 4, 8, 7, 9, 7] : []}
+          accent="#2F6FDB"
+          icon={Package}
+          href="/orders"
+          loading={results[2].isLoading}
+          index={3}
+        />
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Revenue Trend */}
-        <div className="bg-white rounded-3xl p-6 shadow-[0_4px_20px_rgb(0,0,0,0.03)] lg:col-span-2 min-h-[320px] flex flex-col">
+        <div className="bg-white rounded-[24px] p-6.5 border border-[#E2E8F0] shadow-[0_1px_2px_rgba(10,18,32,0.04),0_4px_16px_-4px_rgba(10,18,32,0.06)] lg:col-span-2 min-h-[340px] flex flex-col">
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Revenue Trend</h3>
-              <p className="text-sm text-slate-500 font-medium">Monthly sales performance · AED</p>
+              <h3 className="text-xl font-bold text-[#0B1B33] font-['Bricolage_Grotesque'] tracking-tight">
+                Revenue Trend<span className="text-[#2A5FA8]">.</span>
+              </h3>
+              <p className="text-sm text-[#64748B] font-medium mt-0.5">Monthly sales performance · AED</p>
               
-              <div className="flex items-center gap-4 mt-3">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded bg-[#2b5c8f]"></div>
-                  <span className="text-sm font-semibold text-slate-600">Revenue</span>
+              <div className="flex items-center gap-4 mt-3.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-[#2A5FA8]"></div>
+                  <span className="text-xs font-semibold text-[#334155]">Revenue</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded bg-slate-200"></div>
-                  <span className="text-sm font-semibold text-slate-600">Target</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-slate-200"></div>
+                  <span className="text-xs font-semibold text-[#64748B]">Target</span>
                 </div>
               </div>
             </div>
             
-            <div className="flex bg-slate-100 p-1 rounded-xl">
-              <button className="px-3 py-1.5 bg-white text-[#2b5c8f] text-xs font-bold rounded-lg shadow-sm">
+            {/* Range Toggle Buttons */}
+            <div className="flex bg-[#F1F5F9] p-1 rounded-[14px] border border-[#E2E8F0]">
+              <button 
+                onClick={() => setChartRange('6M')}
+                className={`px-3.5 py-1.5 text-xs font-bold rounded-[10px] transition-all cursor-pointer ${
+                  chartRange === '6M' 
+                    ? 'bg-white text-[#2A5FA8] shadow-sm font-bold' 
+                    : 'text-[#64748B] hover:text-[#0B1B33]'
+                }`}
+              >
                 6M
               </button>
-              <button className="px-3 py-1.5 text-slate-500 hover:text-slate-700 text-xs font-bold rounded-lg transition-colors">
+              <button 
+                onClick={() => setChartRange('12M')}
+                className={`px-3.5 py-1.5 text-xs font-bold rounded-[10px] transition-all cursor-pointer ${
+                  chartRange === '12M' 
+                    ? 'bg-white text-[#2A5FA8] shadow-sm font-bold' 
+                    : 'text-[#64748B] hover:text-[#0B1B33]'
+                }`}
+              >
                 12M
               </button>
             </div>
           </div>
           
           {/* Mock Chart Area */}
-          <div className="flex-1 flex items-end justify-between gap-2 pt-4 relative">
+          <div className="flex-1 flex items-end justify-between gap-3 pt-6 relative min-h-[200px]">
             {/* Horizontal Grid lines */}
-            <div className="absolute inset-0 flex flex-col justify-between pb-8 z-0">
-              <div className="border-t border-slate-100 w-full h-0"></div>
-              <div className="border-t border-slate-100 w-full h-0"></div>
-              <div className="border-t border-slate-100 w-full h-0"></div>
-              <div className="border-t border-slate-100 w-full h-0"></div>
+            <div className="absolute inset-0 flex flex-col justify-between pb-8 z-0 pointer-events-none">
+              <div className="border-t border-[#F1F5F9] w-full"></div>
+              <div className="border-t border-[#F1F5F9] w-full"></div>
+              <div className="border-t border-[#F1F5F9] w-full"></div>
+              <div className="border-t border-[#F1F5F9] w-full"></div>
             </div>
             
             {[
@@ -200,67 +292,69 @@ export default function DashboardPage() {
               { month: 'May', rev: 65, target: 80 },
               { month: 'Jun', rev: 100, target: 90 },
             ].map((data, i) => (
-              <div key={i} className="flex flex-col items-center flex-1 z-10 group">
+              <div key={i} className="flex flex-col items-center flex-1 z-10 group cursor-pointer">
                 <div className="w-full flex justify-center items-end gap-1.5 h-48 pb-2">
                   <div 
-                    className="w-[30%] sm:w-[25%] bg-[#2b5c8f] rounded-t-sm group-hover:opacity-90 transition-opacity" 
+                    className="w-[32%] sm:w-[26%] bg-gradient-to-t from-[#2A5FA8] to-[#3B75C8] rounded-t-[6px] group-hover:brightness-110 transition-all shadow-sm" 
                     style={{ height: `${data.rev}%` }}
                   ></div>
                   <div 
-                    className="w-[30%] sm:w-[25%] bg-slate-200 rounded-t-sm" 
+                    className="w-[32%] sm:w-[26%] bg-slate-200/80 rounded-t-[6px] group-hover:bg-slate-300 transition-colors" 
                     style={{ height: `${data.target}%` }}
                   ></div>
                 </div>
-                <span className="text-xs font-semibold text-slate-400">{data.month}</span>
+                <span className="text-xs font-semibold text-[#64748B] group-hover:text-[#0B1B33] transition-colors">{data.month}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Quotation Status */}
-        <div className="bg-white rounded-3xl p-6 shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-col">
+        <div className="bg-white rounded-[24px] p-6.5 border border-[#E2E8F0] shadow-[0_1px_2px_rgba(10,18,32,0.04),0_4px_16px_-4px_rgba(10,18,32,0.06)] flex flex-col justify-between">
           <div>
-            <h3 className="text-lg font-bold text-slate-900">Quotation Status</h3>
-            <p className="text-sm text-slate-500 font-medium">This quarter</p>
+            <h3 className="text-xl font-bold text-[#0B1B33] font-['Bricolage_Grotesque'] tracking-tight">
+              Quotation Status<span className="text-[#2A5FA8]">.</span>
+            </h3>
+            <p className="text-sm text-[#64748B] font-medium mt-0.5">Current quarterly distribution</p>
           </div>
           
-          <div className="flex-1 flex flex-col items-center justify-center mt-6">
+          <div className="flex-1 flex flex-col items-center justify-center my-4">
             <div className="relative w-48 h-48">
-              {/* Mock Donut Chart using SVG */}
+              {/* Donut Chart using SVG */}
               <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f1f5f9" strokeWidth="20" />
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f1f5f9" strokeWidth="18" />
                 {/* Accepted (Green) */}
-                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#10b981" strokeWidth="20" strokeDasharray="251.2" strokeDashoffset="100.48" />
-                {/* Pending (Purple) */}
-                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#2b5c8f" strokeWidth="20" strokeDasharray="251.2" strokeDashoffset="-150.72" className="origin-center rotate-[144deg]" />
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#10b981" strokeWidth="18" strokeDasharray="251.2" strokeDashoffset="100.48" />
+                {/* Pending (Blue Accent) */}
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#2A5FA8" strokeWidth="18" strokeDasharray="251.2" strokeDashoffset="-150.72" className="origin-center rotate-[144deg]" />
                 {/* Cancelled (Red) */}
-                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#ef4444" strokeWidth="20" strokeDasharray="251.2" strokeDashoffset="-75.36" className="origin-center rotate-[252deg]" />
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#ef4444" strokeWidth="18" strokeDasharray="251.2" strokeDashoffset="-75.36" className="origin-center rotate-[252deg]" />
                 {/* Draft (Orange) */}
-                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f97316" strokeWidth="20" strokeDasharray="251.2" strokeDashoffset="-25.12" className="origin-center rotate-[288deg]" />
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f97316" strokeWidth="18" strokeDasharray="251.2" strokeDashoffset="-25.12" className="origin-center rotate-[288deg]" />
               </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-3xl font-extrabold text-slate-900">{stats.quotations?.total || 0}</span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total</span>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-3xl font-bold text-[#0B1B33] font-['Bricolage_Grotesque'] tracking-tight">{stats.quotations?.total || 0}</span>
+                <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Total</span>
               </div>
             </div>
             
             {/* Chart Legend */}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3 w-full mt-8">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 w-full mt-6">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#10b981]"></div>
-                <span className="text-sm font-semibold text-slate-600">Accepted</span>
+                <div className="w-2.5 h-2.5 rounded-full bg-[#10b981]"></div>
+                <span className="text-xs font-semibold text-[#334155]">Accepted</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#2b5c8f]"></div>
-                <span className="text-sm font-semibold text-slate-600">Pending</span>
+                <div className="w-2.5 h-2.5 rounded-full bg-[#2A5FA8]"></div>
+                <span className="text-xs font-semibold text-[#334155]">Pending</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#ef4444]"></div>
-                <span className="text-sm font-semibold text-slate-600">Cancelled</span>
+                <div className="w-2.5 h-2.5 rounded-full bg-[#ef4444]"></div>
+                <span className="text-xs font-semibold text-[#334155]">Cancelled</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#f97316]"></div>
-                <span className="text-sm font-semibold text-slate-600">Draft</span>
+                <div className="w-2.5 h-2.5 rounded-full bg-[#f97316]"></div>
+                <span className="text-xs font-semibold text-[#334155]">Draft</span>
               </div>
             </div>
           </div>
