@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Backend lives in its own repo
+backend/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
