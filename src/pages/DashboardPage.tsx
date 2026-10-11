@@ -7,7 +7,6 @@ import {
   Calendar, 
   FileText, 
   Package, 
-  ArrowUpRight,
   Search,
   ChevronDown,
   RotateCcw
@@ -177,7 +176,7 @@ export default function DashboardPage() {
           value={stats.appointments?.today ?? 0}
           rawValue={stats.appointments?.today ?? 0}
           status={(stats.appointments?.today ?? 0) > 0 ? {
-            label: `${stats.appointments.today} due today`,
+            label: `${stats.appointments?.today ?? 0} due today`,
             color: '#F59E0B'
           } : null}
           emptyText="None scheduled today"

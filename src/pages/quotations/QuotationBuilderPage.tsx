@@ -7,7 +7,6 @@ import { catalogApi } from '../../api/catalog';
 import { quotationsApi } from '../../api/quotations';
 import { useToast } from '../../components/ui/Toast';
 import Modal from '../../components/ui/Modal';
-import { Card } from '../../components/ui/Card';
 import QuotationHeader from './components/QuotationHeader';
 
 import type { SurfaceSpec } from '../../api/quotations';
