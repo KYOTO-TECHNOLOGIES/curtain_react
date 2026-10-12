@@ -188,7 +188,7 @@ export const InventoryFilterBar: React.FC<InventoryFilterBarProps> = ({
 
   return (
     <div className="cm-filter-card">
-      <div className="cm-filter-grid">
+      <div className="cm-filter-grid cm-filter-grid-inventory">
         {/* Search Field */}
         <div className={`cm-filter-cell cm-filter-cell-search ${isSearchFocused || localSearch ? 'is-active' : ''}`}>
           <label htmlFor="inventory-search" className="cm-filter-label">
@@ -201,31 +201,30 @@ export const InventoryFilterBar: React.FC<InventoryFilterBarProps> = ({
               id="inventory-search"
               type="text"
               className="cm-search-input"
-              placeholder="Search by SKU, item name, location..."
+              placeholder="Search by SKU, item, location..."
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
               onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setIsSearchFocused(false)}
             />
-            {localSearch ? (
-              <button
-                type="button"
-                className="cm-clear-icon-btn"
-                onClick={() => {
-                  setLocalSearch('');
-                  onSearchChange('');
-                  searchInputRef.current?.focus();
-                }}
-                title="Clear search"
-                aria-label="Clear search input"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            ) : (
-              <kbd className="cm-kbd-badge" title="Press '/' to search">
+            {!isSearchFocused && !localSearch && (
+              <kbd className="cm-kbd-chip hidden sm:inline-flex" aria-hidden="true" title="Press '/' to search">
                 /
               </kbd>
             )}
+            <button
+              type="button"
+              className={`cm-search-clear-btn ${localSearch ? 'is-visible' : 'is-hidden'}`}
+              onClick={() => {
+                setLocalSearch('');
+                onSearchChange('');
+                searchInputRef.current?.focus();
+              }}
+              title="Clear search"
+              aria-label="Clear search input"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
@@ -269,40 +268,42 @@ export const InventoryFilterBar: React.FC<InventoryFilterBarProps> = ({
         </div>
 
         {/* Clear Filters Button */}
-        <div className="cm-filter-cell cm-filter-cell-clear">
-          <label className="cm-filter-label opacity-0 pointer-events-none select-none">
-            Reset
-          </label>
-          <button
-            type="button"
-            className={`cm-clear-btn ${isFiltered ? 'is-visible' : 'is-hidden'}`}
-            onClick={handleClear}
-            disabled={!isFiltered}
-            title="Reset all filters"
-            aria-label="Reset all filters"
-          >
-            <RotateCcw
-              className={`cm-clear-icon ${isSpinning ? 'is-spinning' : ''}`}
-              aria-hidden="true"
-            />
-            <span>Clear Filters</span>
-          </button>
-        </div>
+        {isFiltered ? (
+          <div className="cm-filter-cell flex items-end">
+            <button
+              type="button"
+              className={`cm-clear-filters-btn ${isSpinning ? 'is-spinning' : ''}`}
+              onClick={handleClear}
+              title="Reset all filters"
+              aria-label="Reset all filters"
+            >
+              <RotateCcw className="clear-icon" aria-hidden="true" />
+              <span>Clear Filters</span>
+            </button>
+          </div>
+        ) : (
+          <div />
+        )}
 
         {/* Flexible spacer */}
         <div className="cm-filter-spacer" />
 
         {/* Item Counter with Rolling Numbers */}
-        <div className="cm-filter-cell cm-filter-cell-total" aria-live="polite">
-          <span className="cm-total-sublabel">Inventory</span>
-          <div className="cm-total-value">
-            <span key={`filtered-${rollTrigger}`} className="cm-total-count cm-count-roll">
-              {filteredCount}
-            </span>
-            <span className="cm-total-divider">/</span>
-            <span key={`total-${rollTrigger}`} className="cm-total-max cm-count-roll">
-              {totalCount}
-            </span>
+        <div className="cm-filter-cell-total" aria-live="polite">
+          <div key={rollTrigger} className="cm-total-number roll-animation">
+            {filteredCount === totalCount ? (
+              filteredCount
+            ) : (
+              <span>
+                {filteredCount}
+                <span className="text-slate-400 font-normal text-sm mx-1">/</span>
+                <span className="text-slate-500 font-medium text-lg">{totalCount}</span>
+              </span>
+            )}
+          </div>
+          <div className="cm-total-label-row">
+            <span className="cm-pulse-dot" />
+            <span className="cm-total-label">Inventory</span>
           </div>
         </div>
       </div>

@@ -132,7 +132,7 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
       key: 'sku',
       label: 'Item & SKU',
       sortable: true,
-      width: '260px',
+      className: 'inv-col-sku',
       render: (item) => {
         const isCopied = copiedSku === item.sku;
         return (
@@ -140,7 +140,7 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
             <div className="p-2.5 rounded-xl bg-[#2F5D8F]/10 flex-shrink-0 text-[#2F5D8F]">
               <Warehouse className="w-4 h-4" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="inv-sku-chip" title={item.sku}>
                   <span>{item.sku}</span>
@@ -164,7 +164,7 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
                   </span>
                 )}
               </div>
-              <p className="text-[13px] font-bold text-slate-900 mt-1 truncate max-w-[210px]" title={item.name}>
+              <p className="text-[13px] font-bold text-slate-900 mt-1 truncate" title={item.name}>
                 {item.name}
               </p>
             </div>
@@ -176,7 +176,7 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
       key: 'category',
       label: 'Category',
       sortable: true,
-      width: '130px',
+      width: '110px',
       render: (item) => {
         const config = CATEGORY_STYLES[item.category] || CATEGORY_STYLES.other;
         return (
@@ -198,7 +198,7 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
       key: 'stock',
       label: 'Stock Health',
       sortable: true,
-      width: '210px',
+      width: '175px',
       render: (item) => {
         const onHand = parseFloat(item.quantity_on_hand || '0');
         const reorderLevel = parseFloat(item.reorder_level || '0');
@@ -253,7 +253,7 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
       key: 'value',
       label: 'Cost & Value',
       sortable: true,
-      width: '160px',
+      width: '145px',
       render: (item) => {
         const val = parseFloat(item.stock_value || '0');
         const unitCost = parseFloat(item.unit_cost || '0');
@@ -271,7 +271,7 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
       key: 'supplier',
       label: 'Supplier',
       sortable: true,
-      width: '170px',
+      width: '140px',
       render: (item) => {
         if (!item.supplier_name) {
           return <span className="text-slate-400 text-xs">—</span>;
@@ -280,7 +280,7 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
         return (
           <div className="inv-supplier-chip" title={item.supplier_name}>
             <span className="inv-supplier-avatar">{initials}</span>
-            <span className="truncate max-w-[125px]">{item.supplier_name}</span>
+            <span className="truncate max-w-[100px]">{item.supplier_name}</span>
           </div>
         );
       },
@@ -288,7 +288,7 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
     {
       key: 'actions',
       label: 'Actions',
-      width: '180px',
+      width: '210px',
       align: 'right',
       render: (item) => (
         <div className="inv-action-group" onClick={(e) => e.stopPropagation()}>

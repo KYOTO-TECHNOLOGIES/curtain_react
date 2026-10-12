@@ -29,10 +29,30 @@
 
 /* Tablet / intermediate (640px to 1023px) */
 @media (max-width: 1023px) and (min-width: 640px) {
-  .cm-filter-grid {
+  .cm-filter-grid:not(.cm-filter-grid-inventory) {
     grid-template-columns: 1fr 1fr auto 1fr auto;
   }
   .cm-filter-cell-search {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ── Inventory 3-Dropdown Grid ─────────────────────────────────── */
+.cm-filter-grid.cm-filter-grid-inventory {
+  grid-template-columns: minmax(190px, 1.4fr) minmax(130px, 170px) minmax(130px, 170px) minmax(130px, 170px) auto 1fr auto;
+}
+
+@media (max-width: 1200px) and (min-width: 900px) {
+  .cm-filter-grid.cm-filter-grid-inventory {
+    grid-template-columns: minmax(170px, 1.2fr) minmax(120px, 150px) minmax(120px, 150px) minmax(120px, 150px) auto 1fr auto;
+  }
+}
+
+@media (max-width: 899px) and (min-width: 640px) {
+  .cm-filter-grid.cm-filter-grid-inventory {
+    grid-template-columns: 1fr 1fr 1fr auto 1fr auto;
+  }
+  .cm-filter-grid.cm-filter-grid-inventory .cm-filter-cell-search {
     grid-column: 1 / -1;
   }
 }

@@ -73,13 +73,13 @@ export const InventorySuppliersTable: React.FC<InventorySuppliersTableProps> = (
       key: 'name',
       label: 'Supplier Company',
       sortable: true,
-      width: '260px',
+      className: 'inv-col-supplier',
       render: (s) => (
         <div className="flex items-center gap-3 py-1">
           <div className="p-2.5 rounded-xl bg-sky-50 text-sky-700 flex-shrink-0">
             <Building2 className="w-4 h-4" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-[14px] font-bold text-slate-900 truncate" title={s.name}>
               {s.name}
             </p>

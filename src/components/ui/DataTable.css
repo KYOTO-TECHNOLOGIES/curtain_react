@@ -27,6 +27,25 @@
   overflow-x: auto;
   overflow-y: visible;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+}
+
+.apt-table-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.apt-table-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.apt-table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+
+.apt-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
 }
 
 /* ── Sticky Header ─────────────────────────────────────────────── */
@@ -35,7 +54,7 @@
   border-collapse: collapse;
   text-align: left;
   table-layout: fixed;
-  min-width: 980px;
+  min-width: 860px;
 }
 
 .apt-table thead {
