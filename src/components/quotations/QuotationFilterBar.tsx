@@ -9,7 +9,6 @@ interface QuotationFilterBarProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
   statusFilter: string;
-  onStatusChange: (status: string) => void;
   quoteTypeFilter: string;
   onQuoteTypeChange: (type: string) => void;
   onClearFilters: () => void;
@@ -23,7 +22,6 @@ export const QuotationFilterBar: React.FC<QuotationFilterBarProps> = ({
   searchQuery,
   onSearchChange,
   statusFilter,
-  onStatusChange,
   quoteTypeFilter,
   onQuoteTypeChange,
   onClearFilters,
@@ -66,49 +64,6 @@ export const QuotationFilterBar: React.FC<QuotationFilterBarProps> = ({
     localSearch.trim() || statusFilter || quoteTypeFilter
   );
 
-  // Status Dropdown Options
-  const statusOptions: SelectOption[] = useMemo(() => {
-    const total = stats?.total ?? totalCount;
-    return [
-      {
-        value: '',
-        label: 'All Status',
-        isDotCluster: true,
-        count: total,
-      },
-      {
-        value: 'draft',
-        label: 'Draft',
-        dotColor: '#F97316',
-        count: stats?.by_status?.draft ?? 0,
-      },
-      {
-        value: 'pending',
-        label: 'Pending',
-        dotColor: '#8B5CF6',
-        count: stats?.by_status?.pending ?? 0,
-      },
-      {
-        value: 'sent',
-        label: 'Sent',
-        dotColor: '#2F5D8F',
-        count: stats?.by_status?.sent ?? 0,
-      },
-      {
-        value: 'accepted',
-        label: 'Accepted',
-        dotColor: '#10B981',
-        count: stats?.by_status?.accepted ?? 0,
-      },
-      {
-        value: 'cancelled',
-        label: 'Cancelled',
-        dotColor: '#EF4444',
-        count: stats?.by_status?.cancelled ?? 0,
-      },
-    ];
-  }, [stats, totalCount]);
-
   // Type Dropdown Options (B2C / B2B)
   const typeOptions: SelectOption[] = useMemo(() => {
     const total = stats?.total ?? totalCount;
@@ -149,7 +104,7 @@ export const QuotationFilterBar: React.FC<QuotationFilterBarProps> = ({
 
   return (
     <div className="cm-filter-card">
-      <div className="cm-filter-grid">
+      <div className="cm-filter-grid cm-filter-grid-quotation-statusless">
         {/* Search Field */}
         <div
           className={`cm-filter-cell cm-filter-cell-search ${
@@ -194,19 +149,6 @@ export const QuotationFilterBar: React.FC<QuotationFilterBarProps> = ({
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
-        </div>
-
-        {/* Status Dropdown */}
-        <div className={`cm-filter-cell ${statusFilter ? 'is-active' : ''}`}>
-          <span className="cm-filter-label">Status</span>
-          <SelectMenu
-            id="quote-status-select-menu"
-            value={statusFilter}
-            options={statusOptions}
-            onChange={onStatusChange}
-            placeholder="All Status"
-            ariaLabel="Filter quotations by status"
-          />
         </div>
 
         {/* Type Dropdown */}

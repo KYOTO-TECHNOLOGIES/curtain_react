@@ -105,15 +105,12 @@ export default function OrdersPage() {
         searchQuery={search}
         onSearchChange={setSearch}
         statusFilter={statusFilter}
-        onStatusChange={(status) => setStatusFilter(status)}
         onClearFilters={() => {
           setSearch('');
           setStatusFilter('');
         }}
         totalCount={totalCount}
         filteredCount={filtered.length}
-        stats={stats}
-        orders={orders}
       />
 
       {/* Modern Status Summary Row (Design Spells Micro-interactions) */}
@@ -130,6 +127,9 @@ export default function OrdersPage() {
         orders={filtered}
         loading={loading}
         totalCount={totalCount}
+        statusFilter={statusFilter}
+        onStatusChange={(status) => setStatusFilter(status)}
+        stats={stats}
         onSelectOrder={(o) => navigate(`/orders/${o.id}`)}
         onGenerateInvoice={handleGenerateInvoice}
         onClearFilters={() => {

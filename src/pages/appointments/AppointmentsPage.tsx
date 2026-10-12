@@ -15,6 +15,7 @@ import { AppointmentTable } from '../../components/appointments/AppointmentTable
 import { CustomerLookupModal } from '../../components/appointments/CustomerLookupModal';
 import { Pagination } from '../../components/ui/Pagination';
 import { usePagination } from '../../hooks/usePagination';
+import { DatePicker } from '../../components/ui/DatePicker';
 
 export default function AppointmentsPage() {
   const navigate = useNavigate();
@@ -233,7 +234,6 @@ export default function AppointmentsPage() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         statusFilter={statusFilter}
-        onStatusChange={(status) => setStatusFilter(status)}
         assigneeFilter={assigneeFilter}
         onAssigneeChange={(assignee) => setAssigneeFilter(assignee)}
         onClearFilters={() => {
@@ -261,6 +261,9 @@ export default function AppointmentsPage() {
         appointments={filtered}
         loading={loading}
         totalCount={totalCount}
+        statusFilter={statusFilter}
+        onStatusChange={(status) => setStatusFilter(status)}
+        stats={stats}
         onSelectAppointment={(a) => navigate(`/appointments/${a.id}`)}
         onAssign={(a) => openAssign(a)}
         onQuote={(a) => navigate(`/appointments/${a.id}`)}
@@ -310,7 +313,7 @@ export default function AppointmentsPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Date *</label>
-              <input type="date" required value={form.appointment_date} onChange={(e) => setForm({ ...form, appointment_date: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
+              <DatePicker required value={form.appointment_date || ''} onChange={(event) => setForm({ ...form, appointment_date: event.target.value })} className="w-full" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Time *</label>

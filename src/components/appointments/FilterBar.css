@@ -27,6 +27,43 @@
   grid-template-columns: minmax(240px, 1.6fr) 200px 200px auto 1fr auto;
 }
 
+.cm-filter-grid.cm-filter-grid-appointments {
+  grid-template-columns: minmax(260px, 1.4fr) 240px auto 1fr auto;
+}
+
+.cm-filter-grid.cm-filter-grid-payments {
+  grid-template-columns: minmax(260px, 1.4fr) auto 1fr auto;
+}
+
+.cm-filter-grid-quotation-statusless {
+  grid-template-columns: minmax(260px, 1.4fr) 220px auto 1fr auto;
+}
+
+.cm-filter-grid-order-statusless,
+.cm-filter-grid-invoice-statusless {
+  grid-template-columns: minmax(320px, 1.6fr) auto 1fr auto;
+}
+
+.cm-filter-grid-appointments .cm-filter-cell-search {
+  container-type: inline-size;
+}
+
+.cm-filter-grid-quotation-statusless .cm-filter-cell-search,
+.cm-filter-grid-order-statusless .cm-filter-cell-search,
+.cm-filter-grid-invoice-statusless .cm-filter-cell-search {
+  container-type: inline-size;
+}
+
+@container (max-width: 383px) {
+  .cm-kbd-chip {
+    display: none;
+  }
+
+  .cm-search-input {
+    padding-right: 12px;
+  }
+}
+
 /* Tablet / intermediate (640px to 1023px) */
 @media (max-width: 1023px) and (min-width: 640px) {
   .cm-filter-grid:not(.cm-filter-grid-inventory) {
@@ -35,16 +72,49 @@
   .cm-filter-cell-search {
     grid-column: 1 / -1;
   }
+  .cm-filter-grid.cm-filter-grid-appointments {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+  .cm-filter-grid.cm-filter-grid-appointments .cm-filter-cell-search {
+    grid-column: 1 / -1;
+  }
+  .cm-filter-grid.cm-filter-grid-appointments .cm-filter-spacer {
+    display: none;
+  }
+  .cm-filter-grid.cm-filter-grid-payments {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+  .cm-filter-grid.cm-filter-grid-payments .cm-filter-cell-search {
+    grid-column: 1 / -1;
+  }
+  .cm-filter-grid.cm-filter-grid-payments .cm-filter-spacer {
+    display: none;
+  }
+  .cm-filter-grid.cm-filter-grid-quotation-statusless,
+  .cm-filter-grid.cm-filter-grid-order-statusless,
+  .cm-filter-grid.cm-filter-grid-invoice-statusless {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+  .cm-filter-grid.cm-filter-grid-quotation-statusless .cm-filter-cell-search,
+  .cm-filter-grid.cm-filter-grid-order-statusless .cm-filter-cell-search,
+  .cm-filter-grid.cm-filter-grid-invoice-statusless .cm-filter-cell-search {
+    grid-column: 1 / -1;
+  }
+  .cm-filter-grid.cm-filter-grid-quotation-statusless .cm-filter-spacer,
+  .cm-filter-grid.cm-filter-grid-order-statusless .cm-filter-spacer,
+  .cm-filter-grid.cm-filter-grid-invoice-statusless .cm-filter-spacer {
+    display: none;
+  }
 }
 
 /* ── Inventory 3-Dropdown Grid ─────────────────────────────────── */
 .cm-filter-grid.cm-filter-grid-inventory {
-  grid-template-columns: minmax(190px, 1.4fr) minmax(130px, 170px) minmax(130px, 170px) minmax(130px, 170px) auto 1fr auto;
+  grid-template-columns: minmax(260px, 1.5fr) minmax(130px, 170px) minmax(130px, 170px) auto 1fr auto;
 }
 
 @media (max-width: 1200px) and (min-width: 900px) {
   .cm-filter-grid.cm-filter-grid-inventory {
-    grid-template-columns: minmax(170px, 1.2fr) minmax(120px, 150px) minmax(120px, 150px) minmax(120px, 150px) auto 1fr auto;
+    grid-template-columns: minmax(220px, 1.25fr) minmax(120px, 150px) minmax(120px, 150px) auto 1fr auto;
   }
 }
 
@@ -63,8 +133,19 @@
     grid-template-columns: 1fr;
     gap: 14px;
   }
+  .cm-filter-grid.cm-filter-grid-payments {
+    grid-template-columns: 1fr;
+  }
   .cm-filter-spacer {
     display: none;
+  }
+  .cm-filter-grid.cm-filter-grid-appointments {
+    grid-template-columns: 1fr;
+  }
+  .cm-filter-grid.cm-filter-grid-quotation-statusless,
+  .cm-filter-grid.cm-filter-grid-order-statusless,
+  .cm-filter-grid.cm-filter-grid-invoice-statusless {
+    grid-template-columns: 1fr;
   }
   .cm-filter-cell-total {
     border-left: none !important;

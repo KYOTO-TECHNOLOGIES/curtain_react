@@ -26,6 +26,7 @@ import { useToast } from '../../components/ui/Toast';
 import { useQuery } from '@tanstack/react-query';
 import type { Customer } from '../../types';
 import { CountrySelect } from '../../components/appointments/CountrySelect';
+import { DatePicker } from '../../components/ui/DatePicker';
 import { COUNTRIES, DEFAULT_COUNTRY } from '../../components/appointments/countryData';
 import './CreateAppointmentPage.css';
 
@@ -188,7 +189,7 @@ function Field({ label, htmlFor, required, optional, error, children }: FieldPro
       </div>
       {children}
       {error && (
-        <p className="appointment-field__error">
+        <p id={htmlFor ? `${htmlFor}-error` : undefined} className="appointment-field__error">
           <span className="appointment-field__error-icon">!</span>
           {error}
         </p>
@@ -717,10 +718,15 @@ export default function CreateAppointmentPage() {
                 </div>
                 <div className="appointment-card__body">
                   <Field label="Appointment Date" htmlFor="date" required error={errors.date?.message}>
-                    <div className="appointment-input-shell appointment-input-shell--calendar">
-                      <CalendarIcon className="appointment-input-shell__icon" />
-                      <input id="date" type="date" className="appointment-input appointment-input--with-icon" {...register('date')} />
-                    </div>
+                    <DatePicker
+                      id="date"
+                      required
+                      value={watch('date') || ''}
+                      className="w-full"
+                      aria-invalid={Boolean(errors.date)}
+                      aria-describedby={errors.date ? 'date-error' : undefined}
+                      {...register('date')}
+                    />
                   </Field>
 
                   <div className="appointment-field">

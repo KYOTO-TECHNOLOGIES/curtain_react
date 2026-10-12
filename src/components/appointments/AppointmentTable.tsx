@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import type { AppointmentListItem } from '../../types';
+import type { AppointmentListItem, AppointmentStats } from '../../types';
 import { CustomerCell } from './CustomerCell';
 import { BookingCell } from './BookingCell';
 import { AssigneeCell } from './AssigneeCell';
 import { StatusBadge } from './StatusBadge';
 import { RowActions } from './RowActions';
+import { StatusHeaderFilter } from '../ui/StatusHeaderFilter';
+import { MobileStatusFilter } from '../ui/MobileStatusFilter';
 import { DataTable, type DataTableColumn, type SortDirection } from '../ui/DataTable';
 import './AppointmentTable.css';
 
@@ -19,6 +21,9 @@ export interface AppointmentTableProps {
   onClearFilters?: () => void;
   onCopyPhone?: (phone: string) => void;
   totalCount?: number;
+  statusFilter: string;
+  onStatusChange: (status: string) => void;
+  stats?: AppointmentStats | null;
   recentlyUpdatedId?: number | string | null;
 }
 
@@ -41,6 +46,9 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
   onClearFilters,
   onCopyPhone,
   totalCount,
+  statusFilter,
+  onStatusChange,
+  stats,
   recentlyUpdatedId,
 }) => {
   // Sort state (client-side)
@@ -82,15 +90,21 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
           }
           break;
         }
-        case 'status':
-          comparison = (a.status || '').localeCompare(b.status || '');
-          break;
         default:
           comparison = 0;
       }
       return sortDirection === 'asc' ? comparison : -comparison;
     });
   }, [appointments, sortKey, sortDirection]);
+
+  const statusCounts = {
+    '': stats?.total ?? totalCount ?? appointments.length,
+    pending: stats?.by_status?.pending ?? 0,
+    scheduled: stats?.by_status?.scheduled ?? 0,
+    in_progress: stats?.by_status?.in_progress ?? 0,
+    completed: stats?.by_status?.completed ?? 0,
+    cancelled: stats?.by_status?.cancelled ?? 0,
+  };
 
   // Column definitions
   const columns: DataTableColumn<AppointmentListItem>[] = [
@@ -143,9 +157,19 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
     {
       key: 'status',
       label: 'Status',
-      sortable: true,
-      width: '135px',
+      sortable: false,
+      width: '150px',
       className: 'apt-col-status',
+      headerAddonOnly: true,
+      headerAddon: (
+        <StatusHeaderFilter
+          page="appointments"
+          entityName="appointments"
+          value={statusFilter}
+          onChange={onStatusChange}
+          counts={statusCounts}
+        />
+      ),
       render: (a) => <StatusBadge status={a.status} />,
     },
     {
@@ -238,6 +262,16 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
       emptyDescription="Try adjusting your search or filters to find what you're looking for."
       onClearFilters={onClearFilters}
       footer={footer}
+      mobileToolbar={(
+        <MobileStatusFilter
+          page="appointments"
+          entityName="appointments"
+          value={statusFilter}
+          onChange={onStatusChange}
+          counts={statusCounts}
+          className="apt-status-filter-trigger"
+        />
+      )}
       renderSkeletonRow={renderSkeletonRow}
       skeletonCount={6}
     />

@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { FileText, Eye } from 'lucide-react';
-import type { QuotationListItem } from '../../types';
+import type { QuotationListItem, QuotationStats } from '../../types';
 import { DataTable, type DataTableColumn, type SortDirection } from '../ui/DataTable';
+import { StatusHeaderFilter } from '../ui/StatusHeaderFilter';
+import { MobileStatusFilter } from '../ui/MobileStatusFilter';
 import { StatusBadge } from '../ui/StatusBadge';
 import { CustomerCell } from '../appointments/CustomerCell';
 import './QuotationTable.css';
@@ -15,6 +17,9 @@ export interface QuotationTableProps {
   onClearFilters?: () => void;
   onCopyPhone?: (phone: string) => void;
   totalCount?: number;
+  statusFilter: string;
+  onStatusChange: (status: string) => void;
+  stats?: QuotationStats | null;
 }
 
 const QUOTATION_STATUS_ACCENT_COLORS: Record<string, string> = {
@@ -60,6 +65,9 @@ export const QuotationTable: React.FC<QuotationTableProps> = ({
   onClearFilters,
   onCopyPhone,
   totalCount,
+  statusFilter,
+  onStatusChange,
+  stats,
 }) => {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -97,15 +105,21 @@ export const QuotationTable: React.FC<QuotationTableProps> = ({
           comparison = (isNaN(tA) ? 0 : tA) - (isNaN(tB) ? 0 : tB);
           break;
         }
-        case 'status':
-          comparison = (a.status || '').localeCompare(b.status || '');
-          break;
         default:
           comparison = 0;
       }
       return sortDirection === 'asc' ? comparison : -comparison;
     });
   }, [quotations, sortKey, sortDirection]);
+
+  const statusCounts = {
+    '': stats?.total ?? totalCount ?? quotations.length,
+    draft: stats?.by_status?.draft ?? 0,
+    pending: stats?.by_status?.pending ?? 0,
+    sent: stats?.by_status?.sent ?? 0,
+    accepted: stats?.by_status?.accepted ?? 0,
+    cancelled: stats?.by_status?.cancelled ?? 0,
+  };
 
   const columns: DataTableColumn<QuotationListItem>[] = [
     {
@@ -175,9 +189,19 @@ export const QuotationTable: React.FC<QuotationTableProps> = ({
     {
       key: 'status',
       label: 'Status',
-      sortable: true,
-      width: '135px',
+      sortable: false,
+      width: '150px',
       className: 'qt-col-status',
+      headerAddonOnly: true,
+      headerAddon: (
+        <StatusHeaderFilter
+          page="quotations"
+          entityName="quotations"
+          value={statusFilter}
+          onChange={onStatusChange}
+          counts={statusCounts}
+        />
+      ),
       render: (q) => <StatusBadge status={q.status} />,
     },
     {
@@ -272,6 +296,15 @@ export const QuotationTable: React.FC<QuotationTableProps> = ({
       emptyDescription="Try adjusting your search or filters to find what you're looking for."
       onClearFilters={onClearFilters}
       footer={footer}
+      mobileToolbar={(
+        <MobileStatusFilter
+          page="quotations"
+          entityName="quotations"
+          value={statusFilter}
+          onChange={onStatusChange}
+          counts={statusCounts}
+        />
+      )}
       renderSkeletonRow={renderSkeletonRow}
       skeletonCount={6}
     />

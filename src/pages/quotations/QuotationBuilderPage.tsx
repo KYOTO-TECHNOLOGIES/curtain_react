@@ -13,6 +13,7 @@ import {
 import { quotationsApi } from '../../api/quotations';
 import { useToast } from '../../components/ui/Toast';
 import Modal from '../../components/ui/Modal';
+import { DatePicker } from '../../components/ui/DatePicker';
 import QuotationHeader from './components/QuotationHeader';
 
 import type { SurfaceSpec } from '../../api/quotations';
@@ -423,11 +424,10 @@ export default function QuotationBuilderPage() {
                 <label className="block text-[15px] font-bold text-slate-700 mb-2">
                   Valid Until <span className="text-[#ef4444]">*</span>
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   value={quotationSettings.valid_until}
-                  onChange={(e) => setQuotationSettings({ ...quotationSettings, valid_until: e.target.value })}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-[#5442f6] focus:ring-2 focus:ring-[#5442f6]/20 transition-all font-medium text-slate-700"
+                  onChange={(event) => setQuotationSettings({ ...quotationSettings, valid_until: event.target.value })}
+                  className="w-full"
                 />
               </div>
               <div>

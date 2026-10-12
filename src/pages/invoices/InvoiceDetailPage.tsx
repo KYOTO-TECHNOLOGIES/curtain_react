@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-  AlertCircle,
   ArrowLeft,
   Loader2,
   Plus,
@@ -16,13 +15,7 @@ import { useToast } from '../../components/ui/Toast';
 import Modal from '../../components/ui/Modal';
 import { paymentSchema, type PaymentFormValues } from '../../lib/validationSchemas';
 import type { InvoiceListItem } from '../../types';
-
-const ErrorMsg = ({ message }: { message?: string }) =>
-  message ? (
-    <p className="flex items-center gap-1 text-red-500 text-xs mt-1.5 font-medium">
-      <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {message}
-    </p>
-  ) : null;
+import { LogPaymentModal } from '../../components/invoices/LogPaymentModal';
 
 const getStatusStyle = (status: string) => {
   switch (status) {
@@ -272,64 +265,17 @@ export default function InvoiceDetailPage() {
         )}
       </div>
 
-      <Modal open={paymentModalOpen} onClose={() => setPaymentModalOpen(false)} title="Log Payment">
-        <form onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Amount (AED) <span className="text-red-500">*</span></label>
-            <input
-              type="number"
-              step="0.01"
-              {...paymentForm.register('amount')}
-              className={`w-full px-4 py-2.5 rounded-xl border ${paymentForm.formState.errors.amount ? 'border-red-400 bg-red-50' : 'border-slate-200'} outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm`}
-            />
-            <ErrorMsg message={paymentForm.formState.errors.amount?.message} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Payment Method <span className="text-red-500">*</span></label>
-            <select
-              {...paymentForm.register('method')}
-              className={`w-full px-4 py-2.5 rounded-xl border ${paymentForm.formState.errors.method ? 'border-red-400 bg-red-50' : 'border-slate-200'} outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm`}
-            >
-              <option value="cash">Cash</option>
-              <option value="card">Credit/Debit Card</option>
-              <option value="bank_transfer">Bank Transfer</option>
-              <option value="cheque">Cheque</option>
-            </select>
-            <ErrorMsg message={paymentForm.formState.errors.method?.message} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Payment Date <span className="text-red-500">*</span></label>
-            <input
-              type="date"
-              {...paymentForm.register('payment_date')}
-              className={`w-full px-4 py-2.5 rounded-xl border ${paymentForm.formState.errors.payment_date ? 'border-red-400 bg-red-50' : 'border-slate-200'} outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm`}
-            />
-            <ErrorMsg message={paymentForm.formState.errors.payment_date?.message} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Reference <span className="text-slate-400 font-normal text-xs">(optional)</span></label>
-            <input
-              type="text"
-              {...paymentForm.register('reference')}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Notes <span className="text-slate-400 font-normal text-xs">(optional)</span></label>
-            <textarea
-              {...paymentForm.register('notes')}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm resize-none h-24"
-            />
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={() => setPaymentModalOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors">Cancel</button>
-            <button type="submit" disabled={isSubmittingPayment} className="flex-1 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white font-medium text-sm hover:bg-[#1f456e] transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
-              {isSubmittingPayment && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isSubmittingPayment ? 'Saving...' : 'Log Payment'}
-            </button>
-          </div>
-        </form>
-      </Modal>
+      <LogPaymentModal
+        open={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)}
+        form={paymentForm}
+        isSubmitting={isSubmittingPayment}
+        context={`Invoice #${invoice.id}`}
+        invoiceTotal={invoice.total_amount}
+        paidToDate={invoice.amount_paid}
+        outstandingBalance={invoice.balance_due}
+      />
 
       <Modal open={sendModalOpen} onClose={() => setSendModalOpen(false)} title="Send Invoice">
         <div className="space-y-4">

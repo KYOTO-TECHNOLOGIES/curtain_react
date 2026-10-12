@@ -84,6 +84,15 @@
   text-overflow: ellipsis;
 }
 
+.apt-table th.apt-col-status,
+.apt-table th.qt-col-status,
+.apt-table th.ord-col-status,
+.apt-table th.inv-col-status {
+  padding-right: 8px;
+  padding-left: 8px;
+  overflow: visible;
+}
+
 /* ── Sortable Header Button ────────────────────────────────────── */
 .apt-sort-btn {
   display: inline-flex;

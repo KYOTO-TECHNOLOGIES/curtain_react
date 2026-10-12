@@ -18,6 +18,7 @@ import { useQuery } from '@tanstack/react-query';
 import { appointmentsApi } from '../../api/appointments';
 import { useToast } from '../../components/ui/Toast';
 import Modal from '../../components/ui/Modal';
+import { DatePicker } from '../../components/ui/DatePicker';
 import type { AppointmentDetail, AppointmentStatus } from '../../types';
 
 const statusColors: Record<AppointmentStatus, string> = {
@@ -292,13 +293,12 @@ export default function AppointmentDetailPage() {
                   Date
                 </label>
                 {isEditing ? (
-                  <input
-                    type="date"
+                  <DatePicker
                     value={displayData.appointment_date || ''}
-                    onChange={(e) =>
-                      handleInputChange('appointment_date', e.target.value)
+                    onChange={(event) =>
+                      handleInputChange('appointment_date', event.target.value)
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full"
                   />
                 ) : (
                   <p className="text-gray-900 font-medium">

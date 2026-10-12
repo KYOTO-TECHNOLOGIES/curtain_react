@@ -9,7 +9,6 @@ interface InventoryFilterBarProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
   categoryFilter: string;
-  onCategoryChange: (cat: string) => void;
   stockStatusFilter: string;
   onStockStatusChange: (status: string) => void;
   supplierFilter: string;
@@ -22,19 +21,10 @@ interface InventoryFilterBarProps {
   items?: InventoryItem[];
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  fabric: '#6366F1', // Indigo
-  track: '#10B981',  // Emerald
-  motor: '#F59E0B',  // Amber
-  accessory: '#3B82F6', // Blue
-  other: '#64748B',  // Slate
-};
-
 export const InventoryFilterBar: React.FC<InventoryFilterBarProps> = ({
   searchQuery,
   onSearchChange,
   categoryFilter,
-  onCategoryChange,
   stockStatusFilter,
   onStockStatusChange,
   supplierFilter,
@@ -78,52 +68,6 @@ export const InventoryFilterBar: React.FC<InventoryFilterBarProps> = ({
   const isFiltered = Boolean(
     localSearch.trim() || categoryFilter || stockStatusFilter || supplierFilter
   );
-
-  // 1. Category Dropdown Options
-  const categoryOptions: SelectOption[] = useMemo(() => {
-    const total = stats?.total_items ?? totalCount;
-
-    const base: SelectOption[] = [
-      {
-        value: '',
-        label: 'All Categories',
-        isDotCluster: true,
-        count: total,
-      },
-      {
-        value: 'fabric',
-        label: 'Fabric',
-        dotColor: CATEGORY_COLORS.fabric,
-        count: stats?.by_category?.fabric ?? items.filter((i) => i.category === 'fabric').length,
-      },
-      {
-        value: 'track',
-        label: 'Track',
-        dotColor: CATEGORY_COLORS.track,
-        count: stats?.by_category?.track ?? items.filter((i) => i.category === 'track').length,
-      },
-      {
-        value: 'motor',
-        label: 'Motor',
-        dotColor: CATEGORY_COLORS.motor,
-        count: stats?.by_category?.motor ?? items.filter((i) => i.category === 'motor').length,
-      },
-      {
-        value: 'accessory',
-        label: 'Accessory',
-        dotColor: CATEGORY_COLORS.accessory,
-        count: stats?.by_category?.accessory ?? items.filter((i) => i.category === 'accessory').length,
-      },
-      {
-        value: 'other',
-        label: 'Other',
-        dotColor: CATEGORY_COLORS.other,
-        count: stats?.by_category?.other ?? items.filter((i) => i.category === 'other').length,
-      },
-    ];
-
-    return base;
-  }, [stats, totalCount, items]);
 
   // 2. Stock Status Options
   const stockStatusOptions: SelectOption[] = useMemo(() => {
@@ -226,19 +170,6 @@ export const InventoryFilterBar: React.FC<InventoryFilterBarProps> = ({
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
-        </div>
-
-        {/* Category Dropdown */}
-        <div className={`cm-filter-cell ${categoryFilter ? 'is-active' : ''}`}>
-          <label className="cm-filter-label">Category</label>
-          <SelectMenu
-            id="inv-filter-category"
-            value={categoryFilter}
-            options={categoryOptions}
-            onChange={onCategoryChange}
-            placeholder="All Categories"
-            ariaLabel="Filter by Category"
-          />
         </div>
 
         {/* Stock Status Dropdown */}

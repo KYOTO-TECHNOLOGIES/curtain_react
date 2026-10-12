@@ -49,6 +49,18 @@ export default function PaymentsPage() {
     return { items: [] as Payment[], totalCount: 0 };
   }, [listRes]);
 
+  const methodCounts = useMemo(() => {
+    const countByMethod = (method: string) =>
+      payments.filter((payment: Payment) => payment.method?.toLowerCase() === method.toLowerCase()).length;
+    return {
+      '': payments.length,
+      bank_transfer: countByMethod('bank_transfer'),
+      card: countByMethod('card'),
+      cash: countByMethod('cash'),
+      cheque: countByMethod('cheque'),
+    };
+  }, [payments]);
+
   const loading = loadingList;
 
   const filtered = useMemo(() => {
@@ -83,13 +95,11 @@ export default function PaymentsPage() {
         searchQuery={search}
         onSearchChange={setSearch}
         methodFilter={methodFilter}
-        onMethodChange={(method) => setMethodFilter(method)}
         onClearFilters={() => {
           setSearch('');
           setMethodFilter('');
         }}
         totalCollectedFormatted={formatCurrency(totalCollected)}
-        payments={payments}
         filteredCount={filtered.length}
       />
 
@@ -102,6 +112,9 @@ export default function PaymentsPage() {
           if (invId) navigate(`/invoices/${invId}`);
         }}
         onViewInvoice={(invoiceId) => navigate(`/invoices/${invoiceId}`)}
+        methodFilter={methodFilter}
+        onMethodChange={(method) => setMethodFilter(method)}
+        methodCounts={methodCounts}
         onClearFilters={() => {
           setSearch('');
           setMethodFilter('');

@@ -1,24 +1,14 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, RotateCcw } from 'lucide-react';
-import { SelectMenu, type SelectOption } from '../ui/SelectMenu';
 import { useSlashShortcut } from '../../hooks/useSlashShortcut';
 import '../appointments/FilterBar.css';
-
-interface PaymentItem {
-  id: number;
-  amount?: string;
-  method?: string;
-  [key: string]: any;
-}
 
 interface PaymentFilterBarProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
   methodFilter: string;
-  onMethodChange: (method: string) => void;
   onClearFilters: () => void;
   totalCollectedFormatted: string;
-  payments?: PaymentItem[];
   filteredCount?: number;
 }
 
@@ -26,10 +16,8 @@ export const PaymentFilterBar: React.FC<PaymentFilterBarProps> = ({
   searchQuery,
   onSearchChange,
   methodFilter,
-  onMethodChange,
   onClearFilters,
   totalCollectedFormatted,
-  payments = [],
   filteredCount = 0,
 }) => {
   const [localSearch, setLocalSearch] = useState(searchQuery);
@@ -64,46 +52,6 @@ export const PaymentFilterBar: React.FC<PaymentFilterBarProps> = ({
 
   const isFiltered = Boolean(localSearch.trim() || methodFilter);
 
-  // Payment Method Options
-  const methodOptions: SelectOption[] = useMemo(() => {
-    const total = payments.length;
-    const countByMethod = (m: string) =>
-      payments.filter((p) => p.method?.toLowerCase() === m.toLowerCase()).length;
-
-    return [
-      {
-        value: '',
-        label: 'All Methods',
-        isDotCluster: true,
-        count: total,
-      },
-      {
-        value: 'bank_transfer',
-        label: 'Bank Transfer',
-        dotColor: '#2F5D8F',
-        count: countByMethod('bank_transfer'),
-      },
-      {
-        value: 'card',
-        label: 'Card',
-        dotColor: '#10B981',
-        count: countByMethod('card'),
-      },
-      {
-        value: 'cash',
-        label: 'Cash',
-        dotColor: '#F59E0B',
-        count: countByMethod('cash'),
-      },
-      {
-        value: 'cheque',
-        label: 'Cheque',
-        dotColor: '#8B5CF6',
-        count: countByMethod('cheque'),
-      },
-    ];
-  }, [payments]);
-
   const handleClear = () => {
     setIsSpinning(true);
     setLocalSearch('');
@@ -114,10 +62,7 @@ export const PaymentFilterBar: React.FC<PaymentFilterBarProps> = ({
   return (
     <div className="cm-filter-card">
       <div
-        className="cm-filter-grid"
-        style={{
-          gridTemplateColumns: 'minmax(240px, 1.8fr) 220px auto 1fr auto',
-        }}
+        className="cm-filter-grid cm-filter-grid-payments"
       >
         {/* Search Field */}
         <div
@@ -163,19 +108,6 @@ export const PaymentFilterBar: React.FC<PaymentFilterBarProps> = ({
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
-        </div>
-
-        {/* Payment Method Dropdown */}
-        <div className={`cm-filter-cell ${methodFilter ? 'is-active' : ''}`}>
-          <span className="cm-filter-label">Payment Method</span>
-          <SelectMenu
-            id="payment-method-select-menu"
-            value={methodFilter}
-            options={methodOptions}
-            onChange={onMethodChange}
-            placeholder="All Methods"
-            ariaLabel="Filter payments by method"
-          />
         </div>
 
         {/* Clear filters ghost button */}

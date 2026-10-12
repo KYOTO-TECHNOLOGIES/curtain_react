@@ -5,7 +5,7 @@
 .inv-col-customer { width: auto; min-width: 220px; }
 .inv-col-amount { width: 160px; }
 .inv-col-timeline { width: 175px; }
-.inv-col-status { width: 150px; }
+.inv-col-status { width: 168px; }
 .inv-col-actions { width: 205px; }
 
 /* ── Invoice ID & Quote Reference ──────────────────────────────── */

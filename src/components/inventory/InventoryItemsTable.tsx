@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import type { InventoryItem } from '../../types';
 import { DataTable, type DataTableColumn, type SortDirection } from '../ui/DataTable';
+import { ColumnHeaderFilter } from '../ui/ColumnHeaderFilter';
+import { COLUMN_FILTER_CONFIG } from '../ui/filterConfig.js';
 import './InventoryTable.css';
 
 interface InventoryItemsTableProps {
@@ -24,6 +26,9 @@ interface InventoryItemsTableProps {
   onDeleteItem: (item: InventoryItem) => void;
   onClearFilters?: () => void;
   totalCount?: number;
+  categoryFilter: string;
+  onCategoryChange: (category: string) => void;
+  categoryCounts: Record<string, number | undefined>;
 }
 
 const CATEGORY_STYLES: Record<
@@ -63,6 +68,9 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
   onDeleteItem,
   onClearFilters,
   totalCount,
+  categoryFilter,
+  onCategoryChange,
+  categoryCounts,
 }) => {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -98,9 +106,6 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
           break;
         case 'name':
           comparison = a.name.localeCompare(b.name);
-          break;
-        case 'category':
-          comparison = a.category.localeCompare(b.category);
           break;
         case 'stock': {
           const qtyA = parseFloat(a.quantity_on_hand || '0');
@@ -175,8 +180,24 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
     {
       key: 'category',
       label: 'Category',
-      sortable: true,
-      width: '110px',
+      sortable: false,
+      width: '160px',
+      className: 'inv-col-category',
+      headerAddonOnly: true,
+      headerAddon: (
+        <ColumnHeaderFilter
+          options={COLUMN_FILTER_CONFIG.inventory.options}
+          value={categoryFilter}
+          onChange={onCategoryChange}
+          counts={categoryCounts}
+          label={COLUMN_FILTER_CONFIG.inventory.label}
+          allLabel={COLUMN_FILTER_CONFIG.inventory.allLabel}
+          entityName={COLUMN_FILTER_CONFIG.inventory.entityName}
+          searchable={COLUMN_FILTER_CONFIG.inventory.searchable}
+          searchPlaceholder={COLUMN_FILTER_CONFIG.inventory.searchPlaceholder}
+          maxPillWidth={140}
+        />
+      ),
       render: (item) => {
         const config = CATEGORY_STYLES[item.category] || CATEGORY_STYLES.other;
         return (
@@ -346,6 +367,21 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
       emptyTitle="No inventory items found"
       emptyDescription="Try clearing filters or search to view textile stocks, or create a new item."
       onClearFilters={onClearFilters}
+      mobileToolbar={(
+        <ColumnHeaderFilter
+          options={COLUMN_FILTER_CONFIG.inventory.options}
+          value={categoryFilter}
+          onChange={onCategoryChange}
+          counts={categoryCounts}
+          label={COLUMN_FILTER_CONFIG.inventory.label}
+          allLabel={COLUMN_FILTER_CONFIG.inventory.allLabel}
+          entityName={COLUMN_FILTER_CONFIG.inventory.entityName}
+          searchable={COLUMN_FILTER_CONFIG.inventory.searchable}
+          searchPlaceholder={COLUMN_FILTER_CONFIG.inventory.searchPlaceholder}
+          maxPillWidth={140}
+          mobile
+        />
+      )}
       rowStyle={(item) => ({
         // Dynamic left accent bar on hover
         '--row-status-color':
