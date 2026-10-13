@@ -22,6 +22,7 @@ import {
 import { quotationsApi } from '../../api/quotations';
 import { useToast } from '../../components/ui/Toast';
 import Modal from '../../components/ui/Modal';
+import AddAreaModal from './components/AddAreaModal';
 import type { QuotationDetail, SurfaceSpec } from '../../api/quotations';
 
 export default function QuotationDetailPage() {
@@ -600,49 +601,17 @@ export default function QuotationDetailPage() {
       </div>
 
       {/* Send Modal */}
-      <Modal
+      <AddAreaModal
         open={showAddAreaModal}
         onClose={() => setShowAddAreaModal(false)}
-        title="Add Area"
-        maxWidth="max-w-md"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Area Type</label>
-            <input
-              type="text"
-              value={newAreaData.type}
-              onChange={(e) => setNewAreaData({ ...newAreaData, type: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-              placeholder="e.g. Living Room"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Display Name</label>
-            <input
-              type="text"
-              value={newAreaData.display_name}
-              onChange={(e) => setNewAreaData({ ...newAreaData, display_name: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-              placeholder="Area name"
-            />
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button
-              onClick={() => setShowAddAreaModal(false)}
-              className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-slate-700 font-medium hover:bg-slate-50"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleAddArea}
-              className="flex-1 px-4 py-2 rounded-lg bg-[#2b5c8f] text-white font-medium hover:bg-[#1f456e]"
-            >
-              Add Area
-            </button>
-          </div>
-        </div>
-      </Modal>
+        onAdd={handleAddArea}
+        areaType={newAreaData.type}
+        areaName={newAreaData.display_name}
+        onAreaTypeChange={(type) => setNewAreaData({ ...newAreaData, type })}
+        onAreaNameChange={(display_name) => setNewAreaData({ ...newAreaData, display_name })}
+        areaTypePlaceholder="e.g. Living Room"
+        areaNamePlaceholder="Area name"
+      />
 
       <Modal
         open={showAddSurfaceModal}

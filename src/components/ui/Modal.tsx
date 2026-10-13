@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { WalletCards, X } from 'lucide-react';
+import { Layers3, WalletCards, X } from 'lucide-react';
 import './Modal.css';
 
 interface ModalProps {
@@ -8,10 +8,11 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   maxWidth?: string;
-  variant?: 'default' | 'payment';
+  variant?: 'default' | 'payment' | 'area';
   subtitle?: string;
   context?: string;
   isBusy?: boolean;
+  footer?: React.ReactNode;
 }
 
 export default function Modal({
@@ -24,6 +25,7 @@ export default function Modal({
   subtitle,
   context,
   isBusy = false,
+  footer,
 }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -38,7 +40,7 @@ export default function Modal({
   const [staggerFields, setStaggerFields] = useState(false);
 
   useEffect(() => {
-    if (variant === 'payment') {
+    if (variant === 'payment' || variant === 'area') {
       if (!open) return;
       const previousOverflow = document.body.style.overflow;
       const previousPaddingRight = document.body.style.paddingRight;
@@ -62,12 +64,12 @@ export default function Modal({
       if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
       setIsMounted(true);
       setIsClosing(false);
-      if (variant === 'payment' && !hasOpenedRef.current) {
+      if ((variant === 'payment' || variant === 'area') && !hasOpenedRef.current) {
         hasOpenedRef.current = true;
         setStaggerFields(true);
         staggerTimerRef.current = setTimeout(() => setStaggerFields(false), 500);
       }
-    } else if (variant === 'payment' && isMounted) {
+    } else if ((variant === 'payment' || variant === 'area') && isMounted) {
       setIsClosing(true);
       closeTimerRef.current = setTimeout(() => {
         setIsMounted(false);
@@ -84,12 +86,14 @@ export default function Modal({
   }, []);
 
   useEffect(() => {
-    if (variant !== 'payment') return;
+    if (variant !== 'payment' && variant !== 'area') return;
     if (open && isMounted) {
       returnFocusRef.current = document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
-      cardRef.current?.querySelector<HTMLElement>('[data-payment-autofocus]')?.focus();
+      cardRef.current?.querySelector<HTMLElement>(
+        variant === 'area' ? '[data-area-autofocus]' : '[data-payment-autofocus]'
+      )?.focus();
     } else if (!open) {
       returnFocusRef.current?.focus();
     }
@@ -97,11 +101,16 @@ export default function Modal({
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && variant === 'default') onClose();
+      if (
+        e.key === 'Escape' &&
+        (variant === 'default' || (variant === 'area' && !isBusy))
+      ) {
+        onClose();
+      }
     };
     if (open) window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [open, onClose, variant]);
+  }, [open, onClose, variant, isBusy]);
 
   const handlePaymentKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') {
@@ -173,6 +182,58 @@ export default function Modal({
           <div className={`payment-modal-content ${staggerFields ? 'is-first-open' : ''}`}>
             {children}
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === 'area') {
+    return (
+      <div
+        ref={overlayRef}
+        className={`area-modal-overlay ${isClosing ? 'is-closing' : ''}`}
+        onClick={(event) => {
+          if (!isBusy && event.target === overlayRef.current) onClose();
+        }}
+        role="presentation"
+      >
+        <div
+          ref={cardRef}
+          className={`area-modal-card ${isClosing ? 'is-closing' : ''}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={subtitleId}
+          aria-busy={isBusy}
+          onKeyDown={handlePaymentKeyDown}
+        >
+          <div className="area-modal-drag-handle" aria-hidden="true" />
+          <header className="area-modal-header">
+            <span className="area-modal-icon-badge" aria-hidden="true">
+              <Layers3 />
+            </span>
+            <div className="area-modal-heading">
+              <h2 id={titleId}>{title}</h2>
+              <p id={subtitleId}>{subtitle}</p>
+            </div>
+            <button
+              type="button"
+              className="area-modal-close"
+              onClick={onClose}
+              disabled={isBusy}
+              aria-label={`Close ${title.toLowerCase()} dialog`}
+            >
+              <X aria-hidden="true" />
+            </button>
+          </header>
+          <div className={`area-modal-body ${staggerFields ? 'is-first-open' : ''}`}>
+            {children}
+          </div>
+          {footer && (
+            <footer className={`area-modal-footer ${staggerFields ? 'is-first-open' : ''}`}>
+              {footer}
+            </footer>
+          )}
         </div>
       </div>
     );

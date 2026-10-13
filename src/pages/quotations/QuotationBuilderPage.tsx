@@ -1,7 +1,16 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Trash2, Save, Loader2, AlertCircle, ChevronRight } from 'lucide-react';
+import {
+  CalendarDays,
+  ChevronRight,
+  Home,
+  Info,
+  Layers3,
+  Loader2,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import { appointmentsApi } from '../../api/appointments';
 import {
   catalogApi,
@@ -14,7 +23,14 @@ import { quotationsApi } from '../../api/quotations';
 import { useToast } from '../../components/ui/Toast';
 import Modal from '../../components/ui/Modal';
 import { DatePicker } from '../../components/ui/DatePicker';
+import {
+  CustomerSummary,
+  QuotationTypeCards,
+  StickyActionBar,
+} from './components/QuotationBuilderComponents';
+import AddAreaModal from './components/AddAreaModal';
 import QuotationHeader from './components/QuotationHeader';
+import './QuotationBuilderPage.css';
 
 import type { SurfaceSpec } from '../../api/quotations';
 import type { AppointmentDetail, AppointmentListItem } from '../../types';
@@ -37,6 +53,23 @@ interface BuilderArea {
   display_name: string;
   sort_order: number;
   surfaces: BuilderSurface[];
+}
+
+function capitalizeDisplay(value: string) {
+  return value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : value;
+}
+
+function getValidityMessage(value: string) {
+  if (!value) return null;
+  const target = new Date(`${value.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(target.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const daysRemaining = Math.ceil((target.getTime() - today.getTime()) / 86400000);
+
+  if (daysRemaining < 0) return { text: 'Date has passed', variant: 'expired' };
+  if (daysRemaining <= 7) return { text: `Expires in ${daysRemaining} days`, variant: 'warn' };
+  return { text: `Valid for ${daysRemaining} days`, variant: 'ok' };
 }
 
 export default function QuotationBuilderPage() {
@@ -125,6 +158,8 @@ export default function QuotationBuilderPage() {
   const selectedCustomerEmail = selectedAppointment?.customer?.email || '';
   const selectedCustomerPhone =
     selectedAppointment?.customer?.phone || selectedAppointmentSummary?.customer_phone || '';
+  const validityMessage = getValidityMessage(quotationSettings.valid_until);
+  const surfaceCount = areas.reduce((count, area) => count + area.surfaces.length, 0);
 
   const handleAddArea = () => {
     if (!newAreaData.type || !newAreaData.display_name) {
@@ -326,28 +361,30 @@ export default function QuotationBuilderPage() {
   };
 
   return (
-    <div className="space-y-6 animate-page-in font-sans pb-20">
-      {/* Header */}
-      <QuotationHeader title="Create New Quotation" subtitle="Configure your bespoke atelier request by defining areas, surfaces, and product specifics." />
+    <div className="quotation-builder-page">
+      <main className="quotation-builder-content">
+        <QuotationHeader title="Create New Quotation" subtitle="Configure your bespoke atelier request by defining areas, surfaces, and product specifics." />
 
-      {/* General Information */}
-      <div className="bg-white rounded-3xl p-8 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 mb-8">
-        <div className="flex items-center gap-2 mb-6">
-          <AlertCircle className="w-5 h-5 text-[#5442f6]" />
-          <h2 className="text-[13px] font-bold text-[#5442f6] uppercase tracking-wider">General Information</h2>
-        </div>
+      <section className="qb-card qb-general-card">
+        <header className="qb-card-header">
+          <span className="qb-card-icon qb-card-icon--brand"><Info size={18} /></span>
+          <div className="qb-card-heading">
+            <h2>General Information</h2>
+          </div>
+        </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          <div className="space-y-6">
-            <div>
-              <label className="block text-[15px] font-bold text-slate-700 mb-2">Choose Appointment</label>
+        <div className="qb-general-grid">
+          <div className="qb-general-column">
+            <div className="qb-field">
+              <label htmlFor="quotation-appointment" className="qb-field-label block text-[15px] font-bold text-slate-700 mb-2">Choose Appointment</label>
               <div className="relative">
                 {appointmentsLoading ? (
-                  <div className="flex items-center justify-center py-3 bg-slate-50 border border-slate-100 rounded-xl">
+                  <div className="qb-appointment-loading flex items-center justify-center py-3 bg-slate-50 border border-slate-100 rounded-xl">
                     <Loader2 className="w-5 h-5 animate-spin text-[#5442f6]" />
                   </div>
                 ) : (
                   <select
+                    id="quotation-appointment"
                     value={selectedAppointmentId}
                     onChange={(e) => setSelectedAppointmentId(e.target.value)}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-[#5442f6] focus:ring-2 focus:ring-[#5442f6]/20 transition-all font-medium text-slate-700"
@@ -364,136 +401,130 @@ export default function QuotationBuilderPage() {
             </div>
 
             {selectedAppointmentId && (
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium text-slate-500">Customer:</span>
-                  <span className="text-sm font-bold text-slate-700">{selectedCustomerName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium text-slate-500">Email:</span>
-                  <span className="text-sm font-bold text-slate-700">{selectedAppointmentLoading ? 'Loading...' : selectedCustomerEmail}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium text-slate-500">Phone:</span>
-                  <span className="text-sm font-bold text-slate-700">{selectedCustomerPhone}</span>
-                </div>
-              </div>
+              <CustomerSummary
+                customerName={selectedCustomerName}
+                customerEmail={selectedCustomerEmail}
+                customerPhone={selectedCustomerPhone}
+                isLoading={selectedAppointmentLoading}
+              />
             )}
           </div>
 
-          <div className="space-y-6">
-            <div>
-              <label className="block text-[15px] font-bold text-slate-700 mb-2">Quotation Type</label>
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setQuotationSettings({ ...quotationSettings, quote_type: 'b2c' })}
-                  className={`flex-1 flex items-center gap-3 px-5 py-3.5 rounded-xl border-2 transition-all ${quotationSettings.quote_type === 'b2c'
-                      ? 'border-[#5442f6] bg-[#eef2ff]'
-                      : 'border-slate-100 hover:border-slate-200 bg-white'
-                    }`}
-                >
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${quotationSettings.quote_type === 'b2c' ? 'border-[#5442f6]' : 'border-slate-300'
-                    }`}>
-                    {quotationSettings.quote_type === 'b2c' && <div className="w-2.5 h-2.5 rounded-full bg-[#5442f6]" />}
-                  </div>
-                  <span className={`font-bold text-[15px] ${quotationSettings.quote_type === 'b2c' ? 'text-[#1e293b]' : 'text-slate-700'}`}>
-                    B2C (Retail)
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setQuotationSettings({ ...quotationSettings, quote_type: 'b2b' })}
-                  className={`flex-1 flex items-center gap-3 px-5 py-3.5 rounded-xl border-2 transition-all ${quotationSettings.quote_type === 'b2b'
-                      ? 'border-[#5442f6] bg-[#eef2ff]'
-                      : 'border-slate-100 hover:border-slate-200 bg-white'
-                    }`}
-                >
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${quotationSettings.quote_type === 'b2b' ? 'border-[#5442f6]' : 'border-slate-300'
-                    }`}>
-                    {quotationSettings.quote_type === 'b2b' && <div className="w-2.5 h-2.5 rounded-full bg-[#5442f6]" />}
-                  </div>
-                  <span className={`font-bold text-[15px] ${quotationSettings.quote_type === 'b2b' ? 'text-[#1e293b]' : 'text-slate-700'}`}>
-                    B2B (Business)
-                  </span>
-                </button>
-              </div>
+          <div className="qb-general-column">
+            <div className="qb-field">
+              <span className="qb-field-label block text-[15px] font-bold text-slate-700 mb-2">Quotation Type</span>
+              <QuotationTypeCards
+                value={quotationSettings.quote_type}
+                onChange={(quote_type) => setQuotationSettings({ ...quotationSettings, quote_type })}
+              />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[15px] font-bold text-slate-700 mb-2">
+            <div className="qb-date-discount-grid">
+              <div className="qb-field">
+                <label htmlFor="quotation-valid-until" className="qb-field-label block text-[15px] font-bold text-slate-700 mb-2">
                   Valid Until <span className="text-[#ef4444]">*</span>
                 </label>
                 <DatePicker
+                  id="quotation-valid-until"
                   value={quotationSettings.valid_until}
                   onChange={(event) => setQuotationSettings({ ...quotationSettings, valid_until: event.target.value })}
                   className="w-full"
                 />
+                {validityMessage && (
+                  <p className={`qb-validity-hint is-${validityMessage.variant}`}>
+                    <CalendarDays size={14} aria-hidden="true" />
+                    {validityMessage.text}
+                  </p>
+                )}
               </div>
-              <div>
-                <label className="block text-[15px] font-bold text-slate-700 mb-2">Discount (%)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={quotationSettings.discount_percentage}
-                  onChange={(e) => setQuotationSettings({ ...quotationSettings, discount_percentage: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-[#5442f6] focus:ring-2 focus:ring-[#5442f6]/20 transition-all font-medium text-slate-700"
-                />
+              <div className="qb-field">
+                <label htmlFor="quotation-discount" className="qb-field-label qb-field-label--optional block text-[15px] font-bold text-slate-700 mb-2">
+                  <span>Discount (%)</span>
+                  <span className="qb-optional-tag">Optional</span>
+                </label>
+                <div className="qb-discount-control">
+                  <input
+                    id="quotation-discount"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    value={quotationSettings.discount_percentage}
+                    onChange={(e) => setQuotationSettings({ ...quotationSettings, discount_percentage: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-[#5442f6] focus:ring-2 focus:ring-[#5442f6]/20 transition-all font-medium text-slate-700"
+                  />
+                  <span className="qb-discount-suffix">%</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Step 2: Areas and Surfaces */}
       {selectedAppointmentId && (
         <>
-          <div className="bg-white rounded-3xl p-8 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-[20px] font-extrabold text-[#1e293b]">Configuration</h2>
+          <section className="qb-card qb-configuration-card">
+            <header className="qb-card-header qb-configuration-header">
+              <span className="qb-card-icon qb-card-icon--emerald"><Layers3 size={18} /></span>
+              <div className="qb-card-heading">
+                <h2>Configuration</h2>
+                <p>Define the areas and surfaces for this quotation</p>
+              </div>
+              <div className="qb-configuration-tools">
+                <span className="qb-count-chip">
+                  {areas.length} {areas.length === 1 ? 'area' : 'areas'} · {surfaceCount} {surfaceCount === 1 ? 'surface' : 'surfaces'}
+                </span>
               <button
+                type="button"
                 onClick={() => setShowAddAreaModal(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-[#22c55e] text-slate-900 font-extrabold text-[14px] rounded-full shadow-sm hover:bg-[#16a34a] transition-all"
+                className="qb-add-area-button"
               >
-                <div className="flex items-center justify-center w-5 h-5 rounded-full border-[1.5px] border-slate-900">
-                  <Plus className="w-3.5 h-3.5" strokeWidth={3} />
-                </div>
-                Add New Area
+                <Plus size={17} aria-hidden="true" />
+                <span>Add New Area</span>
               </button>
-            </div>
+              </div>
+            </header>
 
             {areas.length === 0 ? (
-              <div className="flex items-center gap-2 p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-700">
-                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                <p className="text-sm">No areas added yet. Add an area to get started.</p>
+              <div className="qb-empty-areas">
+                <span className="qb-empty-icon"><Home size={19} /></span>
+                <span className="qb-empty-title">No areas added yet</span>
+                <span className="qb-empty-hint">Add an area to get started.</span>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="qb-area-list">
                 {areas.map((area) => (
-                  <div key={area.tempId} className="border border-slate-200 rounded-lg p-4">
+                  <article key={area.tempId} className="qb-area-card">
                     {/* Area Header */}
-                    <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-100">
+                    <div className="qb-area-header">
                       <button
+                        type="button"
                         onClick={() =>
                           setExpandedAreaId(expandedAreaId === area.tempId ? null : area.tempId)
                         }
-                        className="flex items-center gap-4 flex-1 hover:opacity-80 transition"
+                        className="qb-area-toggle"
+                        aria-expanded={expandedAreaId === area.tempId}
+                        aria-controls={`area-panel-${area.tempId}`}
                       >
-                        <div className="w-12 h-12 rounded-xl bg-[#eef2ff] text-[#5442f6] flex items-center justify-center">
-                          <div className="w-5 h-5 border-2 border-current rounded-sm"></div>
-                        </div>
-                        <div className="text-left flex items-center gap-3">
-                          <h3 className="text-[22px] font-extrabold text-[#1e293b]">{area.display_name}</h3>
+                        <span className="qb-area-icon"><Layers3 size={19} /></span>
+                        <span className="qb-area-title-wrap">
+                          <span className="qb-area-title" title={capitalizeDisplay(area.display_name)}>
+                            {capitalizeDisplay(area.display_name)}
+                          </span>
+                          <span className="qb-area-surface-count">
+                            {area.surfaces.length} {area.surfaces.length === 1 ? 'surface' : 'surfaces'}
+                          </span>
+                        </span>
                           <ChevronRight
-                            className={`w-5 h-5 text-slate-400 transition-transform ${expandedAreaId === area.tempId ? 'rotate-90' : ''
-                              }`}
+                            className={`qb-area-chevron ${expandedAreaId === area.tempId ? 'is-open' : ''}`}
                           />
-                        </div>
                       </button>
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
+                      <div className="qb-area-actions">
+                        <div className="qb-area-type-field">
+                          <Home size={16} aria-hidden="true" />
                           <select
                             value={area.area_type}
                             onChange={(e) => {
@@ -503,25 +534,38 @@ export default function QuotationBuilderPage() {
                               setAreas(newAreas);
                             }}
                             className="appearance-none bg-white border border-slate-200 text-slate-700 text-[15px] font-medium rounded-xl pl-4 pr-10 py-2.5 outline-none focus:border-[#5442f6] min-w-[180px]"
+                            aria-label={`Area type for ${capitalizeDisplay(area.display_name)}`}
                           >
                             <option value={area.area_type}>{area.area_type}</option>
                           </select>
                         </div>
                         <button
+                          type="button"
                           onClick={() => handleDeleteArea(area.tempId)}
-                          className="p-3 bg-[#fef2f2] text-[#ef4444] rounded-xl hover:bg-[#fee2e2] transition-colors"
+                          className="qb-delete-area"
+                          aria-label={`Remove area ${capitalizeDisplay(area.display_name)}`}
+                          title="Remove area"
                         >
-                          <Trash2 className="w-5 h-5" />
+                          <Trash2 size={18} />
                         </button>
                       </div>
                     </div>
 
                     {/* Expanded Area Content */}
-                    {expandedAreaId === area.tempId && (
-                      <div className="pl-8 space-y-4 border-t border-slate-200 pt-4">
+                    <div
+                      id={`area-panel-${area.tempId}`}
+                      className={`qb-area-panel ${expandedAreaId === area.tempId ? 'is-expanded' : ''}`}
+                      aria-hidden={expandedAreaId !== area.tempId}
+                      inert={expandedAreaId !== area.tempId}
+                    >
+                      <div className="qb-area-panel-inner">
                         {/* Surfaces */}
                         {area.surfaces.length === 0 ? (
-                          <p className="text-sm text-slate-500 italic">No surfaces added</p>
+                          <div className="qb-empty-surfaces">
+                            <span className="qb-empty-icon"><Layers3 size={18} /></span>
+                            <span className="qb-empty-title">No surfaces yet</span>
+                            <span className="qb-empty-hint">Add a surface to configure this area.</span>
+                          </div>
                         ) : (
                           <div className="space-y-3">
                             {area.surfaces.map((surface) => (
@@ -874,95 +918,47 @@ export default function QuotationBuilderPage() {
 
                         {/* Add Surface Button */}
                         <button
+                          type="button"
                           onClick={() => {
                             setSelectedAreaForSurface(area.tempId);
                             setShowAddSurfaceModal(true);
                           }}
-                          className="flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-700 font-medium text-sm rounded-lg hover:bg-slate-200 transition"
+                          className="qb-add-surface-button"
                         >
-                          <Plus className="w-4 h-4" /> Add Surface
+                          <Plus size={16} /> Add Surface
                         </button>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  </article>
                 ))}
               </div>
             )}
-          </div>
+          </section>
 
           {/* Save Button */}
-          <div className="flex gap-3 sticky bottom-0 bg-white p-6 rounded-2xl shadow-lg border border-slate-100">
-            <button
-              onClick={() => navigate('/quotations')}
-              className="flex-1 px-4 py-3 rounded-lg border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSaveQuotation}
-              disabled={isSaving || !selectedAppointmentId || !selectedCustomerId || areas.length === 0}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#5442f6] text-white font-semibold rounded-lg hover:bg-[#1f456e] transition disabled:opacity-60"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" /> Save Quotation
-                </>
-              )}
-            </button>
-          </div>
+          <StickyActionBar
+            isSaving={isSaving}
+            canSave={!isSaving && !!selectedAppointmentId && !!selectedCustomerId && areas.length > 0}
+            onCancel={() => navigate('/quotations')}
+            onSave={handleSaveQuotation}
+          />
         </>
       )}
 
+      </main>
+
       {/* Add Area Modal */}
-      <Modal
+      <AddAreaModal
         open={showAddAreaModal}
         onClose={() => setShowAddAreaModal(false)}
-        title="Add Area"
-        maxWidth="max-w-md"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Area Type</label>
-            <input
-              type="text"
-              placeholder="e.g., Master Bedroom"
-              value={newAreaData.type}
-              onChange={(e) => setNewAreaData({ ...newAreaData, type: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#5442f6]"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Area Name</label>
-            <input
-              type="text"
-              placeholder="e.g., Windows"
-              value={newAreaData.display_name}
-              onChange={(e) =>
-                setNewAreaData({ ...newAreaData, display_name: e.target.value })
-              }
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#5442f6]"
-            />
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button
-              onClick={() => setShowAddAreaModal(false)}
-              className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-slate-700 font-medium hover:bg-slate-50"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleAddArea}
-              className="flex-1 px-4 py-2 rounded-lg bg-[#5442f6] text-white font-medium hover:bg-[#1f456e]"
-            >
-              Add Area
-            </button>
-          </div>
-        </div>
-      </Modal>
+        onAdd={handleAddArea}
+        areaType={newAreaData.type}
+        areaName={newAreaData.display_name}
+        onAreaTypeChange={(type) => setNewAreaData({ ...newAreaData, type })}
+        onAreaNameChange={(display_name) => setNewAreaData({ ...newAreaData, display_name })}
+        areaTypePlaceholder="e.g., Master Bedroom"
+        areaNamePlaceholder="e.g., Windows"
+      />
 
       {/* Add Surface Modal */}
       <Modal

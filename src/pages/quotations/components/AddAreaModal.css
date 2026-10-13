@@ -1,0 +1,119 @@
+.area-modal-body .add-area-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.add-area-field > label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #334155;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  transition: color 150ms ease;
+}
+
+.add-area-field:focus-within > label {
+  color: #2F5D8F;
+}
+
+.add-area-required {
+  color: #F43F5E;
+}
+
+.add-area-input {
+  position: relative;
+  display: flex;
+  height: 48px;
+  align-items: center;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  background: #FFFFFF;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.add-area-input:hover {
+  border-color: #CBD5E1;
+}
+
+.add-area-input:focus-within {
+  border-color: #2F5D8F;
+  box-shadow: 0 0 0 4px rgba(47, 93, 143, 0.14);
+}
+
+.add-area-input > svg {
+  position: absolute;
+  left: 14px;
+  flex: 0 0 auto;
+  color: #94A3B8;
+  pointer-events: none;
+  transition: color 150ms ease;
+}
+
+.add-area-input:focus-within > svg {
+  color: #2F5D8F;
+}
+
+.add-area-input input {
+  width: 100%;
+  height: 100%;
+  padding: 0 14px 0 42px;
+  border: 0;
+  border-radius: inherit;
+  outline: 0;
+  background: transparent;
+  color: #0F172A;
+  font: inherit;
+  font-size: 15px;
+}
+
+.add-area-input input::placeholder {
+  color: #94A3B8;
+}
+
+.add-area-suggestions {
+  display: flex;
+  max-height: 64px;
+  flex-wrap: wrap;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.add-area-suggestion {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid #E2E8F0;
+  border-radius: 999px;
+  background: #F8FAFC;
+  color: #475569;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.add-area-suggestion:hover {
+  transform: translateY(-1px);
+  border-color: #CBD5E1;
+  background: #F1F5F9;
+}
+
+.add-area-suggestion.is-selected {
+  border-color: rgba(47, 93, 143, 0.2);
+  background: #EEF4FA;
+  color: #2F5D8F;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .add-area-field *,
+  .add-area-suggestion {
+    transition-duration: 0.01ms !important;
+  }
+
+  .add-area-suggestion:hover {
+    transform: none;
+  }
+}

@@ -41,6 +41,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
+            role="status"
+            aria-live="polite"
             className={`
               pointer-events-auto flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-lg
               animate-toast-in backdrop-blur-sm text-sm font-medium min-w-[280px]
