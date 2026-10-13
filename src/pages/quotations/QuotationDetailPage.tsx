@@ -23,6 +23,7 @@ import { quotationsApi } from '../../api/quotations';
 import { useToast } from '../../components/ui/Toast';
 import Modal from '../../components/ui/Modal';
 import AddAreaModal from './components/AddAreaModal';
+import AddSurfaceModal from './components/AddSurfaceModal';
 import type { QuotationDetail, SurfaceSpec } from '../../api/quotations';
 
 export default function QuotationDetailPage() {
@@ -613,103 +614,42 @@ export default function QuotationDetailPage() {
         areaNamePlaceholder="Area name"
       />
 
-      <Modal
+      <AddSurfaceModal
         open={showAddSurfaceModal}
         onClose={() => {
           setShowAddSurfaceModal(false);
           setSelectedAreaIndex(null);
         }}
-        title="Add Surface"
-        maxWidth="max-w-lg"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Surface Name</label>
-            <input
-              type="text"
-              value={newSurfaceData.surface_name}
-              onChange={(e) => setNewSurfaceData({ ...newSurfaceData, surface_name: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-            />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Surface Type</label>
-              <select
-                value={newSurfaceData.surface_type}
-                onChange={(e) => setNewSurfaceData({ ...newSurfaceData, surface_type: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-              >
-                <option value="window">Window</option>
-                <option value="door">Door</option>
-                <option value="wall">Wall</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Opening Direction</label>
-              <select
-                value={newSurfaceData.opening_direction}
-                onChange={(e) => setNewSurfaceData({ ...newSurfaceData, opening_direction: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-              >
-                <option value="left_to_right">Left to Right</option>
-                <option value="right_to_left">Right to Left</option>
-                <option value="center_open">Center Open</option>
-                <option value="fixed">Fixed</option>
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Width (cm)</label>
-              <input
-                type="number"
-                min="0"
-                value={newSurfaceData.width_cm}
-                onChange={(e) => setNewSurfaceData({ ...newSurfaceData, width_cm: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Height (cm)</label>
-              <input
-                type="number"
-                min="0"
-                value={newSurfaceData.height_cm}
-                onChange={(e) => setNewSurfaceData({ ...newSurfaceData, height_cm: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Special Requirements</label>
-            <textarea
-              rows={3}
-              value={newSurfaceData.special_requirements}
-              onChange={(e) => setNewSurfaceData({ ...newSurfaceData, special_requirements: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 text-sm"
-            />
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button
-              onClick={() => {
-                setShowAddSurfaceModal(false);
-                setSelectedAreaIndex(null);
-              }}
-              className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-slate-700 font-medium hover:bg-slate-50"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleAddSurface}
-              className="flex-1 px-4 py-2 rounded-lg bg-[#2b5c8f] text-white font-medium hover:bg-[#1f456e]"
-            >
-              Add Surface
-            </button>
-          </div>
-        </div>
-      </Modal>
+        onAdd={handleAddSurface}
+        name={newSurfaceData.surface_name}
+        type={newSurfaceData.surface_type}
+        width={newSurfaceData.width_cm}
+        height={newSurfaceData.height_cm}
+        nameLabel="Surface Name"
+        typeLabel="Surface Type"
+        onNameChange={(surface_name) => setNewSurfaceData({ ...newSurfaceData, surface_name })}
+        onTypeChange={(surface_type) => setNewSurfaceData({ ...newSurfaceData, surface_type })}
+        onWidthChange={(width_cm) => setNewSurfaceData({ ...newSurfaceData, width_cm })}
+        onHeightChange={(height_cm) => setNewSurfaceData({ ...newSurfaceData, height_cm })}
+        typeOptions={[
+          { value: 'window', label: 'Window' },
+          { value: 'door', label: 'Door' },
+          { value: 'wall', label: 'Wall' },
+          { value: 'other', label: 'Other' },
+        ]}
+        openingDirection={newSurfaceData.opening_direction}
+        onOpeningDirectionChange={(opening_direction) => setNewSurfaceData({ ...newSurfaceData, opening_direction })}
+        openingDirectionOptions={[
+          { value: 'left_to_right', label: 'Left to Right' },
+          { value: 'right_to_left', label: 'Right to Left' },
+          { value: 'center_open', label: 'Center Open' },
+          { value: 'fixed', label: 'Fixed' },
+        ]}
+        specialRequirements={newSurfaceData.special_requirements}
+        onSpecialRequirementsChange={(special_requirements) => setNewSurfaceData({ ...newSurfaceData, special_requirements })}
+        widthMin={0}
+        heightMin={0}
+      />
 
       {/* Send Modal */}
       <Modal

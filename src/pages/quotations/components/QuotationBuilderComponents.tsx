@@ -4,7 +4,6 @@ import {
   Loader2,
   Mail,
   Phone,
-  Plus,
   Save,
   UserRound,
   type LucideIcon,

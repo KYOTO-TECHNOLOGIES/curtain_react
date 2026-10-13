@@ -21,7 +21,6 @@ import {
 } from '../../api/catalog';
 import { quotationsApi } from '../../api/quotations';
 import { useToast } from '../../components/ui/Toast';
-import Modal from '../../components/ui/Modal';
 import { DatePicker } from '../../components/ui/DatePicker';
 import {
   CustomerSummary,
@@ -29,6 +28,7 @@ import {
   StickyActionBar,
 } from './components/QuotationBuilderComponents';
 import AddAreaModal from './components/AddAreaModal';
+import AddSurfaceModal from './components/AddSurfaceModal';
 import QuotationHeader from './components/QuotationHeader';
 import './QuotationBuilderPage.css';
 
@@ -961,81 +961,28 @@ export default function QuotationBuilderPage() {
       />
 
       {/* Add Surface Modal */}
-      <Modal
+      <AddSurfaceModal
         open={showAddSurfaceModal}
         onClose={() => setShowAddSurfaceModal(false)}
-        title="Add Surface"
-        maxWidth="max-w-md"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Name</label>
-            <input
-              type="text"
-              placeholder="e.g., Window 1"
-              value={newSurfaceData.surface_name}
-              onChange={(e) =>
-                setNewSurfaceData({ ...newSurfaceData, surface_name: e.target.value })
-              }
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#5442f6]"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Type</label>
-            <select
-              value={newSurfaceData.surface_type}
-              onChange={(e) =>
-                setNewSurfaceData({ ...newSurfaceData, surface_type: e.target.value })
-              }
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#5442f6]"
-            >
-              <option value="window">Window</option>
-              <option value="wall">Wall</option>
-              <option value="door">Door</option>
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Width (cm)</label>
-              <input
-                type="number"
-                placeholder="240"
-                value={newSurfaceData.width_cm}
-                onChange={(e) =>
-                  setNewSurfaceData({ ...newSurfaceData, width_cm: e.target.value })
-                }
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#5442f6]"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Height (cm)</label>
-              <input
-                type="number"
-                placeholder="310"
-                value={newSurfaceData.height_cm}
-                onChange={(e) =>
-                  setNewSurfaceData({ ...newSurfaceData, height_cm: e.target.value })
-                }
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-200 outline-none focus:border-[#5442f6]"
-              />
-            </div>
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button
-              onClick={() => setShowAddSurfaceModal(false)}
-              className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-slate-700 font-medium hover:bg-slate-50"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleAddSurface}
-              className="flex-1 px-4 py-2 rounded-lg bg-[#5442f6] text-white font-medium hover:bg-[#1f456e]"
-            >
-              Add Surface
-            </button>
-          </div>
-        </div>
-      </Modal>
+        onAdd={handleAddSurface}
+        name={newSurfaceData.surface_name}
+        type={newSurfaceData.surface_type}
+        width={newSurfaceData.width_cm}
+        height={newSurfaceData.height_cm}
+        onNameChange={(surface_name) => setNewSurfaceData({ ...newSurfaceData, surface_name })}
+        onTypeChange={(surface_type) => setNewSurfaceData({ ...newSurfaceData, surface_type })}
+        onWidthChange={(width_cm) => setNewSurfaceData({ ...newSurfaceData, width_cm })}
+        onHeightChange={(height_cm) => setNewSurfaceData({ ...newSurfaceData, height_cm })}
+        typeOptions={[
+          { value: 'window', label: 'Window' },
+          { value: 'wall', label: 'Wall' },
+          { value: 'door', label: 'Door' },
+        ]}
+        widthPlaceholder="240"
+        heightPlaceholder="310"
+        widthMin={0}
+        heightMin={0}
+      />
     </div>
   );
 }
