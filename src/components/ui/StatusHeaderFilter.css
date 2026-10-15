@@ -1,0 +1,82 @@
+.apt-table-mobile-toolbar {
+  display: none;
+}
+
+.status-filter-pill-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  white-space: nowrap;
+  animation: status-pill-crossfade 150ms ease both;
+}
+
+.status-filter-pill-content > span:last-child {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-filter-pill-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: var(--select-status-dot);
+}
+
+.column-header-filter--mobile .select-menu-header-control,
+.status-header-filter--mobile .select-menu-header-control {
+  min-height: 36px;
+  border-color: #E2E8F0;
+  border-radius: 10px;
+  background: #FFFFFF;
+}
+
+.column-header-filter--mobile .select-menu-header-trigger,
+.status-header-filter--mobile .select-menu-header-trigger {
+  justify-content: space-between;
+  min-width: 84px;
+  height: 34px;
+  padding: 4px 8px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.column-header-filter--mobile .select-menu-header-control.is-active,
+.status-header-filter--mobile .select-menu-header-control.is-active {
+  min-height: 36px;
+  border-radius: 999px;
+}
+
+.column-header-filter--mobile .select-menu-header-control.is-active .select-menu-header-trigger,
+.status-header-filter--mobile .select-menu-header-control.is-active .select-menu-header-trigger {
+  justify-content: flex-start;
+  min-width: 0;
+  height: 34px;
+  font-size: 11px;
+}
+
+@keyframes status-pill-crossfade {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 767px) {
+  .apt-table-mobile-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: 52px;
+    padding: 8px 16px;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-filter-pill-content {
+    animation: none !important;
+  }
+}

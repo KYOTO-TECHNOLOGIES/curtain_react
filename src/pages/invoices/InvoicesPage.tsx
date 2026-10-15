@@ -3,14 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { 
-  Loader2, 
-  AlertCircle
-} from 'lucide-react';
 import { invoicesApi } from '../../api/invoices';
 import { useToast } from '../../components/ui/Toast';
 import type { InvoiceListItem } from '../../types';
-import Modal from '../../components/ui/Modal';
 import { StatusSummary, INVOICE_STATUS_CONFIGS } from '../../components/appointments/StatusSummary';
 import { paymentSchema, type PaymentFormValues } from '../../lib/validationSchemas';
 import { InvoicePageHeader } from '../../components/invoices/InvoicePageHeader';
@@ -18,13 +13,7 @@ import { InvoiceFilterBar } from '../../components/invoices/InvoiceFilterBar';
 import { InvoiceTable } from '../../components/invoices/InvoiceTable';
 import { Pagination } from '../../components/ui/Pagination';
 import { usePagination } from '../../hooks/usePagination';
-
-const ErrorMsg = ({ message }: { message?: string }) =>
-  message ? (
-    <p className="flex items-center gap-1 text-red-500 text-xs mt-1.5 font-medium">
-      <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {message}
-    </p>
-  ) : null;
+import { LogPaymentModal } from '../../components/invoices/LogPaymentModal';
 
 export default function InvoicesPage() {
   const navigate = useNavigate();
@@ -84,7 +73,7 @@ export default function InvoicesPage() {
       return { items: (raw as any).results as InvoiceListItem[], totalCount: (raw as any).count as number };
     }
     if (Array.isArray(raw)) return { items: raw, totalCount: raw.length };
-    if (Array.isArray(listRes)) return { items: listRes as any, totalCount: (listRes as any).length };
+    if (Array.isArray(listRes)) return { items: listRes as InvoiceListItem[], totalCount: listRes.length };
     return { items: [] as InvoiceListItem[], totalCount: 0 };
   }, [listRes]);
 
@@ -108,6 +97,7 @@ export default function InvoicesPage() {
   }, [invoices, search]);
 
   const totalCount = paginatedTotal || stats?.total || invoices.length;
+  const selectedPaymentInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceId);
 
   const formatCurrency = (amount: number | string) => {
     const num = typeof amount === 'string' ? parseFloat(amount || '0') : amount;
@@ -161,7 +151,6 @@ export default function InvoicesPage() {
         searchQuery={search}
         onSearchChange={setSearch}
         statusFilter={statusFilter}
-        onStatusChange={(status) => setStatusFilter(status)}
         onClearFilters={() => {
           setSearch('');
           setStatusFilter('');
@@ -169,8 +158,6 @@ export default function InvoicesPage() {
         totalCount={totalCount}
         filteredCount={filtered.length}
         totalCollected={stats?.total_paid ? formatCurrency(stats.total_paid) : 'AED 0.00'}
-        stats={stats}
-        invoices={invoices}
       />
 
       {/* Modern Status Summary Row (Design Spells Micro-interactions) */}
@@ -186,6 +173,10 @@ export default function InvoicesPage() {
       <InvoiceTable
         invoices={filtered}
         loading={loading}
+        totalCount={totalCount}
+        statusFilter={statusFilter}
+        onStatusChange={(status) => setStatusFilter(status)}
+        stats={stats}
         onSelectInvoice={(invoice) => navigate(`/invoices/${invoice.id}`)}
         onLogPayment={openPaymentModal}
         onClearFilters={() => {
@@ -193,7 +184,6 @@ export default function InvoicesPage() {
           setStatusFilter('');
         }}
         onCopyPhone={() => showToast('Phone copied to clipboard', 'info')}
-        totalCount={totalCount}
       />
 
       {/* Pagination */}
@@ -207,67 +197,17 @@ export default function InvoicesPage() {
       />
 
       {/* Log Payment Modal */}
-      <Modal open={paymentModalOpen} onClose={() => setPaymentModalOpen(false)} title="Log Payment">
-        <form onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Amount (AED) <span className="text-red-500">*</span></label>
-            <input
-              type="number"
-              step="0.01"
-              {...paymentForm.register('amount')}
-              className={`w-full px-4 py-2.5 rounded-xl border ${paymentForm.formState.errors.amount ? 'border-red-400 bg-red-50' : 'border-slate-200'} outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm`}
-              placeholder="e.g. 500.00"
-            />
-            <ErrorMsg message={paymentForm.formState.errors.amount?.message} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Payment Method <span className="text-red-500">*</span></label>
-            <select
-              {...paymentForm.register('method')}
-              className={`w-full px-4 py-2.5 rounded-xl border ${paymentForm.formState.errors.method ? 'border-red-400 bg-red-50' : 'border-slate-200'} outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm`}
-            >
-              <option value="cash">Cash</option>
-              <option value="card">Credit/Debit Card</option>
-              <option value="bank_transfer">Bank Transfer</option>
-              <option value="cheque">Cheque</option>
-            </select>
-            <ErrorMsg message={paymentForm.formState.errors.method?.message} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Payment Date <span className="text-red-500">*</span></label>
-            <input
-              type="date"
-              {...paymentForm.register('payment_date')}
-              className={`w-full px-4 py-2.5 rounded-xl border ${paymentForm.formState.errors.payment_date ? 'border-red-400 bg-red-50' : 'border-slate-200'} outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm`}
-            />
-            <ErrorMsg message={paymentForm.formState.errors.payment_date?.message} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Reference Number <span className="text-slate-400 font-normal text-xs">(optional)</span></label>
-            <input
-              type="text"
-              {...paymentForm.register('reference')}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm"
-              placeholder="e.g. TXN-12345"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Notes <span className="text-slate-400 font-normal text-xs">(optional)</span></label>
-            <textarea
-              {...paymentForm.register('notes')}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm resize-none h-24"
-              placeholder="Any additional notes..."
-            />
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={() => setPaymentModalOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors">Cancel</button>
-            <button type="submit" disabled={isSubmittingPayment} className="flex-1 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white font-medium text-sm hover:bg-[#1f456e] transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
-              {isSubmittingPayment && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isSubmittingPayment ? 'Saving...' : 'Log Payment'}
-            </button>
-          </div>
-        </form>
-      </Modal>
+      <LogPaymentModal
+        open={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)}
+        form={paymentForm}
+        isSubmitting={isSubmittingPayment}
+        context={selectedInvoiceId ? `Invoice #${selectedInvoiceId}` : undefined}
+        invoiceTotal={selectedPaymentInvoice?.total_amount}
+        paidToDate={selectedPaymentInvoice?.amount_paid}
+        outstandingBalance={selectedPaymentInvoice?.balance_due}
+      />
     </div>
   );
 }

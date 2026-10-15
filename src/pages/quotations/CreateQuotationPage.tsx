@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../components/ui/Toast';
 import { quotationsApi } from '../../api/quotations';
+import { DatePicker } from '../../components/ui/DatePicker';
 
 export default function CreateQuotationPage() {
   const navigate = useNavigate();
@@ -189,12 +190,11 @@ export default function CreateQuotationPage() {
                 <label className="block text-[15px] font-bold text-slate-700 mb-2">
                   Valid Until <span className="text-[#ef4444]">*</span>
                 </label>
-                <input
-                  type="date"
+                <DatePicker
                   value={general.valid_until}
-                  onChange={(e) => setGeneral({...general, valid_until: e.target.value})}
+                  onChange={(event) => setGeneral({...general, valid_until: event.target.value})}
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-[#2b5c8f] focus:ring-2 focus:ring-[#2b5c8f]/20 transition-all font-medium text-slate-700"
+                  className="w-full"
                 />
               </div>
               <div>

@@ -38,14 +38,7 @@ import { InventoryMovementsTable } from '../../components/inventory/InventoryMov
 import { Pagination } from '../../components/ui/Pagination';
 import { usePagination } from '../../hooks/usePagination';
 import '../../components/appointments/FilterBar.css';
-
-const CATEGORIES: { value: InventoryCategory; label: string }[] = [
-  { value: 'fabric', label: 'Fabric' },
-  { value: 'track', label: 'Track' },
-  { value: 'motor', label: 'Motor' },
-  { value: 'accessory', label: 'Accessory' },
-  { value: 'other', label: 'Other' },
-];
+import { COLUMN_FILTER_CONFIG, INVENTORY_CATEGORIES as CATEGORIES } from '../../components/ui/filterConfig.js';
 
 const UNITS: { value: InventoryUnit; label: string }[] = [
   { value: 'roll', label: 'Roll' },
@@ -245,6 +238,13 @@ export default function InventoryPage() {
   }, [movementsQuery.data]);
 
   const stats = statsQuery.data?.data || null;
+  const categoryCounts = useMemo(() => ({
+    '': stats?.total_items ?? items.length,
+    ...Object.fromEntries(COLUMN_FILTER_CONFIG.inventory.options.map(({ value }) => [
+      value,
+      stats?.by_category?.[value] ?? items.filter((item) => item.category === value).length,
+    ])),
+  }), [stats, items]);
 
   const refreshAll = () => {
     itemsQuery.refetch();
@@ -677,7 +677,6 @@ export default function InventoryPage() {
           searchQuery={search}
           onSearchChange={setSearch}
           categoryFilter={categoryFilter}
-          onCategoryChange={setCategoryFilter}
           stockStatusFilter={stockStatusFilter}
           onStockStatusChange={(status) => {
             setStockStatusFilter(status);
@@ -749,6 +748,9 @@ export default function InventoryPage() {
             items={filteredItems}
             loading={loading}
             totalCount={totalItemsCount}
+            categoryFilter={categoryFilter}
+            onCategoryChange={setCategoryFilter}
+            categoryCounts={categoryCounts}
             onAdjustStock={openAdjust}
             onReorder={openReorder}
             onEditItem={openEditItem}

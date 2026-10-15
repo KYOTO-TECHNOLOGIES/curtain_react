@@ -10,6 +10,7 @@ import { QuotationFilterBar } from '../../components/quotations/QuotationFilterB
 import { QuotationTable } from '../../components/quotations/QuotationTable';
 import { Pagination } from '../../components/ui/Pagination';
 import { usePagination } from '../../hooks/usePagination';
+import { DatePicker } from '../../components/ui/DatePicker';
 
 export default function QuotationsPage() {
   const navigate = useNavigate();
@@ -116,7 +117,6 @@ export default function QuotationsPage() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         statusFilter={statusFilter}
-        onStatusChange={(status) => setStatusFilter(status)}
         quoteTypeFilter={quoteTypeFilter}
         onQuoteTypeChange={(type) => setQuoteTypeFilter(type)}
         onClearFilters={() => {
@@ -144,6 +144,9 @@ export default function QuotationsPage() {
         quotations={filtered}
         loading={loading}
         totalCount={totalCount}
+        statusFilter={statusFilter}
+        onStatusChange={(status) => setStatusFilter(status)}
+        stats={stats}
         onSelectQuotation={(q) => navigate(`/quotations/${q.id}`)}
         onClearFilters={() => {
           setSearchQuery('');
@@ -188,7 +191,7 @@ export default function QuotationsPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Valid Until *</label>
-              <input type="date" required value={form.valid_until} onChange={(e) => setForm({ ...form, valid_until: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
+              <DatePicker required value={form.valid_until || ''} onChange={(event) => setForm({ ...form, valid_until: event.target.value })} className="w-full" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Discount %</label>

@@ -106,7 +106,7 @@ export const InventoryMovementsTable: React.FC<InventoryMovementsTableProps> = (
       key: 'item',
       label: 'Stock Item',
       sortable: true,
-      width: '260px',
+      className: 'inv-col-item',
       render: (m) => (
         <div className="flex items-center gap-2 py-1">
           <span className="inv-sku-chip">{m.item_sku}</span>

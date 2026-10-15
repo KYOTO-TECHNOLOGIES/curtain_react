@@ -9,7 +9,6 @@ interface FilterBarProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
   statusFilter: string;
-  onStatusChange: (status: string) => void;
   assigneeFilter: string;
   onAssigneeChange: (assignee: string) => void;
   onClearFilters: () => void;
@@ -32,7 +31,6 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   searchQuery,
   onSearchChange,
   statusFilter,
-  onStatusChange,
   assigneeFilter,
   onAssigneeChange,
   onClearFilters,
@@ -76,49 +74,6 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     localSearch.trim() || statusFilter || assigneeFilter
   );
 
-  // 1. Status Dropdown Options
-  const statusOptions: SelectOption[] = useMemo(() => {
-    const total = stats?.total ?? totalCount;
-    return [
-      {
-        value: '',
-        label: 'All Status',
-        isDotCluster: true,
-        count: total,
-      },
-      {
-        value: 'pending',
-        label: 'Pending',
-        dotColor: '#64748B',
-        count: stats?.by_status?.pending ?? 0,
-      },
-      {
-        value: 'scheduled',
-        label: 'Scheduled',
-        dotColor: '#2F5D8F',
-        count: stats?.by_status?.scheduled ?? 0,
-      },
-      {
-        value: 'in_progress',
-        label: 'In Progress',
-        dotColor: '#F97316',
-        count: stats?.by_status?.in_progress ?? 0,
-      },
-      {
-        value: 'completed',
-        label: 'Completed',
-        dotColor: '#10B981',
-        count: stats?.by_status?.completed ?? 0,
-      },
-      {
-        value: 'cancelled',
-        label: 'Cancelled',
-        dotColor: '#EF4444',
-        count: stats?.by_status?.cancelled ?? 0,
-      },
-    ];
-  }, [stats, totalCount]);
-
   // 2. Staff Dropdown Options
   const staffOptions: SelectOption[] = useMemo(() => {
     const allRow: SelectOption = {
@@ -154,7 +109,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
   return (
     <div className="cm-filter-card">
-      <div className="cm-filter-grid">
+      <div className="cm-filter-grid cm-filter-grid-appointments">
         {/* Search Field */}
         <div className={`cm-filter-cell cm-filter-cell-search ${isSearchFocused || localSearch ? 'is-active' : ''}`}>
           <label htmlFor="appointment-search" className="cm-filter-label">
@@ -195,19 +150,6 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
-        </div>
-
-        {/* Status Dropdown */}
-        <div className={`cm-filter-cell ${statusFilter ? 'is-active' : ''}`}>
-          <span className="cm-filter-label">Status</span>
-          <SelectMenu
-            id="status-select-menu"
-            value={statusFilter}
-            options={statusOptions}
-            onChange={onStatusChange}
-            placeholder="All Status"
-            ariaLabel="Filter appointments by status"
-          />
         </div>
 
         {/* Assigned To Dropdown */}

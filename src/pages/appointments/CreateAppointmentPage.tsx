@@ -1,32 +1,35 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, type ChangeEvent, type FocusEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
-  ChevronRight,
-  User,
-  MapPin,
-  FileText,
-  Phone,
-  Mail,
-  MessageSquare,
-  Globe,
-  Users,
-  Footprints,
+  ArrowLeft,
+  ArrowRight,
+  Building2,
   Calendar as CalendarIcon,
-  CheckCircle2,
-  Clock,
-  Loader2
+  Check,
+  ChevronRight,
+  FileText,
+  Footprints,
+  Globe,
+  Mail,
+  MapPin,
+  MessageSquare,
+  Phone,
+  User,
+  Users,
 } from 'lucide-react';
 import { appointmentsApi } from '../../api/appointments';
 import { usersApi } from '../../api/users';
 import { useToast } from '../../components/ui/Toast';
 import { useQuery } from '@tanstack/react-query';
 import type { Customer } from '../../types';
-import { FormInput } from '../../components/ui/FormInput';
+import { CountrySelect } from '../../components/appointments/CountrySelect';
+import { DatePicker } from '../../components/ui/DatePicker';
+import { COUNTRIES, DEFAULT_COUNTRY } from '../../components/appointments/countryData';
+import './CreateAppointmentPage.css';
 
-// ── Zod Schema ─────────────────────────────────────────────────────────────
 const appointmentSchema = z.object({
   firstName: z.string().min(2, 'Required'),
   lastName: z.string().min(2, 'Required'),
@@ -45,8 +48,36 @@ const appointmentSchema = z.object({
 
 type AppointmentFormValues = z.infer<typeof appointmentSchema>;
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-const sources = [
+type FormCardProps = {
+  title: string;
+  icon: typeof User;
+  tone: 'brand' | 'emerald' | 'amber';
+  rightSlot?: ReactNode;
+  className?: string;
+  children: ReactNode;
+};
+
+type FieldProps = {
+  label: string;
+  htmlFor?: string;
+  required?: boolean;
+  optional?: boolean;
+  error?: string;
+  children: ReactNode;
+};
+
+type PhoneFieldProps = {
+  error?: string;
+  selectedCountry: (typeof COUNTRIES)[number];
+  onSelectCountry: (country: (typeof COUNTRIES)[number]) => void;
+  fieldId?: string;
+  value?: string;
+  onChange?: (event: ChangeEvent<HTMLInputElement>) => void;
+  onBlur?: (event: FocusEvent<HTMLInputElement>) => void;
+  name?: string;
+};
+
+const sourceOptions = [
   { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
   { id: 'phone', label: 'Phone Call', icon: Phone },
   { id: 'email', label: 'Email', icon: Mail },
@@ -68,9 +99,263 @@ const jobTypes = [
   { value: 'repair', label: 'Repair' },
 ];
 
+const steps = [
+  { num: 1, label: 'Customer & Location' },
+  { num: 2, label: 'Schedule & Confirm' },
+];
 
+function PageHeader() {
+  const navigate = useNavigate();
 
-// ── Component ──────────────────────────────────────────────────────────────
+  return (
+    <header className="appointment-page__header" style={{ animationDelay: '0ms' }}>
+      <div>
+        <h1 className="appointment-page__title">Schedule Appointment</h1>
+        <nav className="appointment-page__breadcrumb" aria-label="Breadcrumb">
+          <button type="button" className="appointment-page__crumb" onClick={() => navigate('/appointments')}>
+            Appointments
+          </button>
+          <ChevronRight className="appointment-page__separator" />
+          <span className="appointment-page__current">New Appointment</span>
+        </nav>
+      </div>
+    </header>
+  );
+}
+
+function Stepper({ step }: { step: 1 | 2 }) {
+  return (
+    <div className="appointment-stepper" style={{ animationDelay: '60ms' }}>
+      <div className="appointment-stepper__row">
+        {steps.map((item, index) => {
+          const isActive = step === item.num;
+          const isComplete = step > item.num;
+          const isLast = index === steps.length - 1;
+
+          return (
+            <div key={item.num} className="appointment-stepper__item">
+              <div className="appointment-stepper__step-wrap">
+                <div
+                  className={`appointment-stepper__badge ${isActive ? 'is-active' : ''} ${isComplete ? 'is-complete' : ''} ${step < item.num ? 'is-upcoming' : ''}`}
+                >
+                  {isComplete ? <Check className="appointment-stepper__check" /> : item.num}
+                </div>
+                <span className={`appointment-stepper__label ${isActive ? 'is-active' : ''} ${step < item.num ? 'is-upcoming' : ''}`}>
+                  {item.label}
+                </span>
+              </div>
+              {!isLast && (
+                <div className="appointment-stepper__connector-wrap">
+                  <div className="appointment-stepper__connector-track" />
+                  <div
+                    className="appointment-stepper__connector-fill"
+                    style={{ width: step === 1 ? '50%' : '100%' }}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="appointment-stepper__mobile-caption">Step 1 of 2 • Customer & Location</div>
+    </div>
+  );
+}
+
+function FormCard({ title, icon: Icon, tone, rightSlot, className = '', children }: FormCardProps) {
+  return (
+    <section className={`appointment-card ${className}`}>
+      <div className="appointment-card__header">
+        <div className={`appointment-card__icon appointment-card__icon--${tone}`}>
+          <Icon className="appointment-card__icon-svg" />
+        </div>
+        <h2 className="appointment-card__title">{title}</h2>
+        {rightSlot}
+      </div>
+      <div className="appointment-card__body">{children}</div>
+    </section>
+  );
+}
+
+function Field({ label, htmlFor, required, optional, error, children }: FieldProps) {
+  return (
+    <div className={`appointment-field ${error ? 'is-invalid' : ''}`}>
+      <div className="appointment-field__header">
+        <label htmlFor={htmlFor} className="appointment-field__label">
+          {label}
+          {required && <span className="appointment-field__asterisk">*</span>}
+        </label>
+        {optional && <span className="appointment-field__optional">Optional</span>}
+      </div>
+      {children}
+      {error && (
+        <p id={htmlFor ? `${htmlFor}-error` : undefined} className="appointment-field__error">
+          <span className="appointment-field__error-icon">!</span>
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function PhoneField({
+  error,
+  selectedCountry,
+  onSelectCountry,
+  fieldId = 'phone',
+  value,
+  onChange,
+  onBlur,
+  name,
+}: PhoneFieldProps) {
+  return (
+    <div className={`appointment-field ${error ? 'is-invalid' : ''}`}>
+      <div className="appointment-field__header">
+        <label htmlFor={fieldId} className="appointment-field__label">
+          Phone Number
+          <span className="appointment-field__asterisk">*</span>
+        </label>
+      </div>
+
+      <div className="appointment-phone-field" data-invalid={Boolean(error)}>
+        <div className="appointment-phone-field__country">
+          <CountrySelect selectedCountry={selectedCountry} onSelectCountry={onSelectCountry} />
+        </div>
+        <input
+          id={fieldId}
+          type="tel"
+          name={name}
+          value={value}
+          onChange={onChange}
+          onBlur={onBlur}
+          inputMode="tel"
+          autoComplete="tel-national"
+          autoCapitalize="none"
+          placeholder="50 000 0000"
+          className="appointment-phone-field__input"
+        />
+      </div>
+
+      {error && (
+        <p className="appointment-field__error">
+          <span className="appointment-field__error-icon">!</span>
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function SourcePicker({ selectedSource, onChange }: { selectedSource: string; onChange: (value: string) => void }) {
+  const sourceKeys = sourceOptions.map((option) => option.id);
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const currentIndex = sourceKeys.indexOf(selectedSource);
+    const nextIndex = currentIndex === -1 ? 0 : currentIndex;
+
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      const targetIndex = (nextIndex + 1) % sourceKeys.length;
+      onChange(sourceKeys[targetIndex]);
+      return;
+    }
+
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const targetIndex = (nextIndex - 1 + sourceKeys.length) % sourceKeys.length;
+      onChange(sourceKeys[targetIndex]);
+      return;
+    }
+
+    if (event.key === ' ' || event.key === 'Enter') {
+      event.preventDefault();
+      onChange(sourceKeys[nextIndex]);
+    }
+  };
+
+  return (
+    <div
+      className="appointment-source-picker"
+      role="radiogroup"
+      aria-label="Appointment source"
+      onKeyDown={handleKeyDown}
+    >
+      {sourceOptions.map((option) => {
+        const Icon = option.icon;
+        const isSelected = selectedSource === option.id;
+
+        return (
+          <button
+            key={option.id}
+            type="button"
+            role="radio"
+            aria-checked={isSelected}
+            tabIndex={isSelected ? 0 : -1}
+            className={`appointment-source-tile ${isSelected ? 'is-selected' : ''}`}
+            onClick={() => onChange(option.id)}
+          >
+            <span className={`appointment-source-tile__icon ${isSelected ? 'is-selected' : ''}`}>
+              <Icon className="appointment-source-tile__svg" />
+            </span>
+            <span className="appointment-source-tile__label">{option.label}</span>
+            {isSelected && (
+              <span className="appointment-source-tile__check">
+                <Check className="appointment-source-tile__check-icon" />
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function StickyFooter({
+  step,
+  isSubmitting,
+  onCancel,
+  onSubmit,
+}: {
+  step: 1 | 2;
+  isSubmitting: boolean;
+  onCancel: () => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <footer className="appointment-footer" style={{ animationDelay: '280ms' }}>
+      <div className="appointment-footer__inner">
+        <button type="button" className="appointment-footer__cancel" onClick={onCancel}>
+          <ArrowLeft className="appointment-footer__cancel-icon" />
+          Cancel
+        </button>
+
+        <div className="appointment-footer__center">
+          <span className="appointment-footer__step-label">Step {step} of 2</span>
+          <div className="appointment-footer__progress" aria-hidden="true">
+            <span className={`appointment-footer__progress-segment ${step >= 1 ? 'is-on' : ''}`} />
+            <span className={`appointment-footer__progress-segment ${step >= 2 ? 'is-on' : ''}`} />
+          </div>
+        </div>
+
+        <button type="button" className="appointment-footer__primary" onClick={onSubmit} disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <span className="appointment-footer__spinner" aria-hidden="true" />
+              <span className="appointment-footer__button-label">Processing</span>
+            </>
+          ) : (
+            <>
+              <CalendarIcon className="appointment-footer__primary-icon" />
+              <span className="appointment-footer__button-label">Continue to Scheduling</span>
+              <ArrowRight className="appointment-footer__primary-arrow" />
+            </>
+          )}
+        </button>
+      </div>
+    </footer>
+  );
+}
+
 export default function CreateAppointmentPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -81,11 +366,13 @@ export default function CreateAppointmentPage() {
   const [step, setStep] = useState<1 | 2>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [existingCustomer, setExistingCustomer] = useState<Customer | null>(null);
+  const [selectedCountry, setSelectedCountry] = useState(DEFAULT_COUNTRY);
 
   const { data: usersRes } = useQuery({
     queryKey: ['users'],
-    queryFn: () => usersApi.list()
+    queryFn: () => usersApi.list(),
   });
+
   const users = useMemo(() => {
     const raw = usersRes?.data;
     if (Array.isArray(raw)) return raw;
@@ -100,20 +387,29 @@ export default function CreateAppointmentPage() {
     handleSubmit,
     setValue,
     watch,
-    formState: { errors }
+    formState: { errors },
   } = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
     defaultValues: {
-      firstName: '', lastName: '', phone: '', email: '',
-      building: '', room: '', address: '',
-      source: 'whatsapp', assignedTo: '',
-      jobType: 'installation', date: new Date().toISOString().split('T')[0],
-      time: '09:00 AM', notes: ''
-    }
+      firstName: '',
+      lastName: '',
+      phone: '',
+      email: '',
+      building: '',
+      room: '',
+      address: '',
+      source: 'whatsapp',
+      assignedTo: '',
+      jobType: 'installation',
+      date: new Date().toISOString().split('T')[0],
+      time: '09:00 AM',
+      notes: '',
+    },
   });
 
   const selectedSource = watch('source');
   const selectedTime = watch('time');
+  const phoneInputProps = register('phone');
 
   useEffect(() => {
     if (editAppointment) {
@@ -156,7 +452,7 @@ export default function CreateAppointmentPage() {
   const onSubmit = async (data: AppointmentFormValues) => {
     if (step === 1) {
       const step1Fields = ['firstName', 'lastName', 'phone', 'building', 'source'] as const;
-      const hasErrors = step1Fields.some(field => errors[field]);
+      const hasErrors = step1Fields.some((field) => errors[field]);
       if (!hasErrors) setStep(2);
       return;
     }
@@ -213,268 +509,271 @@ export default function CreateAppointmentPage() {
     else navigate(-1);
   };
 
-  const steps = [
-    { num: 1, label: 'Customer & Location' },
-    { num: 2, label: 'Schedule & Confirm' },
-  ];
+  const handleSourceChange = (value: string) => setValue('source', value);
 
   return (
-    <div className="space-y-6 animate-page-in font-sans">
+    <div className="appointment-page">
+      <div className="appointment-page__shell">
+        <PageHeader />
+        <Stepper step={step} />
 
-      {/* ── Page Header ─────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-[28px] font-extrabold text-[#1e293b] tracking-tight">
-            Schedule Appointment
-          </h1>
-          <div className="flex items-center gap-2 mt-1 text-[13px] font-medium text-slate-500">
-            <span className="hover:text-[#2b5c8f] cursor-pointer" onClick={() => navigate('/appointments')}>Appointments</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-            <span className="text-[#2b5c8f]">New Appointment</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Stepper ─────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 p-5">
-        <div className="flex items-center gap-4 max-w-lg mx-auto">
-          {steps.map((s, i) => (
-            <div key={s.num} className="flex items-center gap-3 flex-1">
-              <div className="flex items-center gap-3 flex-1">
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-extrabold shrink-0 transition-all ${step >= s.num
-                    ? 'bg-[#2b5c8f] text-white shadow-md shadow-[#2b5c8f]/20'
-                    : 'bg-slate-100 text-slate-400'
-                  }`}>
-                  {step > s.num ? <CheckCircle2 className="w-5 h-5" /> : s.num}
-                </div>
-                <span className={`text-[13px] font-bold whitespace-nowrap ${step >= s.num ? 'text-slate-800' : 'text-slate-400'
-                  }`}>{s.label}</span>
-              </div>
-              {i < steps.length - 1 && (
-                <div className={`h-0.5 flex-1 rounded-full transition-all ${step > s.num ? 'bg-[#2b5c8f]' : 'bg-slate-200'
-                  }`} />
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Form ────────────────────────────────────────────────── */}
-      <form onSubmit={handleSubmit(onSubmit)}>
-
-        {step === 1 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-page-in">
-
-            {/* Customer Info Card */}
-            <div className="bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#eef2ff] flex items-center justify-center text-[#2b5c8f]">
-                  <User className="w-4 h-4" />
-                </div>
-                <h2 className="text-[16px] font-bold text-[#1e293b]">Customer Information</h2>
-                {existingCustomer ? (
-                  <span className="ml-auto flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-full text-[11px] font-bold uppercase tracking-wide">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Existing
-                  </span>
-                ) : (
-                  <span className="ml-auto px-2.5 py-1 bg-amber-50 border border-amber-100 text-amber-600 rounded-full text-[11px] font-bold uppercase tracking-wide">
-                    New Customer
-                  </span>
-                )}
-              </div>
-              <div className="p-6 space-y-4">
-                {existingCustomer && (
-                  <div className="flex items-center gap-4 p-4 bg-slate-50/80 rounded-xl border border-slate-100 mb-2">
-                    <div className="w-12 h-12 rounded-full bg-[#eef2ff] text-[#2b5c8f] flex items-center justify-center text-[16px] font-extrabold">
-                      {existingCustomer.first_name[0]}{existingCustomer.last_name[0]}
+        <form className="appointment-form" onSubmit={handleSubmit(onSubmit)}>
+          {step === 1 && (
+            <>
+              <div className="appointment-form-grid">
+                <FormCard
+                  title="Customer Information"
+                  icon={User}
+                  tone="brand"
+                  rightSlot={
+                    existingCustomer ? (
+                      <span className="appointment-status-pill appointment-status-pill--existing">
+                        <span className="appointment-status-pill__dot" />
+                        Existing customer
+                      </span>
+                    ) : null
+                  }
+                >
+                  {existingCustomer && (
+                    <div className="appointment-identity-strip">
+                      <div className="appointment-identity-strip__avatar">
+                        {existingCustomer.first_name?.[0] || 'C'}
+                        {existingCustomer.last_name?.[0] || 'U'}
+                      </div>
+                      <div className="appointment-identity-strip__body">
+                        <div className="appointment-identity-strip__name">
+                          {existingCustomer.first_name} {existingCustomer.last_name}
+                        </div>
+                        <div className="appointment-identity-strip__meta">
+                          {existingCustomer.phone || existingCustomer.email}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-[16px] font-extrabold text-slate-800">{existingCustomer.first_name} {existingCustomer.last_name}</p>
-                      <p className="text-[13px] text-slate-500 font-medium">{existingCustomer.phone || existingCustomer.email}</p>
+                  )}
+
+                  <div className="appointment-field-grid appointment-field-grid--two" style={{ marginTop: existingCustomer ? '18px' : '0' }}>
+                    <Field label="First Name" htmlFor="firstName" required error={errors.firstName?.message}>
+                      <input
+                        id="firstName"
+                        type="text"
+                        autoComplete="given-name"
+                        autoCapitalize="words"
+                        inputMode="text"
+                        placeholder="Midlaj"
+                        className="appointment-input"
+                        {...register('firstName')}
+                      />
+                    </Field>
+                    <Field label="Last Name" htmlFor="lastName" required error={errors.lastName?.message}>
+                      <input
+                        id="lastName"
+                        type="text"
+                        autoComplete="family-name"
+                        autoCapitalize="words"
+                        inputMode="text"
+                        placeholder="Midhu"
+                        className="appointment-input"
+                        {...register('lastName')}
+                      />
+                    </Field>
+                  </div>
+
+                  <PhoneField
+                    fieldId="phone"
+                    error={errors.phone?.message}
+                    selectedCountry={selectedCountry}
+                    onSelectCountry={setSelectedCountry}
+                    value={watch('phone')}
+                    onChange={(event) => setValue('phone', event.target.value, { shouldValidate: true })}
+                    onBlur={phoneInputProps.onBlur}
+                    name={phoneInputProps.name}
+                  />
+
+                  <Field label="Email Address" htmlFor="email" optional error={errors.email?.message}>
+                    <input
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      inputMode="email"
+                      autoCapitalize="none"
+                      placeholder="midhumidali77@gmail.com"
+                      className="appointment-input"
+                      {...register('email')}
+                    />
+                  </Field>
+                </FormCard>
+
+                <FormCard title="Location Details" icon={MapPin} tone="emerald">
+                  <Field label="Building / Area / Street" htmlFor="building" required error={errors.building?.message}>
+                    <div className="appointment-input-shell">
+                      <MapPin className="appointment-input-shell__icon" />
+                      <input
+                        id="building"
+                        type="text"
+                        autoComplete="street-address"
+                        autoCapitalize="words"
+                        inputMode="text"
+                        placeholder="e.g. Marina Heights, JBR"
+                        className="appointment-input appointment-input--with-icon"
+                        {...register('building')}
+                      />
+                    </div>
+                  </Field>
+
+                  <Field label="Apartment / Unit Number" htmlFor="room" optional error={errors.room?.message}>
+                    <div className="appointment-input-shell">
+                      <Building2 className="appointment-input-shell__icon" />
+                      <input
+                        id="room"
+                        type="text"
+                        autoComplete="street-address"
+                        autoCapitalize="words"
+                        inputMode="text"
+                        placeholder="e.g. Apt 12B"
+                        className="appointment-input appointment-input--with-icon"
+                        {...register('room')}
+                      />
+                    </div>
+                  </Field>
+
+                  <Field label="Full Address" htmlFor="address" optional error={errors.address?.message}>
+                    <textarea
+                      id="address"
+                      autoComplete="street-address"
+                      autoCapitalize="words"
+                      placeholder="45 Innovation Park\nSuite 302"
+                      className="appointment-textarea"
+                      {...register('address')}
+                    />
+                  </Field>
+                </FormCard>
+              </div>
+
+              <FormCard title="Appointment Source" icon={FileText} tone="amber" className="appointment-source-card">
+                <SourcePicker selectedSource={selectedSource} onChange={handleSourceChange} />
+              </FormCard>
+            </>
+          )}
+
+          {step === 2 && (
+            <div className="appointment-form-grid">
+              <div className="appointment-card appointment-card--flat">
+                <div className="appointment-card__header">
+                  <div className="appointment-card__icon appointment-card__icon--amber">
+                    <FileText className="appointment-card__icon-svg" />
+                  </div>
+                  <h2 className="appointment-card__title">Job Details</h2>
+                </div>
+                <div className="appointment-card__body">
+                  <div className="appointment-field">
+                    <div className="appointment-field__header">
+                      <label className="appointment-field__label">
+                        Job Type
+                        <span className="appointment-field__asterisk">*</span>
+                      </label>
+                    </div>
+                    <div className="appointment-job-types">
+                      {jobTypes.map((job) => {
+                        const isSelected = watch('jobType') === job.value;
+                        return (
+                          <button
+                            key={job.value}
+                            type="button"
+                            className={`appointment-job-type ${isSelected ? 'is-selected' : ''}`}
+                            onClick={() => setValue('jobType', job.value)}
+                          >
+                            {job.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
-                )}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <FormInput label="First Name" icon={User} required error={errors.firstName?.message} {...register('firstName')} placeholder="First name" />
-                  <FormInput label="Last Name" icon={User} required error={errors.lastName?.message} {...register('lastName')} placeholder="Last name" />
-                </div>
-                <div>
-                  <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Phone Number <span className="text-red-500">*</span></label>
-                  <div className={`flex border ${errors.phone ? 'border-red-300' : 'border-slate-200'} rounded-xl overflow-hidden focus-within:border-[#2b5c8f] focus-within:ring-2 focus-within:ring-[#2b5c8f]/10 transition-all bg-slate-50/50`}>
-                    <div className="flex items-center gap-1.5 px-3 bg-slate-50/80 border-r border-slate-200">
-                      <span className="text-base">🇦🇪</span>
-                      <span className="text-[13px] font-bold text-slate-700">+971</span>
+
+                  <Field label="Assign To" htmlFor="assignedTo">
+                    <select id="assignedTo" className="appointment-input appointment-select" {...register('assignedTo')}>
+                      <option value="">— Unassigned —</option>
+                      {(Array.isArray(users) ? users : []).map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.full_name} ({user.email})
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <div className="appointment-highlight-box">
+                    <div className="appointment-highlight-box__row">
+                      <span className="appointment-highlight-box__label">Source</span>
+                      <span className="appointment-highlight-box__value">{selectedSource.replace('_', ' ')}</span>
                     </div>
-                    <input type="tel" {...register('phone')} placeholder="50 000 0000" className="flex-1 px-4 py-3 bg-transparent text-slate-800 text-[14px] font-semibold outline-none" />
                   </div>
-                  {errors.phone && <p className="text-[12px] text-red-500 font-medium mt-1">{errors.phone.message}</p>}
                 </div>
-                <FormInput label="Email Address" icon={Mail} error={errors.email?.message} type="email" {...register('email')} placeholder="customer@example.com" />
               </div>
-            </div>
 
-            {/* Location Card */}
-            <div className="bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#ecfdf5] flex items-center justify-center text-[#10b981]">
-                  <MapPin className="w-4 h-4" />
+              <div className="appointment-card appointment-card--flat">
+                <div className="appointment-card__header">
+                  <div className="appointment-card__icon appointment-card__icon--brand">
+                    <CalendarIcon className="appointment-card__icon-svg" />
+                  </div>
+                  <h2 className="appointment-card__title">Booking Slot</h2>
                 </div>
-                <h2 className="text-[16px] font-bold text-[#1e293b]">Location Details</h2>
-              </div>
-              <div className="p-6 space-y-4">
-                <FormInput label="Building / Area / Street" required error={errors.building?.message} {...register('building')} placeholder="e.g. Marina Heights, JBR" />
-                <FormInput label="Apartment / Unit Number" {...register('room')} placeholder="e.g. Apt 12B" />
-                <div>
-                  <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Full Address</label>
-                  <textarea rows={3} {...register('address')} placeholder="Full address for navigation..." className="w-full p-4 bg-slate-50/50 border border-slate-200 rounded-xl text-[14px] font-semibold text-slate-800 outline-none focus:border-[#2b5c8f] focus:ring-2 focus:ring-[#2b5c8f]/10 transition-all resize-none" />
-                </div>
-              </div>
-            </div>
+                <div className="appointment-card__body">
+                  <Field label="Appointment Date" htmlFor="date" required error={errors.date?.message}>
+                    <DatePicker
+                      id="date"
+                      required
+                      value={watch('date') || ''}
+                      className="w-full"
+                      aria-invalid={Boolean(errors.date)}
+                      aria-describedby={errors.date ? 'date-error' : undefined}
+                      {...register('date')}
+                    />
+                  </Field>
 
-            {/* Source Card — full width */}
-            <div className="lg:col-span-2 bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#fef3c7] flex items-center justify-center text-[#d97706]">
-                  <FileText className="w-4 h-4" />
-                </div>
-                <h2 className="text-[16px] font-bold text-[#1e293b]">Appointment Source</h2>
-              </div>
-              <div className="p-6">
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                  {sources.map(src => (
-                    <button
-                      key={src.id}
-                      type="button"
-                      onClick={() => setValue('source', src.id)}
-                      className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border text-left transition-all ${selectedSource === src.id
-                          ? 'bg-[#2b5c8f] border-[#2b5c8f] text-white shadow-md shadow-[#2b5c8f]/15'
-                          : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                        }`}
-                    >
-                      <src.icon className="w-4 h-4 shrink-0" />
-                      <span className="text-[13px] font-bold">{src.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-page-in">
-
-            {/* Job Type & Assignee */}
-            <div className="bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#fef3c7] flex items-center justify-center text-[#d97706]">
-                  <FileText className="w-4 h-4" />
-                </div>
-                <h2 className="text-[16px] font-bold text-[#1e293b]">Job Details</h2>
-              </div>
-              <div className="p-6 space-y-5">
-                <div>
-                  <label className="block text-[13px] font-bold text-slate-700 mb-2">Job Type <span className="text-red-500">*</span></label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {jobTypes.map(jt => {
-                      const selected = watch('jobType') === jt.value;
-                      return (
-                        <button key={jt.value} type="button" onClick={() => setValue('jobType', jt.value)}
-                          className={`px-4 py-3 rounded-xl border text-[13px] font-bold transition-all ${selected
-                              ? 'bg-[#2b5c8f] border-[#2b5c8f] text-white shadow-md shadow-[#2b5c8f]/15'
-                              : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                            }`}>
-                          {jt.label}
+                  <div className="appointment-field">
+                    <div className="appointment-field__header">
+                      <label className="appointment-field__label">
+                        Select Time Slot
+                        <span className="appointment-field__asterisk">*</span>
+                      </label>
+                    </div>
+                    <div className="appointment-time-grid">
+                      {timeSlots.map((slot) => (
+                        <button
+                          key={slot}
+                          type="button"
+                          className={`appointment-time-slot ${selectedTime === slot ? 'is-selected' : ''}`}
+                          onClick={() => setValue('time', slot)}
+                        >
+                          {slot}
                         </button>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Assign To</label>
-                  <select
-                    {...register('assignedTo')}
-                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200 rounded-xl text-[14px] font-semibold text-slate-800 outline-none focus:border-[#2b5c8f] focus:ring-2 focus:ring-[#2b5c8f]/10 transition-all"
-                  >
-                    <option value="">— Unassigned —</option>
-                    {(Array.isArray(users) ? users : []).map((u) => (
-                      <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[13px] font-bold text-slate-700 mb-2">Source</label>
-                  <div className="flex items-center gap-2 px-4 py-3 bg-slate-50/80 rounded-xl border border-slate-100">
-                    <CheckCircle2 className="w-4 h-4 text-[#2b5c8f]" />
-                    <span className="text-[14px] font-bold text-slate-800 capitalize">{selectedSource.replace('_', ' ')}</span>
+              </div>
+
+              <div className="appointment-card appointment-card--notes appointment-card--flat" style={{ gridColumn: '1 / -1' }}>
+                <div className="appointment-card__header">
+                  <div className="appointment-card__icon appointment-card__icon--neutral">
+                    <FileText className="appointment-card__icon-svg" />
                   </div>
+                  <h2 className="appointment-card__title">Requirements & Notes</h2>
+                </div>
+                <div className="appointment-card__body">
+                  <textarea className="appointment-textarea" placeholder="e.g. customer requires room darkening fabric, specific measurement areas, preferred installation time..." {...register('notes')} />
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Booking Slot */}
-            <div className="bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#eef2ff] flex items-center justify-center text-[#2b5c8f]">
-                  <CalendarIcon className="w-4 h-4" />
-                </div>
-                <h2 className="text-[16px] font-bold text-[#1e293b]">Booking Slot</h2>
-              </div>
-              <div className="p-6 space-y-5">
-                <div>
-                  <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Appointment Date <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#2b5c8f]" />
-                    <input type="date" {...register('date')} className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-[14px] font-bold text-slate-800 outline-none focus:border-[#2b5c8f] focus:ring-2 focus:ring-[#2b5c8f]/10 transition-all" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[13px] font-bold text-slate-700 mb-2">
-                    <Clock className="w-3.5 h-3.5 inline mr-1.5 -mt-0.5" />Select Time Slot <span className="text-red-500">*</span>
-                  </label>
-                  <div className="grid grid-cols-5 gap-2">
-                    {timeSlots.map(slot => (
-                      <button key={slot} type="button" onClick={() => setValue('time', slot)}
-                        className={`py-2.5 rounded-xl text-[11px] font-bold transition-all border ${selectedTime === slot
-                            ? 'bg-[#2b5c8f] text-white border-[#2b5c8f] shadow-md shadow-[#2b5c8f]/15'
-                            : 'bg-white text-slate-500 border-slate-200 hover:border-[#2b5c8f]'
-                          }`}>
-                        {slot}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Notes — full width */}
-            <div className="lg:col-span-2 bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#f3f4f6] flex items-center justify-center text-[#6b7280]">
-                  <FileText className="w-4 h-4" />
-                </div>
-                <h2 className="text-[16px] font-bold text-[#1e293b]">Requirements & Notes</h2>
-              </div>
-              <div className="p-6">
-                <textarea rows={4} {...register('notes')} placeholder="e.g. customer requires room darkening fabric, specific measurement areas, preferred installation time..." className="w-full p-4 bg-slate-50/50 border border-slate-200 rounded-xl text-[14px] font-semibold text-slate-700 outline-none focus:border-[#2b5c8f] focus:ring-2 focus:ring-[#2b5c8f]/10 transition-all resize-none" />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Action Bar ───────────────────────────────────────────── */}
-        <div className="flex items-center justify-between mt-6 pt-6 border-t border-slate-200">
-          <button type="button" onClick={handleBack}
-            className="px-6 py-3 rounded-xl border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-colors">
-            ← {step === 1 ? 'Cancel' : 'Back'}
-          </button>
-          <button type="submit" disabled={isSubmitting}
-            className="flex items-center gap-2 px-8 py-3 bg-[#2b5c8f] text-white font-bold text-sm rounded-xl shadow-md shadow-[#2b5c8f]/20 hover:bg-[#1f456e] hover:-translate-y-0.5 transition-all disabled:opacity-70">
-            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CalendarIcon className="w-4 h-4" />}
-            {step === 1 ? 'Continue to Scheduling' : 'Confirm Appointment'}
-          </button>
-        </div>
-      </form>
+          <StickyFooter
+            step={step}
+            isSubmitting={isSubmitting}
+            onCancel={handleBack}
+            onSubmit={() => handleSubmit(onSubmit)()}
+          />
+        </form>
+      </div>
     </div>
   );
 }

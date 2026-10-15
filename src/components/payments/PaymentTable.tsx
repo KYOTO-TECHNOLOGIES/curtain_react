@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import type { Payment, PaymentMethod } from '../../types';
 import { DataTable, type DataTableColumn, type SortDirection } from '../ui/DataTable';
+import { ColumnHeaderFilter } from '../ui/ColumnHeaderFilter';
+import { COLUMN_FILTER_CONFIG } from '../ui/filterConfig.js';
 import './PaymentTable.css';
 
 export interface PaymentTableProps {
@@ -21,6 +23,9 @@ export interface PaymentTableProps {
   onViewInvoice: (invoiceId: string) => void;
   onClearFilters?: () => void;
   totalCount?: number;
+  methodFilter: string;
+  onMethodChange: (method: string) => void;
+  methodCounts: Record<string, number | undefined>;
 }
 
 const PAYMENT_METHOD_ACCENT_COLORS: Record<string, string> = {
@@ -84,6 +89,9 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({
   onViewInvoice,
   onClearFilters,
   totalCount,
+  methodFilter,
+  onMethodChange,
+  methodCounts,
 }) => {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -117,9 +125,6 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({
         }
         case 'amount':
           comparison = parseFloat(a.amount || '0') - parseFloat(b.amount || '0');
-          break;
-        case 'method':
-          comparison = (a.method || '').localeCompare(b.method || '');
           break;
         case 'date':
           comparison = (a.payment_date || '').localeCompare(b.payment_date || '');
@@ -192,9 +197,22 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({
     {
       key: 'method',
       label: 'Method',
-      sortable: true,
-      width: '155px',
+      sortable: false,
+      width: '180px',
       className: 'pay-col-method',
+      headerAddonOnly: true,
+      headerAddon: (
+        <ColumnHeaderFilter
+          options={COLUMN_FILTER_CONFIG.payments.options}
+          value={methodFilter}
+          onChange={onMethodChange}
+          counts={methodCounts}
+          label={COLUMN_FILTER_CONFIG.payments.label}
+          allLabel={COLUMN_FILTER_CONFIG.payments.allLabel}
+          entityName={COLUMN_FILTER_CONFIG.payments.entityName}
+          searchable={COLUMN_FILTER_CONFIG.payments.searchable}
+        />
+      ),
       render: (p) => renderMethodBadge(p.method),
     },
     {
@@ -306,6 +324,19 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({
       emptyDescription="Try adjusting your search query or method filter."
       onClearFilters={onClearFilters}
       footer={footer}
+      mobileToolbar={(
+        <ColumnHeaderFilter
+          options={COLUMN_FILTER_CONFIG.payments.options}
+          value={methodFilter}
+          onChange={onMethodChange}
+          counts={methodCounts}
+          label={COLUMN_FILTER_CONFIG.payments.label}
+          allLabel={COLUMN_FILTER_CONFIG.payments.allLabel}
+          entityName={COLUMN_FILTER_CONFIG.payments.entityName}
+          searchable={COLUMN_FILTER_CONFIG.payments.searchable}
+          mobile
+        />
+      )}
       renderSkeletonRow={renderSkeletonRow}
       skeletonCount={6}
     />

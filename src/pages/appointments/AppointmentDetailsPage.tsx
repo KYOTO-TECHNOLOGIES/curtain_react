@@ -19,6 +19,7 @@ import {
 import { appointmentsApi } from '../../api/appointments';
 import { usersApi } from '../../api/users';
 import { useToast } from '../../components/ui/Toast';
+import { DatePicker } from '../../components/ui/DatePicker';
 import type { AppointmentDetail, User } from '../../types';
 
 type AppointmentFormState = {
@@ -133,6 +134,12 @@ function FormField({
             </option>
           ))}
         </select>
+      ) : type === 'date' ? (
+        <DatePicker
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+        />
       ) : (
         <input
           type={type}

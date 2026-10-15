@@ -1,10 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
+import { UserCheck, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Loader2,
-  ChevronDown,
-  UserCheck
-} from 'lucide-react';
 import { appointmentsApi } from '../../api/appointments';
 import { customersApi } from '../../api/customers';
 import { usersApi } from '../../api/users';
@@ -16,8 +12,10 @@ import { StatusSummary } from '../../components/appointments/StatusSummary';
 import { AppointmentHeader } from '../../components/appointments/AppointmentHeader';
 import { FilterBar } from '../../components/appointments/FilterBar';
 import { AppointmentTable } from '../../components/appointments/AppointmentTable';
+import { CustomerLookupModal } from '../../components/appointments/CustomerLookupModal';
 import { Pagination } from '../../components/ui/Pagination';
 import { usePagination } from '../../hooks/usePagination';
+import { DatePicker } from '../../components/ui/DatePicker';
 
 export default function AppointmentsPage() {
   const navigate = useNavigate();
@@ -142,21 +140,44 @@ export default function AppointmentsPage() {
 
   const [lookupError, setLookupError] = useState<string | null>(null);
 
-  const handleLookup = async (e: React.FormEvent) => {
+  const handleLookup = async (
+    e: React.FormEvent,
+    payload?: { type: 'phone' | 'email'; query: string; fullPhone?: string }
+  ) => {
     e.preventDefault();
-    if (!lookupQuery.trim()) return;
+    const activeQuery = payload?.query || lookupQuery;
+    const activeType = payload?.type || lookupType;
+    if (!activeQuery.trim()) return;
+
     setIsLookingUp(true);
     setLookupError(null);
     try {
-      const params = lookupType === 'email' ? { email: lookupQuery } : { phone: lookupQuery };
-      const res = await customersApi.lookup(params);
+      const params = activeType === 'email' ? { email: activeQuery.trim().toLowerCase() } : { phone: activeQuery.trim() };
+      let res;
+      try {
+        res = await customersApi.lookup(params);
+      } catch (innerErr: any) {
+        // Fallback: If phone lookup with dial code (+97150...) returned 404, try without dial code or vice versa
+        if (activeType === 'phone' && (innerErr?.response?.status === 404 || innerErr?.response?.data?.found === false)) {
+          const altPhone = activeQuery.startsWith('+')
+            ? activeQuery.replace(/^\+\d{1,4}/, '')
+            : `+971${activeQuery.replace(/^0/, '')}`;
+          if (altPhone !== activeQuery) {
+            res = await customersApi.lookup({ phone: altPhone });
+          } else {
+            throw innerErr;
+          }
+        } else {
+          throw innerErr;
+        }
+      }
 
       setLookupOpen(false);
       navigate('/appointments/create', {
         state: {
           lookupResult: res.data,
-          lookupQuery,
-          lookupType
+          lookupQuery: activeQuery,
+          lookupType: activeType
         }
       });
     } catch (error: any) {
@@ -213,7 +234,6 @@ export default function AppointmentsPage() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         statusFilter={statusFilter}
-        onStatusChange={(status) => setStatusFilter(status)}
         assigneeFilter={assigneeFilter}
         onAssigneeChange={(assignee) => setAssigneeFilter(assignee)}
         onClearFilters={() => {
@@ -241,6 +261,9 @@ export default function AppointmentsPage() {
         appointments={filtered}
         loading={loading}
         totalCount={totalCount}
+        statusFilter={statusFilter}
+        onStatusChange={(status) => setStatusFilter(status)}
+        stats={stats}
         onSelectAppointment={(a) => navigate(`/appointments/${a.id}`)}
         onAssign={(a) => openAssign(a)}
         onQuote={(a) => navigate(`/appointments/${a.id}`)}
@@ -290,7 +313,7 @@ export default function AppointmentsPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Date *</label>
-              <input type="date" required value={form.appointment_date} onChange={(e) => setForm({ ...form, appointment_date: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm" />
+              <DatePicker required value={form.appointment_date || ''} onChange={(event) => setForm({ ...form, appointment_date: event.target.value })} className="w-full" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Time *</label>
@@ -320,110 +343,20 @@ export default function AppointmentsPage() {
         </form>
       </Modal>
 
-      {/* Customer Lookup Modal */}
-      <Modal open={lookupOpen} onClose={() => setLookupOpen(false)} title="" maxWidth="max-w-md">
-        <div className="text-center mb-6">
-          <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <svg className="w-6 h-6 text-[#2b5c8f]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-            </svg>
-          </div>
-          <h2 className="text-[22px] font-extrabold text-[#1e293b] mb-1">Customer Lookup</h2>
-          <p className="text-sm font-medium text-slate-500">Search by phone number or email to continue</p>
-        </div>
-
-        <form onSubmit={handleLookup} className="space-y-5">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-[13px] font-bold text-slate-700">
-                {lookupType === 'phone' ? 'Phone Number' : 'Email Address'} <span className="text-red-500">*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => {
-                  setLookupType(lookupType === 'phone' ? 'email' : 'phone');
-                  setLookupQuery('');
-                }}
-                className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 text-[#2b5c8f] text-[12px] font-bold rounded-full border border-slate-200 hover:bg-slate-100 transition-colors"
-              >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                Switch to {lookupType === 'phone' ? 'Email' : 'Phone'}
-              </button>
-            </div>
-
-            {lookupType === 'phone' ? (
-              <div className="flex border border-slate-200 rounded-xl overflow-hidden focus-within:border-[#2b5c8f] focus-within:ring-2 focus-within:ring-[#2b5c8f]/20 transition-all bg-slate-50">
-                <div className="flex items-center gap-2 px-3 bg-white border-r border-slate-200">
-                  <span className="text-lg">🇦🇪</span>
-                  <span className="text-[14px] font-bold text-slate-700">+971</span>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                </div>
-                <input
-                  type="tel"
-                  value={lookupQuery}
-                  onChange={(e) => setLookupQuery(e.target.value)}
-                  placeholder="50 000 0000"
-                  className="flex-1 px-4 py-3.5 bg-slate-50 text-slate-800 text-[15px] font-semibold outline-none"
-                  autoFocus
-                />
-              </div>
-            ) : (
-              <input
-                type="email"
-                value={lookupQuery}
-                onChange={(e) => setLookupQuery(e.target.value)}
-                placeholder="customer@example.com"
-                className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-[15px] font-semibold outline-none focus:border-[#2b5c8f] focus:ring-2 focus:ring-[#2b5c8f]/20 transition-all"
-                autoFocus
-              />
-            )}
-          </div>
-
-          {lookupError ? (
-            <div className="flex flex-col gap-3 p-4 bg-red-50 border border-red-100 rounded-xl">
-              <div className="flex items-start gap-3">
-                <div className="text-red-500 mt-0.5">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <p className="text-[13px] font-bold text-red-700 leading-relaxed">
-                  {lookupError}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleCreateNewCustomer}
-                className="w-full py-2.5 bg-red-100 text-red-700 hover:bg-red-200 font-bold text-[13px] rounded-lg transition-colors"
-              >
-                Create New Customer
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-start gap-3 p-4 bg-slate-50 border border-slate-100 rounded-xl">
-              <div className="text-slate-400 mt-0.5">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <p className="text-[13px] font-medium text-slate-500 leading-relaxed">
-                Enter a phone number or email address to search.
-              </p>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={isLookingUp || !lookupQuery.trim()}
-            className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#2b5c8f] text-white font-bold text-[15px] rounded-xl shadow-md shadow-indigo-500/20 hover:bg-[#1f456e] transition-all disabled:opacity-70 mt-2"
-          >
-            {isLookingUp ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-            Search Customer
-          </button>
-        </form>
-      </Modal>
+      {/* Customer Lookup Modal (Design Spells Redesign) */}
+      <CustomerLookupModal
+        open={lookupOpen}
+        onClose={() => setLookupOpen(false)}
+        lookupQuery={lookupQuery}
+        setLookupQuery={setLookupQuery}
+        lookupType={lookupType}
+        setLookupType={setLookupType}
+        isLookingUp={isLookingUp}
+        lookupError={lookupError}
+        setLookupError={setLookupError}
+        onSearch={handleLookup}
+        onCreateNewCustomer={handleCreateNewCustomer}
+      />
       {/* Assign Modal */}
       <Modal open={assignOpen} onClose={() => setAssignOpen(false)} title="Assign Appointment" maxWidth="max-w-md">
         <div className="space-y-6">

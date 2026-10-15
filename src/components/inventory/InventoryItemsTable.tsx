@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import type { InventoryItem } from '../../types';
 import { DataTable, type DataTableColumn, type SortDirection } from '../ui/DataTable';
+import { ColumnHeaderFilter } from '../ui/ColumnHeaderFilter';
+import { COLUMN_FILTER_CONFIG } from '../ui/filterConfig.js';
 import './InventoryTable.css';
 
 interface InventoryItemsTableProps {
@@ -24,6 +26,9 @@ interface InventoryItemsTableProps {
   onDeleteItem: (item: InventoryItem) => void;
   onClearFilters?: () => void;
   totalCount?: number;
+  categoryFilter: string;
+  onCategoryChange: (category: string) => void;
+  categoryCounts: Record<string, number | undefined>;
 }
 
 const CATEGORY_STYLES: Record<
@@ -63,6 +68,9 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
   onDeleteItem,
   onClearFilters,
   totalCount,
+  categoryFilter,
+  onCategoryChange,
+  categoryCounts,
 }) => {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -99,9 +107,6 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
         case 'name':
           comparison = a.name.localeCompare(b.name);
           break;
-        case 'category':
-          comparison = a.category.localeCompare(b.category);
-          break;
         case 'stock': {
           const qtyA = parseFloat(a.quantity_on_hand || '0');
           const qtyB = parseFloat(b.quantity_on_hand || '0');
@@ -132,7 +137,7 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
       key: 'sku',
       label: 'Item & SKU',
       sortable: true,
-      width: '260px',
+      className: 'inv-col-sku',
       render: (item) => {
         const isCopied = copiedSku === item.sku;
         return (
@@ -140,7 +145,7 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
             <div className="p-2.5 rounded-xl bg-[#2F5D8F]/10 flex-shrink-0 text-[#2F5D8F]">
               <Warehouse className="w-4 h-4" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="inv-sku-chip" title={item.sku}>
                   <span>{item.sku}</span>
@@ -164,7 +169,7 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
                   </span>
                 )}
               </div>
-              <p className="text-[13px] font-bold text-slate-900 mt-1 truncate max-w-[210px]" title={item.name}>
+              <p className="text-[13px] font-bold text-slate-900 mt-1 truncate" title={item.name}>
                 {item.name}
               </p>
             </div>
@@ -175,8 +180,24 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
     {
       key: 'category',
       label: 'Category',
-      sortable: true,
-      width: '130px',
+      sortable: false,
+      width: '160px',
+      className: 'inv-col-category',
+      headerAddonOnly: true,
+      headerAddon: (
+        <ColumnHeaderFilter
+          options={COLUMN_FILTER_CONFIG.inventory.options}
+          value={categoryFilter}
+          onChange={onCategoryChange}
+          counts={categoryCounts}
+          label={COLUMN_FILTER_CONFIG.inventory.label}
+          allLabel={COLUMN_FILTER_CONFIG.inventory.allLabel}
+          entityName={COLUMN_FILTER_CONFIG.inventory.entityName}
+          searchable={COLUMN_FILTER_CONFIG.inventory.searchable}
+          searchPlaceholder={COLUMN_FILTER_CONFIG.inventory.searchPlaceholder}
+          maxPillWidth={140}
+        />
+      ),
       render: (item) => {
         const config = CATEGORY_STYLES[item.category] || CATEGORY_STYLES.other;
         return (
@@ -198,7 +219,7 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
       key: 'stock',
       label: 'Stock Health',
       sortable: true,
-      width: '210px',
+      width: '175px',
       render: (item) => {
         const onHand = parseFloat(item.quantity_on_hand || '0');
         const reorderLevel = parseFloat(item.reorder_level || '0');
@@ -253,7 +274,7 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
       key: 'value',
       label: 'Cost & Value',
       sortable: true,
-      width: '160px',
+      width: '145px',
       render: (item) => {
         const val = parseFloat(item.stock_value || '0');
         const unitCost = parseFloat(item.unit_cost || '0');
@@ -271,7 +292,7 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
       key: 'supplier',
       label: 'Supplier',
       sortable: true,
-      width: '170px',
+      width: '140px',
       render: (item) => {
         if (!item.supplier_name) {
           return <span className="text-slate-400 text-xs">—</span>;
@@ -280,7 +301,7 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
         return (
           <div className="inv-supplier-chip" title={item.supplier_name}>
             <span className="inv-supplier-avatar">{initials}</span>
-            <span className="truncate max-w-[125px]">{item.supplier_name}</span>
+            <span className="truncate max-w-[100px]">{item.supplier_name}</span>
           </div>
         );
       },
@@ -288,7 +309,7 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
     {
       key: 'actions',
       label: 'Actions',
-      width: '180px',
+      width: '210px',
       align: 'right',
       render: (item) => (
         <div className="inv-action-group" onClick={(e) => e.stopPropagation()}>
@@ -346,6 +367,21 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
       emptyTitle="No inventory items found"
       emptyDescription="Try clearing filters or search to view textile stocks, or create a new item."
       onClearFilters={onClearFilters}
+      mobileToolbar={(
+        <ColumnHeaderFilter
+          options={COLUMN_FILTER_CONFIG.inventory.options}
+          value={categoryFilter}
+          onChange={onCategoryChange}
+          counts={categoryCounts}
+          label={COLUMN_FILTER_CONFIG.inventory.label}
+          allLabel={COLUMN_FILTER_CONFIG.inventory.allLabel}
+          entityName={COLUMN_FILTER_CONFIG.inventory.entityName}
+          searchable={COLUMN_FILTER_CONFIG.inventory.searchable}
+          searchPlaceholder={COLUMN_FILTER_CONFIG.inventory.searchPlaceholder}
+          maxPillWidth={140}
+          mobile
+        />
+      )}
       rowStyle={(item) => ({
         // Dynamic left accent bar on hover
         '--row-status-color':

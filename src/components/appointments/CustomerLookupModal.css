@@ -1,0 +1,936 @@
+/* ── Customer Lookup Modal (Design Spells Aesthetic) ────────────── */
+
+:root {
+  --cl-brand: #2F5D8F;
+  --cl-brand-hover: #264B74;
+  --cl-brand-tint: #EEF4FA;
+  --cl-brand-ring: rgba(47, 93, 143, 0.14);
+  --cl-border: #E2E8F0;
+  --cl-border-hover: #CBD5E1;
+  --cl-radius-modal: 24px;
+  --cl-radius-control: 14px;
+  --cl-shadow-modal: 0 24px 64px -16px rgba(15, 23, 42, 0.35), 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+/* ── Modal Overlay ─────────────────────────────────────────────── */
+.cl-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background-color: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: clOverlayFadeIn 200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes clOverlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── Modal Card ────────────────────────────────────────────────── */
+.cl-modal-card {
+  position: relative;
+  width: 440px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 48px);
+  background: #FFFFFF;
+  background-image: radial-gradient(ellipse 280px 160px at 50% 0%, #EEF4FA 0%, rgba(255, 255, 255, 0) 75%);
+  border-radius: var(--cl-radius-modal);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: var(--cl-shadow-modal);
+  padding: 32px 32px 28px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+  animation: clCardEnter 280ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.cl-modal-card::-webkit-scrollbar {
+  width: 5px;
+}
+.cl-modal-card::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cl-modal-card::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+
+@keyframes clCardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── Close Button ──────────────────────────────────────────────── */
+.cl-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #94A3B8;
+  cursor: pointer;
+  z-index: 10;
+  transition: background-color 200ms ease, color 200ms ease, transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cl-close-btn:hover {
+  background-color: #F1F5F9;
+  color: #334155;
+  transform: rotate(90deg);
+}
+
+.cl-close-btn:focus-visible {
+  outline: 2px solid var(--cl-brand);
+  outline-offset: 2px;
+}
+
+/* ── Drag Handle (Mobile bottom sheet) ─────────────────────────── */
+.cl-drag-handle {
+  display: none;
+  width: 36px;
+  height: 4px;
+  border-radius: 9999px;
+  background-color: #CBD5E1;
+  margin: 0 auto 16px auto;
+}
+
+/* ── Hero Section ──────────────────────────────────────────────── */
+.cl-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+/* Icon Badge with Pulse Ring */
+.cl-icon-badge-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  animation: clBadgePop 350ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes clBadgePop {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.cl-pulse-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 26px;
+  background: radial-gradient(circle, rgba(47, 93, 143, 0.22) 0%, rgba(47, 93, 143, 0) 70%);
+  animation: clPulseRing 2.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  pointer-events: none;
+}
+
+.cl-pulse-ring.is-paused {
+  animation-play-state: paused;
+}
+
+@keyframes clPulseRing {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.35;
+  }
+  70% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.cl-icon-badge {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #F6F9FC 0%, #E4EDF7 100%);
+  box-shadow: inset 0 0 0 1px rgba(47, 93, 143, 0.12), 0 4px 12px rgba(47, 93, 143, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cl-brand);
+}
+
+.cl-magnifier-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.cl-magnifier-icon.is-scanning {
+  animation: clScanPath 1.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+@keyframes clScanPath {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(2px, -2px); }
+  50% { transform: translate(0, 2px); }
+  75% { transform: translate(-2px, -1px); }
+  100% { transform: translate(0, 0); }
+}
+
+.cl-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: #0F172A;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.cl-subtitle {
+  font-size: 14.5px;
+  font-weight: 450;
+  color: #64748B;
+  margin: 6px 0 0 0;
+  line-height: 1.4;
+  transition: opacity 150ms ease;
+}
+
+/* ── Mode Segmented Control ────────────────────────────────────── */
+.cl-mode-toggle {
+  display: flex;
+  position: relative;
+  width: 100%;
+  max-width: 280px;
+  height: 40px;
+  margin: 0 auto 20px auto;
+  background-color: #F1F5F9;
+  border-radius: 12px;
+  padding: 4px;
+  user-select: none;
+}
+
+.cl-mode-thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  background: #FFFFFF;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.cl-mode-thumb.is-email {
+  transform: translateX(100%);
+}
+
+.cl-mode-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  border: none;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #64748B;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: color 150ms ease;
+}
+
+.cl-mode-tab:focus-visible {
+  outline: 2px solid var(--cl-brand);
+  outline-offset: -2px;
+}
+
+.cl-mode-tab.is-active {
+  color: #0F172A;
+}
+
+.cl-mode-icon {
+  width: 15px;
+  height: 15px;
+}
+
+/* ── Field Group ───────────────────────────────────────────────── */
+.cl-field-wrap {
+  margin-bottom: 8px;
+}
+
+.cl-field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.cl-field-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #334155;
+  transition: color 150ms ease;
+}
+
+.cl-field-label.is-focused {
+  color: var(--cl-brand);
+}
+
+.cl-field-required {
+  color: #EF4444;
+  margin-left: 2px;
+  font-size: 13px;
+}
+
+/* ── Input Control Container ───────────────────────────────────── */
+.cl-control-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 52px;
+  background-color: #FFFFFF;
+  border: 1px solid var(--cl-border);
+  border-radius: var(--cl-radius-control);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  overflow: visible;
+}
+
+.cl-control-group:hover {
+  border-color: var(--cl-border-hover);
+}
+
+.cl-control-group.is-focused {
+  border-color: var(--cl-brand);
+  box-shadow: 0 0 0 4px var(--cl-brand-ring);
+}
+
+.cl-control-group.is-invalid {
+  border-color: #EF4444 !important;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12) !important;
+  animation: clShake 240ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes clShake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(3px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
+
+/* ── Country Selector Segment ──────────────────────────────────── */
+.cm-country-segment {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 112px;
+  height: 100%;
+  padding: 0 10px 0 14px;
+  background-color: #F8FAFC;
+  border: none;
+  border-top-left-radius: calc(var(--cl-radius-control) - 1px);
+  border-bottom-left-radius: calc(var(--cl-radius-control) - 1px);
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+  transition: background-color 150ms ease;
+  flex-shrink: 0;
+}
+
+.cm-country-segment:hover {
+  background-color: #F1F5F9;
+}
+
+.cm-country-flag-wrap {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.cm-country-flag {
+  display: block;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.cm-country-code-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1E293B;
+  font-variant-numeric: tabular-nums;
+  margin-left: 6px;
+  margin-right: 4px;
+}
+
+.cm-country-chevron {
+  width: 14px;
+  height: 14px;
+  color: #94A3B8;
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  flex-shrink: 0;
+}
+
+.cm-country-chevron.is-rotated {
+  transform: rotate(180deg);
+}
+
+.cm-country-segment-divider {
+  position: absolute;
+  right: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 1px;
+  background-color: var(--cl-border);
+  transition: opacity 150ms ease;
+}
+
+.cm-country-segment.group-focused .cm-country-segment-divider {
+  opacity: 0.25;
+}
+
+/* ── Text / Phone / Email Inputs ───────────────────────────────── */
+.cl-input {
+  flex: 1;
+  height: 100%;
+  padding: 0 42px 0 14px;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 16px; /* Prevents auto-zoom on iOS Safari */
+  font-weight: 600;
+  color: #0F172A;
+}
+
+.cl-input::placeholder {
+  color: #94A3B8;
+  font-weight: 400;
+}
+
+.cl-input-phone {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.cl-input-email-wrap {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.cl-input-email-icon {
+  width: 18px;
+  height: 18px;
+  color: #94A3B8;
+  margin-left: 16px;
+  flex-shrink: 0;
+  transition: color 150ms ease;
+}
+
+.cl-control-group.is-focused .cl-input-email-icon {
+  color: var(--cl-brand);
+}
+
+/* Mode Switch Crossfade Animation */
+.cl-mode-anim-wrap {
+  animation: clModeCrossfade 180ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes clModeCrossfade {
+  from {
+    opacity: 0.4;
+    transform: translateX(var(--cl-slide-dir, 8px));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ── Right-Side Validity Indicator ─────────────────────────────── */
+.cl-valid-badge {
+  position: absolute;
+  right: 14px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #10B981;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.3);
+  animation: clBadgeScaleIn 200ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes clBadgeScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.cl-check-svg {
+  width: 12px;
+  height: 12px;
+  stroke: #FFFFFF;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+  animation: clDrawCheck 250ms ease forwards;
+}
+
+@keyframes clDrawCheck {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ── Live Helper / Hint Row ────────────────────────────────────── */
+.cl-hint-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 20px;
+  margin-top: 8px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  line-height: 1.4;
+  transition: color 150ms ease, opacity 150ms ease;
+}
+
+.cl-hint-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.cl-hint-row.is-idle {
+  color: #64748B;
+}
+
+.cl-hint-row.is-incomplete {
+  color: #D97706; /* amber-600 */
+}
+
+.cl-hint-row.is-valid {
+  color: #059669; /* emerald-600 */
+}
+
+.cl-hint-row.is-error {
+  color: #DC2626; /* rose-600 */
+}
+
+/* ── Primary Submit Button ─────────────────────────────────────── */
+.cl-submit-btn {
+  position: relative;
+  width: 100%;
+  height: 52px;
+  border-radius: var(--cl-radius-control);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  overflow: hidden;
+  user-select: none;
+  transition: all 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cl-submit-btn:focus-visible {
+  outline: 2px solid var(--cl-brand);
+  outline-offset: 2px;
+}
+
+/* Disabled State */
+.cl-submit-btn:disabled,
+.cl-submit-btn.is-disabled {
+  background: #F1F5F9 !important;
+  color: #94A3B8 !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Enabled State */
+.cl-submit-btn.is-enabled {
+  background: linear-gradient(180deg, #336699 0%, #2A5483 100%);
+  color: #FFFFFF;
+  box-shadow: 0 8px 20px -8px rgba(47, 93, 143, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.cl-submit-btn.is-enabled:hover:not(:disabled) {
+  background: linear-gradient(180deg, #3A72AA 0%, #2E5D92 100%);
+  box-shadow: 0 10px 24px -8px rgba(47, 93, 143, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transform: translateY(-1px);
+}
+
+.cl-submit-btn.is-enabled:hover:not(:disabled) .cl-submit-icon {
+  transform: translateX(2px);
+}
+
+.cl-submit-btn.is-enabled:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.cl-submit-icon {
+  width: 18px;
+  height: 18px;
+  transition: transform 180ms ease;
+}
+
+/* Sheen sweep animation on initial enable */
+.cl-sheen-sweep::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.25) 50%, transparent 100%);
+  transform: skewX(-20deg);
+  animation: clSheenSweep 600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes clSheenSweep {
+  0% { left: -100%; }
+  100% { left: 160%; }
+}
+
+/* ── Enter Shortcut Hint ───────────────────────────────────────── */
+.cl-enter-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #94A3B8;
+  margin-top: 12px;
+}
+
+.cl-kbd-enter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background-color: #F1F5F9;
+  border: 1px solid #CBD5E1;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748B;
+  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.05);
+}
+
+/* ── Result / Error Note Card ──────────────────────────────────── */
+.cl-result-note {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  margin-top: 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  animation: clSlideDown 200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes clSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cl-result-note.is-not-found {
+  background-color: #FFFBEB; /* amber-50 */
+  border: 1px solid #FDE68A; /* amber-200 */
+}
+
+.cl-result-note.is-error {
+  background-color: #FEF2F2; /* rose-50 */
+  border: 1px solid #FECDD3; /* rose-200 */
+}
+
+.cl-create-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  background-color: #F59E0B;
+  color: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(245, 158, 11, 0.2);
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.cl-create-btn:hover {
+  background-color: #D97706;
+  transform: translateY(-1px);
+}
+
+/* ── Country Popover ───────────────────────────────────────────── */
+.cm-country-popover {
+  position: fixed;
+  z-index: 10000;
+  width: 300px;
+  background: #FFFFFF;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+  animation: clPopoverOpen 160ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes clPopoverOpen {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.cm-country-search-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 12px;
+  background: #FFFFFF;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.cm-country-search-icon {
+  width: 15px;
+  height: 15px;
+  color: #94A3B8;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.cm-country-search-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #0F172A;
+  background: transparent;
+}
+
+.cm-country-search-input::placeholder {
+  color: #94A3B8;
+  font-weight: 400;
+}
+
+.cm-country-list-scroll {
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 6px 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+}
+
+.cm-country-list-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.cm-country-list-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+
+.cm-country-group-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94A3B8;
+  padding: 8px 10px 4px 10px;
+  user-select: none;
+}
+
+.cm-country-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  user-select: none;
+  transition: background-color 100ms ease;
+}
+
+.cm-country-item:hover,
+.cm-country-item.is-highlighted {
+  background-color: #F8FAFC;
+}
+
+.cm-country-item.is-selected {
+  background-color: #EEF4FA;
+}
+
+.cm-country-name {
+  flex: 1;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #1E293B;
+  margin-left: 10px;
+  margin-right: 8px;
+}
+
+.cm-country-dial-code {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748B;
+  font-variant-numeric: tabular-nums;
+  margin-right: 6px;
+}
+
+.cm-country-check-wrap {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cm-country-check-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--cl-brand);
+}
+
+.cm-country-empty {
+  padding: 24px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: #94A3B8;
+}
+
+/* ── Staggered Entrance Animations ─────────────────────────────── */
+.cl-stagger-1 { animation: clFadeIn 280ms ease 0ms both; }
+.cl-stagger-2 { animation: clFadeIn 280ms ease 50ms both; }
+.cl-stagger-3 { animation: clFadeIn 280ms ease 100ms both; }
+.cl-stagger-4 { animation: clFadeIn 280ms ease 150ms both; }
+.cl-stagger-5 { animation: clFadeIn 280ms ease 200ms both; }
+.cl-stagger-6 { animation: clFadeIn 280ms ease 250ms both; }
+
+@keyframes clFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Mobile Bottom Sheet (< 480px) ─────────────────────────────── */
+@media (max-width: 480px) {
+  .cl-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .cl-modal-card {
+    width: 100%;
+    max-width: 100%;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    padding: 16px 20px max(24px, env(safe-area-inset-bottom)) 20px;
+    animation: clSheetSlideUp 280ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  @keyframes clSheetSlideUp {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .cl-drag-handle {
+    display: block;
+  }
+
+  .cl-enter-hint {
+    display: none;
+  }
+}
+
+/* ── Prefers Reduced Motion ────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .cl-modal-overlay,
+  .cl-modal-card,
+  .cl-close-btn,
+  .cl-icon-badge-wrap,
+  .cl-pulse-ring,
+  .cl-magnifier-icon.is-scanning,
+  .cl-mode-thumb,
+  .cl-mode-anim-wrap,
+  .cl-valid-badge,
+  .cl-check-svg,
+  .cl-sheen-sweep::after,
+  .cl-control-group.is-invalid,
+  .cl-stagger-1,
+  .cl-stagger-2,
+  .cl-stagger-3,
+  .cl-stagger-4,
+  .cl-stagger-5,
+  .cl-stagger-6 {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { RowsPerPageSelect } from './RowsPerPageSelect';
 import './Pagination.css';
 
 export interface PaginationProps {
@@ -142,23 +143,16 @@ export function Pagination({
 
       {/* Page size selector */}
       {onPageSizeChange && (
-        <div className="pagination-page-size">
-          <span>Rows:</span>
-          <select
-            value={pageSize}
-            onChange={(e) => {
-              onPageSizeChange(Number(e.target.value));
-              onPageChange(1); // Reset to first page
-            }}
-            disabled={loading}
-          >
-            {pageSizeOptions.map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
-        </div>
+        <RowsPerPageSelect
+          value={pageSize}
+          options={pageSizeOptions}
+          total={totalCount}
+          disabled={loading}
+          onChange={(size) => {
+            onPageSizeChange(size);
+            onPageChange(1);
+          }}
+        />
       )}
     </div>
   );

@@ -13,6 +13,8 @@ export interface DataTableColumn<T> {
   headerClassName?: string;
   width?: string;
   render?: (row: T, index: number) => React.ReactNode;
+  headerAddon?: React.ReactNode;
+  headerAddonOnly?: boolean;
 }
 
 export interface DataTableProps<T> {
@@ -32,6 +34,7 @@ export interface DataTableProps<T> {
   emptyDescription?: string;
   onClearFilters?: () => void;
   footer?: React.ReactNode;
+  mobileToolbar?: React.ReactNode;
   renderSkeletonRow?: (index: number) => React.ReactNode;
   skeletonCount?: number;
   className?: string;
@@ -54,12 +57,14 @@ export function DataTable<T>({
   emptyDescription = 'Try adjusting your search or filters to find what you are looking for.',
   onClearFilters,
   footer,
+  mobileToolbar,
   renderSkeletonRow,
   skeletonCount = 6,
   className = '',
 }: DataTableProps<T>) {
   return (
     <div className={`apt-table-card ${className}`}>
+      {mobileToolbar && <div className="apt-table-mobile-toolbar">{mobileToolbar}</div>}
       <div className="apt-table-scroll">
         <table className="apt-table">
           <thead>
@@ -84,7 +89,9 @@ export function DataTable<T>({
                     style={col.width ? { width: col.width } : undefined}
                     aria-sort={col.sortable ? ariaSortVal : undefined}
                   >
-                    {col.sortable && onSort ? (
+                    {col.headerAddonOnly ? col.headerAddon : (
+                      <span className={col.headerAddon ? 'apt-table-heading-group' : undefined}>
+                        {col.sortable && onSort ? (
                       <button
                         type="button"
                         className="apt-sort-btn"
@@ -104,8 +111,11 @@ export function DataTable<T>({
                           }}
                         />
                       </button>
-                    ) : (
-                      <span>{col.label}</span>
+                        ) : (
+                          <span>{col.label}</span>
+                        )}
+                        {col.headerAddon}
+                      </span>
                     )}
                   </th>
                 );

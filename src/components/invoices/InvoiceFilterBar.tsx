@@ -1,33 +1,26 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, RotateCcw } from 'lucide-react';
-import { SelectMenu, type SelectOption } from '../ui/SelectMenu';
 import { useSlashShortcut } from '../../hooks/useSlashShortcut';
-import type { InvoiceStats, InvoiceListItem } from '../../types';
 import '../appointments/FilterBar.css';
 
 interface InvoiceFilterBarProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
   statusFilter: string;
-  onStatusChange: (status: string) => void;
   onClearFilters: () => void;
   totalCount: number;
   filteredCount: number;
   totalCollected: string;
-  stats?: InvoiceStats | null;
-  invoices?: InvoiceListItem[];
 }
 
 export const InvoiceFilterBar: React.FC<InvoiceFilterBarProps> = ({
   searchQuery,
   onSearchChange,
   statusFilter,
-  onStatusChange,
   onClearFilters,
   totalCount,
   filteredCount,
   totalCollected,
-  stats,
 }) => {
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -61,55 +54,6 @@ export const InvoiceFilterBar: React.FC<InvoiceFilterBarProps> = ({
 
   const isFiltered = Boolean(localSearch.trim() || statusFilter);
 
-  // Status Dropdown Options
-  const statusOptions: SelectOption[] = useMemo(() => {
-    const total = stats?.total ?? totalCount;
-    return [
-      {
-        value: '',
-        label: 'All Status',
-        isDotCluster: true,
-        count: total,
-      },
-      {
-        value: 'paid',
-        label: 'Paid',
-        dotColor: '#10B981',
-        count: stats?.by_status?.paid ?? 0,
-      },
-      {
-        value: 'partially_paid',
-        label: 'Partially Paid',
-        dotColor: '#0EA5E9',
-        count: stats?.by_status?.partially_paid ?? 0,
-      },
-      {
-        value: 'sent',
-        label: 'Sent',
-        dotColor: '#2F5D8F',
-        count: stats?.by_status?.sent ?? 0,
-      },
-      {
-        value: 'overdue',
-        label: 'Overdue',
-        dotColor: '#EF4444',
-        count: stats?.by_status?.overdue ?? stats?.overdue ?? 0,
-      },
-      {
-        value: 'draft',
-        label: 'Draft',
-        dotColor: '#F97316',
-        count: stats?.by_status?.draft ?? 0,
-      },
-      {
-        value: 'cancelled',
-        label: 'Cancelled',
-        dotColor: '#64748B',
-        count: stats?.by_status?.cancelled ?? 0,
-      },
-    ];
-  }, [stats, totalCount]);
-
   const handleClear = () => {
     setIsSpinning(true);
     setLocalSearch('');
@@ -119,12 +63,7 @@ export const InvoiceFilterBar: React.FC<InvoiceFilterBarProps> = ({
 
   return (
     <div className="cm-filter-card">
-      <div
-        className="cm-filter-grid"
-        style={{
-          gridTemplateColumns: 'minmax(240px, 1.8fr) 220px auto 1fr auto',
-        }}
-      >
+      <div className="cm-filter-grid cm-filter-grid-invoice-statusless">
         {/* Search Field */}
         <div
           className={`cm-filter-cell cm-filter-cell-search ${
@@ -169,19 +108,6 @@ export const InvoiceFilterBar: React.FC<InvoiceFilterBarProps> = ({
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
-        </div>
-
-        {/* Status Dropdown */}
-        <div className={`cm-filter-cell ${statusFilter ? 'is-active' : ''}`}>
-          <span className="cm-filter-label">Status</span>
-          <SelectMenu
-            id="invoice-status-select-menu"
-            value={statusFilter}
-            options={statusOptions}
-            onChange={onStatusChange}
-            placeholder="All Status"
-            ariaLabel="Filter invoices by status"
-          />
         </div>
 
         {/* Clear filters ghost button */}

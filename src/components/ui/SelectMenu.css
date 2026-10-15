@@ -2,8 +2,19 @@
 
 :root {
   --cm-brand-blue: #2F5D8F;
+  --cm-brand-tint: #EEF4FA;
   --cm-brand-hover: #264C75;
   --cm-brand-focus-ring: rgba(47, 93, 143, 0.14);
+  --cm-select-slate-border: #E2E8F0;
+  --cm-select-slate-hover: #CBD5E1;
+  --cm-select-slate-text: #1E293B;
+  --cm-select-slate-muted: #64748B;
+  --cm-select-radius-trigger: 10px;
+  --cm-select-radius-popover: 14px;
+  --cm-select-popover-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.06);
+  --cm-select-duration-fast: 150ms;
+  --cm-select-duration-enter: 160ms;
+  --cm-select-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* ── Trigger Button ────────────────────────────────────────────── */
@@ -51,6 +62,201 @@
   flex-shrink: 0;
   margin-left: 8px;
   transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), color 150ms ease;
+}
+
+.select-menu-trigger--compact {
+  width: auto;
+  min-width: 76px;
+  height: 36px;
+  gap: 8px;
+  padding: 0 10px 0 12px;
+  border-radius: var(--cm-select-radius-trigger);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  box-shadow: none;
+  transition: border-color var(--cm-select-duration-fast) ease, box-shadow var(--cm-select-duration-fast) ease, transform var(--cm-select-duration-fast) ease;
+}
+
+.select-menu-trigger--compact:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.select-menu-trigger--compact .select-menu-chevron {
+  margin-left: 0;
+}
+
+.select-menu-header-root {
+  vertical-align: middle;
+}
+
+.select-menu-header-control {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #94A3B8;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.select-menu-header-control.is-active {
+  min-height: 26px;
+  max-width: var(--column-filter-max-width, none);
+  border-color: color-mix(in srgb, var(--select-status-color) 20%, transparent);
+  background: var(--select-status-tint);
+  color: var(--select-status-color);
+  border-radius: 999px;
+  animation: selectMenuHeaderPop 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.select-menu-header-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 32px;
+  height: 32px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #94A3B8;
+  font: inherit;
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.select-menu-header-trigger:hover:not(:disabled),
+.select-menu-header-control.is-open .select-menu-header-trigger {
+  background: #F1F5F9;
+  color: #334155;
+}
+
+.select-menu-header-control:not(.is-active).is-open .select-menu-header-trigger {
+  color: var(--cm-brand-blue);
+}
+
+.select-menu-header-control.is-active .select-menu-header-trigger {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  justify-content: flex-start;
+  height: 24px;
+  padding: 0 0 0 8px;
+  color: var(--select-status-color);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.select-menu-header-control.is-active .select-menu-header-trigger:hover {
+  background: transparent;
+  color: var(--select-status-color);
+}
+
+.select-menu-header-control.is-active.is-open .select-menu-header-trigger {
+  background: transparent;
+  color: var(--select-status-color);
+}
+
+.select-menu-header-trigger:focus-visible,
+.select-menu-header-clear:focus-visible {
+  outline: 2px solid var(--cm-brand-blue);
+  outline-offset: 2px;
+}
+
+.select-menu-header-chevron {
+  width: 14px;
+  height: 14px;
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.select-menu-header-control.is-open .select-menu-header-chevron {
+  transform: rotate(180deg);
+}
+
+.select-menu-header-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+}
+
+.select-menu-header-value {
+  animation: selectMenuHeaderFade 150ms ease both;
+}
+
+.select-menu-header-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  margin-right: 1px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--select-status-color);
+  cursor: pointer;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.select-menu-search-wrapper--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-top: 2px;
+  background: #FFFFFF;
+}
+
+.select-menu-option--wrap {
+  height: auto;
+  min-height: 40px;
+  max-height: 56px;
+  white-space: normal;
+}
+
+.select-menu-option-label--wrap {
+  display: -webkit-box;
+  overflow: hidden;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.select-menu-header-clear:hover {
+  background: rgba(255, 255, 255, 0.7);
+  transform: scale(1.08);
+}
+
+.select-menu-header-clear svg {
+  width: 16px;
+  height: 16px;
+}
+
+@keyframes selectMenuHeaderPop {
+  from { opacity: 0.6; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes selectMenuHeaderFade {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.select-menu-compact-value {
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+  animation: selectMenuValueChange 140ms var(--cm-select-ease-out) both;
+}
+
+@keyframes selectMenuValueChange {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .select-menu-trigger.is-open .select-menu-chevron {
@@ -105,6 +311,86 @@
   min-width: 220px;
   overflow: hidden;
   will-change: transform, opacity;
+}
+
+.select-menu-popover--compact {
+  position: fixed;
+  min-width: 140px;
+  max-width: calc(100vw - 16px);
+  border-radius: var(--cm-select-radius-popover);
+  border-color: rgba(15, 23, 42, 0.06);
+  box-shadow: var(--cm-select-popover-shadow);
+}
+
+.select-menu-popover--header {
+  position: fixed;
+  min-width: 220px;
+  border-color: rgba(15, 23, 42, 0.06);
+}
+
+.select-menu-popover--header.is-closing {
+  animation: headerPopoverExit 110ms ease-in forwards;
+  pointer-events: none;
+}
+
+@keyframes headerPopoverExit {
+  to { opacity: 0; transform: translateY(-4px) scale(0.96); }
+}
+
+.select-menu-popover--compact.placement-top {
+  transform-origin: bottom left;
+}
+
+.select-menu-popover--compact.placement-bottom {
+  transform-origin: top left;
+}
+
+.rows-per-page-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: #64748B;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.rows-per-page-label {
+  white-space: nowrap;
+}
+
+.rows-per-page-label-short {
+  display: none;
+}
+
+.select-menu-popover--compact.is-closing {
+  pointer-events: none;
+}
+
+@media (max-width: 639px) {
+  .rows-per-page-label-full {
+    display: none;
+  }
+
+  .rows-per-page-label-short {
+    display: inline;
+  }
+}
+
+.select-menu-popover--compact.placement-top.is-closing {
+  animation: compactPopoverExitTop 110ms ease-in forwards;
+}
+
+.select-menu-popover--compact.placement-bottom.is-closing {
+  animation: compactPopoverExitBottom 110ms ease-in forwards;
+}
+
+@keyframes compactPopoverExitTop {
+  to { opacity: 0; transform: translateY(4px) scale(0.96); }
+}
+
+@keyframes compactPopoverExitBottom {
+  to { opacity: 0; transform: translateY(-4px) scale(0.96); }
 }
 
 .select-menu-popover.placement-bottom {
@@ -231,6 +517,75 @@
   color: #0F172A;
 }
 
+.select-menu-option--compact.is-selected {
+  background-color: var(--cm-brand-tint) !important;
+}
+
+.select-menu-option--header.is-selected {
+  background-color: #EEF4FA !important;
+}
+
+.select-menu-option--compact {
+  gap: 10px;
+  padding: 0 8px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.select-menu-compact-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: rgba(47, 93, 143, 0.38);
+  transition: transform var(--cm-select-duration-fast) var(--cm-select-ease-out), background-color var(--cm-select-duration-fast) ease;
+}
+
+.select-menu-compact-dot.is-selected {
+  background: var(--cm-brand-blue);
+}
+
+.select-menu-option--compact:hover .select-menu-compact-dot,
+.select-menu-option--compact.is-highlighted .select-menu-compact-dot {
+  transform: scale(1.25);
+}
+
+.select-menu-option-suffix {
+  color: #94A3B8;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.select-menu-page-count {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 2px 7px;
+  border-radius: 8px;
+  background: #F8FAFC;
+  color: #94A3B8;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.select-menu-page-count.is-selected {
+  background: #E2ECF6;
+}
+
+.select-menu-option--compact .select-menu-check-icon {
+  margin-left: 0;
+}
+
+.select-menu-popover--compact .select-menu-options-list {
+  max-height: 280px;
+  scrollbar-width: thin;
+}
+
+.select-menu-popover--compact .select-menu-option {
+  animation-delay: calc(var(--opt-idx, 0) * 15ms);
+}
+
 /* Dot scaling on hover */
 .select-menu-option-dot {
   width: 8px;
@@ -310,6 +665,15 @@
   animation: sheetSlideUp 220ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+.select-menu-bottom-sheet--header.is-closing {
+  animation: headerSheetExit 110ms ease-in forwards;
+  pointer-events: none;
+}
+
+@keyframes headerSheetExit {
+  to { opacity: 0; transform: translateY(24px) scale(0.98); }
+}
+
 @keyframes sheetSlideUp {
   from {
     transform: translateY(100%);
@@ -341,4 +705,35 @@
   .select-menu-check-path {
     stroke-dashoffset: 0 !important;
   }
+  .select-menu-popover--compact:not(.is-closing) {
+    animation: compactReducedFade var(--cm-select-duration-enter) ease both !important;
+    transform: none !important;
+  }
+  .select-menu-popover--compact.is-closing {
+    animation: compactReducedFade 110ms ease reverse both !important;
+    transform: none !important;
+  }
+  .select-menu-trigger--compact:active:not(:disabled),
+  .select-menu-option--compact:hover .select-menu-compact-dot,
+  .select-menu-option--compact.is-highlighted .select-menu-compact-dot {
+    transform: none !important;
+  }
+  .select-menu-compact-value {
+    animation: none !important;
+  }
+  .select-menu-header-control,
+  .select-menu-header-value {
+    animation: none !important;
+    transition: opacity 150ms ease !important;
+    transform: none !important;
+  }
+  .select-menu-header-chevron,
+  .select-menu-header-clear {
+    transition: none !important;
+  }
+}
+
+@keyframes compactReducedFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

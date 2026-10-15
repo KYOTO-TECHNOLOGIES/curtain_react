@@ -103,13 +103,13 @@ export const InventoryReordersTable: React.FC<InventoryReordersTableProps> = ({
       key: 'item',
       label: 'Stock Item',
       sortable: true,
-      width: '260px',
+      className: 'inv-col-item',
       render: (r) => (
         <div className="flex items-center gap-3 py-1">
           <div className="p-2.5 rounded-xl bg-purple-50 text-purple-700 flex-shrink-0">
             <Truck className="w-4 h-4" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="inv-sku-chip">{r.item_sku}</span>
               <span className="text-[11px] font-semibold text-slate-400">

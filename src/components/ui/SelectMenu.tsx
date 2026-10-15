@@ -6,7 +6,11 @@ import './SelectMenu.css';
 export interface SelectOption {
   value: string;
   label: string;
+  suffix?: string;
   dotColor?: string;
+  textColor?: string;
+  tintColor?: string;
+  wrapLabel?: boolean;
   isDotCluster?: boolean;
   avatarText?: string;
   count?: number;
@@ -22,6 +26,13 @@ export interface SelectMenuProps {
   ariaLabel?: string;
   className?: string;
   disabled?: boolean;
+  size?: 'default' | 'sm' | 'header';
+  placement?: 'auto' | 'top-start';
+  headerLabel?: string;
+  headerActiveContent?: React.ReactNode;
+  headerMaxPillWidth?: number;
+  searchable?: boolean;
+  searchPlaceholder?: string;
 }
 
 export const SelectMenu: React.FC<SelectMenuProps> = ({
@@ -33,30 +44,67 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
   ariaLabel,
   className = '',
   disabled = false,
+  size = 'default',
+  placement: preferredPlacement = 'auto',
+  headerLabel = 'Status',
+  headerActiveContent,
+  headerMaxPillWidth,
+  searchable,
+  searchPlaceholder = 'Search...',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isRendered, setIsRendered] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties>({});
   const [placement, setPlacement] = useState<'bottom' | 'top'>('bottom');
-
   const generatedId = useId();
   const selectId = id || generatedId;
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const optionsListRef = useRef<HTMLUListElement | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typeaheadRef = useRef('');
+  const typeaheadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const openMenu = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    setIsRendered(true);
+    setIsClosing(false);
+    setIsOpen(true);
+  };
+
+  const closeMenu = (returnFocus = false) => {
+    setIsOpen(false);
+    if ((size === 'sm' || size === 'header') && isRendered) {
+      setIsClosing(true);
+      closeTimerRef.current = setTimeout(() => {
+        setIsRendered(false);
+        setIsClosing(false);
+      }, 110);
+    } else {
+      setIsRendered(false);
+    }
+    if (returnFocus) triggerRef.current?.focus();
+  };
+
+  useEffect(() => () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    if (typeaheadTimerRef.current) clearTimeout(typeaheadTimerRef.current);
+  }, []);
 
   // Detect mobile viewport (<640px)
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640);
+      setIsMobile(window.innerWidth < (size === 'header' ? 768 : 640));
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  }, [size]);
 
   const selectedOption = useMemo(() => {
     return options.find((opt) => opt.value === value) || options[0];
@@ -67,7 +115,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
   }, [value]);
 
   // Show inline search if more than 6 options
-  const isSearchable = options.length > 6;
+  const isSearchable = searchable ?? (size === 'default' && options.length > 6);
 
   const filteredOptions = useMemo(() => {
     if (!searchTerm.trim()) return options;
@@ -77,36 +125,40 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
 
   // Calculate popover position with collision-aware flipping
   const updatePosition = () => {
-    if (!triggerRef.current || isMobile) return;
+    if (!triggerRef.current || (isMobile && size === 'default')) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    const minWidth = Math.max(rect.width, 220);
+    const minWidth = size === 'sm'
+      ? Math.min(Math.max(rect.width, 140), window.innerWidth - 16)
+      : Math.min(Math.max(rect.width, 220), window.innerWidth - 16);
 
+    const maxPopoverHeight = size === 'sm' || (size === 'header' && isSearchable) ? 280 : 320;
     const estimatedHeight = Math.min(
-      filteredOptions.length * 40 + (isSearchable ? 50 : 0) + 16,
-      320
+      filteredOptions.length * 40 + (isSearchable ? 50 : 0) + (size === 'sm' ? 12 : 16),
+      maxPopoverHeight
     );
 
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-
-    const willOpenUp = spaceBelow < estimatedHeight + 12 && spaceAbove > spaceBelow;
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
+    const spaceAbove = rect.top - 8;
+    const willOpenUp = preferredPlacement === 'top-start'
+      ? spaceAbove >= estimatedHeight || spaceAbove >= spaceBelow
+      : spaceBelow < estimatedHeight + 12 && spaceAbove > spaceBelow;
+    const availableHeight = Math.max(0, willOpenUp ? spaceAbove : spaceBelow);
+    const popoverHeight = Math.min(estimatedHeight, availableHeight);
     setPlacement(willOpenUp ? 'top' : 'bottom');
 
-    const topPos = willOpenUp
-      ? rect.top - estimatedHeight - 8
-      : rect.bottom + 8;
+    const topPos = willOpenUp ? rect.top - popoverHeight - 8 : rect.bottom + 8;
 
     let leftPos = rect.left;
-    if (leftPos + minWidth > window.innerWidth - 12) {
-      leftPos = window.innerWidth - minWidth - 12;
+    if (leftPos + minWidth > window.innerWidth - 8) {
+      leftPos = window.innerWidth - minWidth - 8;
     }
-    if (leftPos < 12) leftPos = 12;
+    if (leftPos < 8) leftPos = 8;
 
     setPopoverStyle({
       top: `${topPos}px`,
       left: `${leftPos}px`,
       width: `${minWidth}px`,
-      maxHeight: `${estimatedHeight}px`,
+      maxHeight: `${popoverHeight}px`,
     });
   };
 
@@ -124,7 +176,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
         window.removeEventListener('resize', handleScrollOrResize);
       };
     }
-  }, [isOpen, filteredOptions.length, isMobile]);
+  }, [isOpen, filteredOptions.length, isMobile, size, preferredPlacement, isSearchable]);
 
   // Reset search and highlight on open/close
   useEffect(() => {
@@ -133,8 +185,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
       const selectedIdx = filteredOptions.findIndex((opt) => opt.value === value);
       setHighlightedIndex(selectedIdx >= 0 ? selectedIdx : 0);
 
-      // Focus search if searchable on desktop
-      if (isSearchable && !isMobile) {
+      if (isSearchable) {
         setTimeout(() => {
           searchInputRef.current?.focus();
         }, 50);
@@ -155,7 +206,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
       ) {
         return;
       }
-      setIsOpen(false);
+      closeMenu();
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -169,8 +220,17 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
     if (!isOpen) {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        setIsOpen(true);
+        openMenu();
       }
+      return;
+    }
+
+    if (isSearchable && e.key === 'ArrowDown' && document.activeElement === searchInputRef.current) {
+      e.preventDefault();
+      const selectedIndex = filteredOptions.findIndex((option) => option.value === value);
+      const nextIndex = selectedIndex >= 0 ? selectedIndex : 0;
+      setHighlightedIndex(nextIndex);
+      (optionsListRef.current?.children[nextIndex] as HTMLElement | undefined)?.focus();
       return;
     }
 
@@ -208,31 +268,34 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
         e.preventDefault();
         if (highlightedIndex >= 0 && filteredOptions[highlightedIndex]) {
           onChange(filteredOptions[highlightedIndex].value);
-          setIsOpen(false);
-          triggerRef.current?.focus();
+          closeMenu(true);
         }
         break;
       }
       case 'Escape': {
         e.preventDefault();
-        setIsOpen(false);
-        triggerRef.current?.focus();
+        closeMenu(true);
         break;
       }
       case 'Tab': {
-        setIsOpen(false);
+        closeMenu();
         break;
       }
       default: {
         // First-letter jump if not typing in search
-        if (
-          !isSearchable &&
-          e.key.length === 1 &&
-          /[a-zA-Z0-9]/.test(e.key)
-        ) {
-          const char = e.key.toLowerCase();
+        if (!isSearchable && e.key.length === 1 && /[a-zA-Z0-9]/.test(e.key)) {
+          if (size === 'sm' && /\d/.test(e.key)) {
+            typeaheadRef.current += e.key;
+            if (typeaheadTimerRef.current) clearTimeout(typeaheadTimerRef.current);
+            typeaheadTimerRef.current = setTimeout(() => {
+              typeaheadRef.current = '';
+            }, 500);
+          } else {
+            typeaheadRef.current = e.key.toLowerCase();
+          }
+          const searchValue = typeaheadRef.current;
           const matchIdx = filteredOptions.findIndex((opt) =>
-            opt.label.toLowerCase().startsWith(char)
+            opt.label.toLowerCase().startsWith(searchValue)
           );
           if (matchIdx !== -1) {
             setHighlightedIndex(matchIdx);
@@ -312,20 +375,21 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
     <div
       ref={popoverRef}
       id={`${selectId}-popover`}
-      className={`select-menu-popover placement-${placement}`}
+      className={`select-menu-popover ${size === 'sm' ? 'select-menu-popover--compact' : ''} ${size === 'header' ? 'select-menu-popover--header' : ''} placement-${placement} ${isClosing ? 'is-closing' : ''}`}
       style={popoverStyle}
       role="listbox"
       aria-label={ariaLabel || placeholder}
+      aria-activedescendant={highlightedIndex >= 0 ? `${selectId}-opt-${highlightedIndex}` : undefined}
       onKeyDown={handleKeyDown}
     >
       {isSearchable && (
-        <div className="select-menu-search-wrapper">
+        <div className="select-menu-search-wrapper select-menu-search-wrapper--sticky">
           <Search className="select-menu-search-icon" />
           <input
             ref={searchInputRef}
             type="text"
             className="select-menu-search-input"
-            placeholder="Search..."
+            placeholder={searchPlaceholder}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -354,29 +418,41 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
                 id={`${selectId}-opt-${idx}`}
                 role="option"
                 aria-selected={isSelected}
-                className={`select-menu-option ${isSelected ? 'is-selected' : ''} ${
+                tabIndex={isSearchable && idx === highlightedIndex ? 0 : -1}
+                className={`select-menu-option ${size === 'sm' ? 'select-menu-option--compact' : ''} ${size === 'header' ? 'select-menu-option--header' : ''} ${opt.wrapLabel ? 'select-menu-option--wrap' : ''} ${isSelected ? 'is-selected' : ''} ${
                   isHighlighted ? 'is-highlighted' : ''
                 }`}
                 style={
                   {
-                    '--opt-idx': idx,
-                    backgroundColor: selectedBg,
+                    '--opt-idx': Math.min(idx, 10),
+                    backgroundColor: size === 'sm' || size === 'header' ? undefined : selectedBg,
                   } as React.CSSProperties
                 }
                 onClick={() => {
                   onChange(opt.value);
-                  setIsOpen(false);
-                  triggerRef.current?.focus();
+                  closeMenu(true);
                 }}
                 onMouseEnter={() => setHighlightedIndex(idx)}
+                onKeyDown={handleKeyDown}
               >
-                {renderIndicator(opt)}
+                {size === 'sm' ? (
+                  <span className={`select-menu-compact-dot ${isSelected ? 'is-selected' : ''}`} aria-hidden="true" />
+                ) : renderIndicator(opt)}
 
-                <span className="truncate flex-1">{opt.label}</span>
+                <span className={`truncate flex-1 ${opt.wrapLabel ? 'select-menu-option-label--wrap' : ''}`} title={opt.wrapLabel ? opt.label : undefined}>
+                  {opt.label}
+                  {size === 'sm' && opt.suffix && (
+                    <span className="select-menu-option-suffix"> {opt.suffix}</span>
+                  )}
+                </span>
 
-                {opt.count !== undefined && (
+                {opt.count !== undefined && (size === 'sm' ? (
+                  <span className={`select-menu-page-count ${isSelected ? 'is-selected' : ''}`}>
+                    {opt.count} {opt.count === 1 ? 'page' : 'pages'}
+                  </span>
+                ) : (
                   <span className="select-menu-count-badge">{opt.count}</span>
-                )}
+                ))}
 
                 {isSelected && (
                   <svg
@@ -408,15 +484,17 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
     <>
       <div
         className="select-menu-backdrop"
-        onClick={() => setIsOpen(false)}
+        onClick={() => closeMenu(true)}
         aria-hidden="true"
       />
       <div
         ref={popoverRef}
-        className="select-menu-bottom-sheet"
+        id={`${selectId}-dialog`}
+        className={`select-menu-bottom-sheet ${size === 'header' ? 'select-menu-bottom-sheet--header' : ''} ${isClosing ? 'is-closing' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel || placeholder}
+        onKeyDown={handleKeyDown}
       >
         <div className="select-menu-drag-handle" />
         <div className="flex items-center justify-between pb-3 mb-2 border-b border-slate-100">
@@ -425,7 +503,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
           </span>
           <button
             type="button"
-            onClick={() => setIsOpen(false)}
+            onClick={() => closeMenu(true)}
             className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
           >
             <X className="w-4 h-4" />
@@ -433,42 +511,53 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
         </div>
 
         {isSearchable && (
-          <div className="select-menu-search-wrapper mb-3">
+          <div className="select-menu-search-wrapper select-menu-search-wrapper--sticky mb-3">
             <Search className="select-menu-search-icon" />
             <input
               ref={searchInputRef}
               type="text"
               className="select-menu-search-input"
-              placeholder="Search..."
+              placeholder={searchPlaceholder}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={handleKeyDown}
             />
           </div>
         )}
 
-        <ul className="select-menu-options-list flex-1 overflow-y-auto">
-          {filteredOptions.map((opt) => {
+        <ul
+          id={`${selectId}-popover`}
+          className="select-menu-options-list flex-1 overflow-y-auto"
+          role="listbox"
+          aria-label={ariaLabel || placeholder}
+          aria-activedescendant={highlightedIndex >= 0 ? `${selectId}-opt-${highlightedIndex}` : undefined}
+        >
+          {filteredOptions.map((opt, idx) => {
             const isSelected = opt.value === value;
             return (
               <li
                 key={opt.value}
+                id={`${selectId}-opt-${idx}`}
                 role="option"
                 aria-selected={isSelected}
-                className={`select-menu-option ${isSelected ? 'is-selected' : ''}`}
+                tabIndex={isSearchable && idx === highlightedIndex ? 0 : -1}
+                className={`select-menu-option ${size === 'header' ? 'select-menu-option--header' : ''} ${opt.wrapLabel ? 'select-menu-option--wrap' : ''} ${isSelected ? 'is-selected' : ''} ${idx === highlightedIndex ? 'is-highlighted' : ''}`}
                 style={{
-                  backgroundColor: isSelected
+                  backgroundColor: isSelected && size !== 'header'
                     ? opt.dotColor
                       ? `${opt.dotColor}14`
                       : 'rgba(47, 93, 143, 0.08)'
                     : undefined,
                 }}
+                onMouseEnter={() => setHighlightedIndex(idx)}
+                onKeyDown={handleKeyDown}
                 onClick={() => {
                   onChange(opt.value);
-                  setIsOpen(false);
+                  closeMenu(true);
                 }}
               >
                 {renderIndicator(opt)}
-                <span className="truncate flex-1">{opt.label}</span>
+                <span className={`truncate flex-1 ${opt.wrapLabel ? 'select-menu-option-label--wrap' : ''}`} title={opt.wrapLabel ? opt.label : undefined}>{opt.label}</span>
                 {opt.count !== undefined && (
                   <span className="select-menu-count-badge">{opt.count}</span>
                 )}
@@ -497,37 +586,98 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
   );
 
   return (
-    <div className={`relative inline-block w-full ${className}`}>
-      <button
-        ref={triggerRef}
-        id={selectId}
-        type="button"
-        disabled={disabled}
-        role="combobox"
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-        aria-controls={`${selectId}-popover`}
-        aria-activedescendant={
-          highlightedIndex >= 0 ? `${selectId}-opt-${highlightedIndex}` : undefined
-        }
-        aria-label={ariaLabel}
-        className={`select-menu-trigger ${isOpen ? 'is-open' : ''}`}
-        style={getTriggerTintStyle()}
-        onClick={() => setIsOpen((prev) => !prev)}
-        onKeyDown={handleKeyDown}
-      >
-        <span className="flex items-center gap-2.5 truncate">
-          {selectedOption && renderIndicator(selectedOption)}
-          <span className="truncate">
+    <div className={`relative inline-block ${size === 'default' ? 'w-full' : ''} ${size === 'header' ? 'select-menu-header-root' : ''} ${className}`}>
+      {size === 'header' ? (
+        <div
+          className={`select-menu-header-control ${selectedOption?.value ? 'is-active' : ''} ${isOpen ? 'is-open' : ''}`}
+          style={{
+            ...(selectedOption?.value ? {
+              '--select-status-color': selectedOption.textColor || selectedOption.dotColor,
+              '--select-status-tint': selectedOption.tintColor || '#EEF4FA',
+              '--select-status-dot': selectedOption.dotColor,
+            } : {}),
+            ...(headerMaxPillWidth ? { '--column-filter-max-width': `${headerMaxPillWidth}px` } : {}),
+          } as React.CSSProperties}
+        >
+          <button
+            ref={triggerRef}
+            id={selectId}
+            type="button"
+            disabled={disabled}
+            role="combobox"
+            aria-haspopup="listbox"
+            aria-expanded={isOpen}
+            aria-controls={`${selectId}-popover`}
+            aria-label={ariaLabel}
+            aria-activedescendant={highlightedIndex >= 0 ? `${selectId}-opt-${highlightedIndex}` : undefined}
+            className="select-menu-header-trigger"
+            onClick={() => isOpen ? closeMenu() : openMenu()}
+            onKeyDown={handleKeyDown}
+          >
+            {selectedOption?.value ? (
+              headerActiveContent || (
+                <>
+                  <span className="select-menu-header-dot" style={{ backgroundColor: selectedOption.dotColor }} aria-hidden="true" />
+                  <span key={selectedOption.value} className="select-menu-header-value">{selectedOption.label}</span>
+                </>
+              )
+            ) : (
+              <>
+                <span>{headerLabel}</span>
+                <ChevronDown className="select-menu-header-chevron" aria-hidden="true" />
+              </>
+            )}
+          </button>
+          {selectedOption?.value && (
+            <button
+              type="button"
+              className="select-menu-header-clear"
+              aria-label={`Clear ${headerLabel.toLowerCase()} filter, currently ${selectedOption.label}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onChange('');
+              }}
+            >
+              <X aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      ) : (
+        <button
+          ref={triggerRef}
+          id={selectId}
+          type="button"
+          disabled={disabled}
+          role="combobox"
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
+          aria-controls={`${selectId}-popover`}
+          aria-label={ariaLabel}
+          aria-activedescendant={highlightedIndex >= 0 ? `${selectId}-opt-${highlightedIndex}` : undefined}
+          className={`select-menu-trigger ${size === 'sm' ? 'select-menu-trigger--compact' : ''} ${isOpen ? 'is-open' : ''}`}
+          style={getTriggerTintStyle()}
+          onClick={() => isOpen ? closeMenu() : openMenu()}
+          onKeyDown={handleKeyDown}
+        >
+        {size === 'sm' ? (
+          <span key={selectedOption?.value} className="select-menu-compact-value">
             {selectedOption ? selectedOption.label : placeholder}
           </span>
-        </span>
+        ) : (
+          <span className="flex items-center gap-2.5 truncate">
+            {selectedOption && renderIndicator(selectedOption)}
+            <span className="truncate">
+              {selectedOption ? selectedOption.label : placeholder}
+            </span>
+          </span>
+        )}
         <ChevronDown className="select-menu-chevron" aria-hidden="true" />
-      </button>
+        </button>
+      )}
 
-      {isOpen &&
+      {isRendered &&
         createPortal(
-          isMobile ? mobileSheetContent : popoverContent,
+          isMobile && size !== 'sm' ? mobileSheetContent : popoverContent,
           document.body
         )}
     </div>

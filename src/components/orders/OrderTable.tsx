@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { Package, Eye, Clock, Receipt, FileText } from 'lucide-react';
-import type { OrderListItem } from '../../types';
+import type { OrderListItem, OrderStats } from '../../types';
 import { DataTable, type DataTableColumn, type SortDirection } from '../ui/DataTable';
+import { StatusHeaderFilter } from '../ui/StatusHeaderFilter';
+import { MobileStatusFilter } from '../ui/MobileStatusFilter';
 import { StatusBadge } from '../ui/StatusBadge';
 import { CustomerCell } from '../appointments/CustomerCell';
 import './OrderTable.css';
@@ -16,6 +18,9 @@ export interface OrderTableProps {
   onClearFilters?: () => void;
   onCopyPhone?: (phone: string) => void;
   totalCount?: number;
+  statusFilter: string;
+  onStatusChange: (status: string) => void;
+  stats?: OrderStats | null;
 }
 
 const ORDER_STATUS_ACCENT_COLORS: Record<string, string> = {
@@ -37,6 +42,9 @@ export const OrderTable: React.FC<OrderTableProps> = ({
   onClearFilters,
   onCopyPhone,
   totalCount,
+  statusFilter,
+  onStatusChange,
+  stats,
 }) => {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -71,15 +79,22 @@ export const OrderTable: React.FC<OrderTableProps> = ({
         case 'production':
           comparison = (a.estimated_production_days || 0) - (b.estimated_production_days || 0);
           break;
-        case 'status':
-          comparison = (a.order_status || '').localeCompare(b.order_status || '');
-          break;
         default:
           comparison = 0;
       }
       return sortDirection === 'asc' ? comparison : -comparison;
     });
   }, [orders, sortKey, sortDirection]);
+
+  const statusCounts = {
+    '': stats?.total ?? totalCount ?? orders.length,
+    pending_production: stats?.by_status?.pending_production ?? stats?.pending_production ?? 0,
+    in_production: stats?.by_status?.in_production ?? stats?.in_production ?? 0,
+    shipped: stats?.by_status?.shipped ?? stats?.shipped ?? 0,
+    installed: stats?.by_status?.installed ?? stats?.installed ?? 0,
+    closed: stats?.by_status?.closed ?? stats?.closed ?? 0,
+    cancelled: stats?.by_status?.cancelled ?? 0,
+  };
 
   const columns: DataTableColumn<OrderListItem>[] = [
     {
@@ -139,9 +154,19 @@ export const OrderTable: React.FC<OrderTableProps> = ({
     {
       key: 'status',
       label: 'Status',
-      sortable: true,
-      width: '155px',
+      sortable: false,
+      width: '168px',
       className: 'ord-col-status',
+      headerAddonOnly: true,
+      headerAddon: (
+        <StatusHeaderFilter
+          page="orders"
+          entityName="orders"
+          value={statusFilter}
+          onChange={onStatusChange}
+          counts={statusCounts}
+        />
+      ),
       render: (o) => <StatusBadge status={o.order_status} />,
     },
     {
@@ -263,6 +288,15 @@ export const OrderTable: React.FC<OrderTableProps> = ({
       emptyDescription="Try adjusting your search or filters to find what you're looking for."
       onClearFilters={onClearFilters}
       footer={footer}
+      mobileToolbar={(
+        <MobileStatusFilter
+          page="orders"
+          entityName="orders"
+          value={statusFilter}
+          onChange={onStatusChange}
+          counts={statusCounts}
+        />
+      )}
       renderSkeletonRow={renderSkeletonRow}
       skeletonCount={6}
     />
