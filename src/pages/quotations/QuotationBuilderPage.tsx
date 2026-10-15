@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   CalendarDays,
@@ -22,6 +22,7 @@ import {
 import { quotationsApi } from '../../api/quotations';
 import { useToast } from '../../components/ui/Toast';
 import { DatePicker } from '../../components/ui/DatePicker';
+import { AppointmentPicker } from '../../components/quotations/AppointmentPicker';
 import {
   CustomerSummary,
   QuotationTypeCards,
@@ -74,9 +75,19 @@ function getValidityMessage(value: string) {
 
 export default function QuotationBuilderPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { showToast } = useToast();
 
-  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string>('');
+  const appointmentParam = searchParams.get('appointment') || '';
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string>(appointmentParam);
+
+  useEffect(() => {
+    const param = searchParams.get('appointment');
+    if (param && param !== selectedAppointmentId) {
+      setSelectedAppointmentId(param);
+    }
+  }, [searchParams]);
+
   const [quotationSettings, setQuotationSettings] = useState({
     quote_type: 'b2c' as 'b2c' | 'b2b',
     work_type: 1,
@@ -102,10 +113,10 @@ export default function QuotationBuilderPage() {
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  // Fetch Data
+  // Fetch Data - load appointments so selected appointment is available in picker
   const { data: appointmentsRes, isLoading: appointmentsLoading } = useQuery({
     queryKey: ['appointments'],
-    queryFn: () => appointmentsApi.list({ status: 'completed' } as any),
+    queryFn: () => appointmentsApi.list(),
   });
 
   const { data: selectedAppointmentRes, isLoading: selectedAppointmentLoading } = useQuery({
@@ -142,22 +153,51 @@ export default function QuotationBuilderPage() {
     return [];
   };
 
-  const appointments: AppointmentListItem[] = toArray<AppointmentListItem>(appointmentsRes);
-  const fabricTypes = toArray<FabricType>(fabricTypesRes);
-  const models = toArray<CatalogModel>(modelsRes);
-  const items = toArray<CatalogItem>(itemsRes);
-  const motors = toArray<MotorType>(motorsRes);
+  const fetchedAppointments: AppointmentListItem[] = toArray<AppointmentListItem>(appointmentsRes);
+  const selectedAppointment: AppointmentDetail | null = selectedAppointmentRes?.data || null;
+
+  const appointments: AppointmentListItem[] = useMemo(() => {
+    if (!selectedAppointment) return fetchedAppointments;
+    const exists = fetchedAppointments.some((a) => String(a.id) === String(selectedAppointment.id));
+    if (exists) return fetchedAppointments;
+    const synthItem: AppointmentListItem = {
+      id: selectedAppointment.id,
+      customer: selectedAppointment.customer?.id ?? 0,
+      customer_name: selectedAppointment.customer?.full_name || `${selectedAppointment.customer?.first_name || ''} ${selectedAppointment.customer?.last_name || ''}`.trim(),
+      customer_phone: selectedAppointment.customer?.phone || '',
+      title: selectedAppointment.title,
+      description: selectedAppointment.description,
+      appointment_date: selectedAppointment.appointment_date,
+      appointment_time: selectedAppointment.appointment_time,
+      end_time: selectedAppointment.end_time,
+      job_type: selectedAppointment.job_type,
+      status: selectedAppointment.status,
+      assigned_to: selectedAppointment.assigned_to,
+      assigned_to_name: selectedAppointment.assignee_name || selectedAppointment.assigned_to_name,
+      location_building: selectedAppointment.location?.building_name || '',
+      location_unit: selectedAppointment.location?.unit_number || '',
+      location_full_address: selectedAppointment.location?.full_address || '',
+      created_at: selectedAppointment.created_at,
+      updated_at: selectedAppointment.updated_at,
+    };
+    return [synthItem, ...fetchedAppointments];
+  }, [fetchedAppointments, selectedAppointment]);
 
   const selectedAppointmentSummary = appointments.find(
     (appointment) => String(appointment.id) === selectedAppointmentId
   );
-  const selectedAppointment: AppointmentDetail | null = selectedAppointmentRes?.data || null;
   const selectedCustomerId = selectedAppointment?.customer?.id ?? selectedAppointmentSummary?.customer;
   const selectedCustomerName =
     selectedAppointment?.customer?.full_name || selectedAppointmentSummary?.customer_name || '';
   const selectedCustomerEmail = selectedAppointment?.customer?.email || '';
   const selectedCustomerPhone =
     selectedAppointment?.customer?.phone || selectedAppointmentSummary?.customer_phone || '';
+  const selectedCustomerLocation =
+    selectedAppointment?.location?.full_address ||
+    selectedAppointmentSummary?.location_full_address ||
+    (selectedAppointment?.location?.building_name
+      ? `${selectedAppointment.location.building_name}${selectedAppointment.location.unit_number ? ` Unit ${selectedAppointment.location.unit_number}` : ''}`
+      : '');
   const validityMessage = getValidityMessage(quotationSettings.valid_until);
   const surfaceCount = areas.reduce((count, area) => count + area.surfaces.length, 0);
 
@@ -326,6 +366,17 @@ export default function QuotationBuilderPage() {
       };
 
       const res = await quotationsApi.create(payload);
+
+      if (selectedAppointmentId) {
+        try {
+          if (selectedAppointment?.status !== 'cancelled') {
+            await appointmentsApi.update(selectedAppointmentId, { status: 'quoted' as any });
+          }
+        } catch (statusErr) {
+          console.warn('Could not auto-update appointment status to quoted:', statusErr);
+        }
+      }
+
       showToast('Quotation created successfully', 'success');
       navigate(`/quotations/${res.data.id}`);
     } catch (err: any) {
@@ -376,26 +427,18 @@ export default function QuotationBuilderPage() {
         <div className="qb-general-grid">
           <div className="qb-general-column">
             <div className="qb-field">
-              <label htmlFor="quotation-appointment" className="qb-field-label block text-[15px] font-bold text-slate-700 mb-2">Choose Appointment</label>
               <div className="relative">
                 {appointmentsLoading ? (
                   <div className="qb-appointment-loading flex items-center justify-center py-3 bg-slate-50 border border-slate-100 rounded-xl">
                     <Loader2 className="w-5 h-5 animate-spin text-[#5442f6]" />
                   </div>
                 ) : (
-                  <select
+                  <AppointmentPicker
                     id="quotation-appointment"
                     value={selectedAppointmentId}
+                    appointments={appointments}
                     onChange={(e) => setSelectedAppointmentId(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-[#5442f6] focus:ring-2 focus:ring-[#5442f6]/20 transition-all font-medium text-slate-700"
-                  >
-                    <option value="">-- Select Appointment --</option>
-                    {appointments.map((appt) => (
-                      <option key={appt.id} value={String(appt.id)}>
-                        #{appt.id} - {appt.customer_name || 'Unknown'}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 )}
               </div>
             </div>
@@ -405,6 +448,7 @@ export default function QuotationBuilderPage() {
                 customerName={selectedCustomerName}
                 customerEmail={selectedCustomerEmail}
                 customerPhone={selectedCustomerPhone}
+                customerLocation={selectedCustomerLocation}
                 isLoading={selectedAppointmentLoading}
               />
             )}

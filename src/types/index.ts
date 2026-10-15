@@ -214,7 +214,8 @@ export type AppointmentStatus =
   | 'in_progress'
   | 'completed'
   | 'cancelled'
-  | 'rescheduled';
+  | 'rescheduled'
+  | 'quoted';
 
 export type JobType =
   | 'measurement'
@@ -259,6 +260,8 @@ export interface AppointmentListItem {
   assignee_name?: string | null;
   assignee_username?: string | null;
   location_full_address: string;
+  has_quotation?: boolean;
+  quotation_id?: number | string | null;
   created_at: string;
   updated_at: string;
 }

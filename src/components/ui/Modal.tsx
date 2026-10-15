@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { Layers3, PanelTop, WalletCards, X } from 'lucide-react';
+import { CalendarClock, Layers3, PanelTop, UserCheck, WalletCards, X } from 'lucide-react';
 import './Modal.css';
 
 interface ModalProps {
@@ -8,7 +8,7 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   maxWidth?: string;
-  variant?: 'default' | 'payment' | 'area' | 'surface';
+  variant?: 'default' | 'payment' | 'area' | 'surface' | 'assign' | 'reschedule';
   subtitle?: string;
   context?: string;
   isBusy?: boolean;
@@ -40,7 +40,7 @@ export default function Modal({
   const [staggerFields, setStaggerFields] = useState(false);
 
   useEffect(() => {
-    if (variant === 'payment' || variant === 'area' || variant === 'surface') {
+    if (variant === 'payment' || variant === 'area' || variant === 'surface' || variant === 'assign' || variant === 'reschedule') {
       if (!open) return;
       const previousOverflow = document.body.style.overflow;
       const previousPaddingRight = document.body.style.paddingRight;
@@ -64,12 +64,12 @@ export default function Modal({
       if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
       setIsMounted(true);
       setIsClosing(false);
-      if ((variant === 'payment' || variant === 'area' || variant === 'surface') && !hasOpenedRef.current) {
+      if ((variant === 'payment' || variant === 'area' || variant === 'surface' || variant === 'assign' || variant === 'reschedule') && !hasOpenedRef.current) {
         hasOpenedRef.current = true;
         setStaggerFields(true);
         staggerTimerRef.current = setTimeout(() => setStaggerFields(false), 500);
       }
-    } else if ((variant === 'payment' || variant === 'area' || variant === 'surface') && isMounted) {
+    } else if ((variant === 'payment' || variant === 'area' || variant === 'surface' || variant === 'assign' || variant === 'reschedule') && isMounted) {
       setIsClosing(true);
       closeTimerRef.current = setTimeout(() => {
         setIsMounted(false);
@@ -86,13 +86,17 @@ export default function Modal({
   }, []);
 
   useEffect(() => {
-    if (variant !== 'payment' && variant !== 'area' && variant !== 'surface') return;
+    if (variant !== 'payment' && variant !== 'area' && variant !== 'surface' && variant !== 'assign' && variant !== 'reschedule') return;
     if (open && isMounted) {
       returnFocusRef.current = document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
       cardRef.current?.querySelector<HTMLElement>(
-        variant === 'area'
+        variant === 'reschedule'
+          ? '.reschedule-date-picker .date-picker-trigger'
+          : variant === 'assign'
+          ? '.staff-picker__trigger'
+          : variant === 'area'
           ? '[data-area-autofocus]'
           : variant === 'surface'
             ? '[data-surface-autofocus]'
@@ -107,7 +111,7 @@ export default function Modal({
     const handleEsc = (e: KeyboardEvent) => {
       if (
         e.key === 'Escape' &&
-        (variant === 'default' || ((variant === 'area' || variant === 'surface') && !isBusy))
+        (variant === 'default' || ((variant === 'area' || variant === 'surface' || variant === 'assign' || variant === 'reschedule') && !isBusy))
       ) {
         onClose();
       }
@@ -186,6 +190,110 @@ export default function Modal({
           <div className={`payment-modal-content ${staggerFields ? 'is-first-open' : ''}`}>
             {children}
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === 'assign') {
+    return (
+      <div
+        ref={overlayRef}
+        className={`assign-modal-overlay ${isClosing ? 'is-closing' : ''}`}
+        onClick={(event) => {
+          if (!isBusy && event.target === overlayRef.current) onClose();
+        }}
+        role="presentation"
+      >
+        <div
+          ref={cardRef}
+          className={`assign-modal-card ${isClosing ? 'is-closing' : ''}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={subtitleId}
+          aria-busy={isBusy}
+          onKeyDown={handlePaymentKeyDown}
+        >
+          <div className="assign-modal-drag-handle" aria-hidden="true" />
+          <header className="assign-modal-header">
+            <span className="assign-modal-icon-badge" aria-hidden="true">
+              <UserCheck />
+            </span>
+            <div className="assign-modal-heading">
+              <h2 id={titleId}>{title}</h2>
+              <p id={subtitleId}>{subtitle}</p>
+            </div>
+            <button
+              type="button"
+              className="assign-modal-close"
+              onClick={onClose}
+              disabled={isBusy}
+              aria-label={`Close ${title.toLowerCase()} dialog`}
+            >
+              <X aria-hidden="true" />
+            </button>
+          </header>
+          <div className={`assign-modal-body ${staggerFields ? 'is-first-open' : ''}`}>
+            {children}
+          </div>
+          {footer && (
+            <footer className={`assign-modal-footer ${staggerFields ? 'is-first-open' : ''}`}>
+              {footer}
+            </footer>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === 'reschedule') {
+    return (
+      <div
+        ref={overlayRef}
+        className={`reschedule-modal-overlay ${isClosing ? 'is-closing' : ''}`}
+        onClick={(event) => {
+          if (!isBusy && event.target === overlayRef.current) onClose();
+        }}
+        role="presentation"
+      >
+        <div
+          ref={cardRef}
+          className={`reschedule-modal-card ${isClosing ? 'is-closing' : ''}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={subtitleId}
+          aria-busy={isBusy}
+          onKeyDown={handlePaymentKeyDown}
+        >
+          <div className="reschedule-modal-drag-handle" aria-hidden="true" />
+          <header className="reschedule-modal-header">
+            <span className="reschedule-modal-icon-badge" aria-hidden="true">
+              <CalendarClock />
+            </span>
+            <div className="reschedule-modal-heading">
+              <h2 id={titleId}>{title}</h2>
+              <p id={subtitleId}>{subtitle}</p>
+            </div>
+            <button
+              type="button"
+              className="reschedule-modal-close"
+              onClick={onClose}
+              disabled={isBusy}
+              aria-label={`Close ${title.toLowerCase()} dialog`}
+            >
+              <X aria-hidden="true" />
+            </button>
+          </header>
+          <div className={`reschedule-modal-body ${staggerFields ? 'is-first-open' : ''}`}>
+            {children}
+          </div>
+          {footer && (
+            <footer className={`reschedule-modal-footer ${staggerFields ? 'is-first-open' : ''}`}>
+              {footer}
+            </footer>
+          )}
         </div>
       </div>
     );

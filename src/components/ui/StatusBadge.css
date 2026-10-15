@@ -136,6 +136,25 @@
   background-color: #8B5CF6;
 }
 
+.status-badge-quoted {
+  background-color: #E0F7FA;
+  border-color: rgba(0, 150, 136, 0.2);
+  color: #00897B;
+}
+.status-badge-quoted .status-badge-dot {
+  background-color: #009688;
+}
+
+.status-badge-rescheduled {
+  background-color: #F3E8FD;
+  border-color: rgba(139, 92, 246, 0.2);
+  color: #7C3AED;
+}
+.status-badge-rescheduled .status-badge-dot {
+  background-color: #8B5CF6;
+  --dot-pulse-color: rgba(139, 92, 246, 0.5);
+}
+
 /* Pulsing dot */
 @keyframes statusDotPulse {
   0% { box-shadow: 0 0 0 0 var(--dot-pulse-color, rgba(249, 115, 22, 0.5)); }

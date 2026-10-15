@@ -341,7 +341,7 @@ export const CustomerLookupModal: React.FC<CustomerLookupModalProps> = ({
 
             {/* Input Control Container */}
             <div
-              className={`cl-control-group ${isFocused ? 'is-focused' : ''} ${isInvalidState ? 'is-invalid' : ''}`}
+              className={`cl-control-group phone-field ${isFocused ? 'is-focused' : ''} ${isInvalidState ? 'is-invalid' : ''}`}
             >
               <div className="flex items-center w-full h-full">
                 <CountrySelect

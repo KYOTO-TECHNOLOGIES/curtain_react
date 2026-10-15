@@ -45,6 +45,16 @@ export const APPOINTMENT_STATUS_CONFIGS: StatusConfigItem[] = [
     ariaLabel: 'completed',
   },
   {
+    key: 'quoted',
+    label: 'Quoted',
+    color: '#009688',
+    tintBg: '#E0F7FA',
+    borderHover: 'rgba(0, 150, 136, 0.32)',
+    glow: 'rgba(0, 150, 136, 0.22)',
+    icon: FileText,
+    ariaLabel: 'quoted',
+  },
+  {
     key: 'cancelled',
     label: 'Cancelled',
     color: '#EF4444',

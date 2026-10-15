@@ -1,0 +1,487 @@
+:root {
+  --assign-brand: #2F5D8F;
+  --assign-brand-tint: #EEF4FA;
+  --assign-ink: #0F172A;
+  --assign-slate-700: #334155;
+  --assign-slate-500: #64748B;
+  --assign-slate-400: #94A3B8;
+  --assign-border: #E2E8F0;
+  --assign-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.assign-modal-overlay {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: assignOverlayIn 200ms ease both;
+}
+
+.assign-modal-card {
+  display: flex;
+  flex-direction: column;
+  width: 460px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 48px);
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 24px;
+  background: #FFFFFF;
+  box-shadow: 0 24px 64px -16px rgba(15, 23, 42, 0.35), 0 4px 12px rgba(15, 23, 42, 0.08);
+  animation: assignCardIn 280ms var(--assign-ease) both;
+}
+
+.assign-modal-overlay.is-closing {
+  animation: assignOverlayOut 140ms ease both;
+  pointer-events: none;
+}
+
+.assign-modal-card.is-closing {
+  animation: assignCardOut 140ms ease-in both;
+}
+
+.assign-modal-header {
+  display: flex;
+  min-height: 72px;
+  flex: 0 0 72px;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0 24px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.05);
+  background: #FFFFFF;
+}
+
+.assign-modal-icon-badge {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border: 1px solid rgba(47, 93, 143, 0.15);
+  border-radius: 13px;
+  background: linear-gradient(135deg, #EEF4FA, #DCE8F5);
+  color: var(--assign-brand);
+  box-shadow: inset 0 0 0 1px rgba(47, 93, 143, 0.04);
+}
+
+.assign-modal-icon-badge svg {
+  width: 20px;
+  height: 20px;
+}
+
+.assign-modal-heading {
+  min-width: 0;
+  flex: 1;
+}
+
+.assign-modal-heading h2 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--assign-ink);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assign-modal-heading p {
+  overflow: hidden;
+  margin: 2px 0 0;
+  color: var(--assign-slate-500);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assign-modal-close {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--assign-slate-400);
+  cursor: pointer;
+  transition: background-color 200ms ease, color 200ms ease, transform 200ms var(--assign-ease);
+}
+
+.assign-modal-close svg {
+  width: 20px;
+  height: 20px;
+}
+
+.assign-modal-close:hover:not(:disabled) {
+  transform: rotate(90deg);
+  background: #F1F5F9;
+  color: var(--assign-slate-700);
+}
+
+.assign-modal-close:focus-visible,
+.assign-modal-actions button:focus-visible {
+  outline: 2px solid var(--assign-brand);
+  outline-offset: 2px;
+}
+
+.assign-modal-close:disabled {
+  cursor: not-allowed;
+}
+
+.assign-modal-drag-handle {
+  display: none;
+}
+
+.assign-modal-body {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  padding: 24px;
+  scrollbar-color: #CBD5E1 transparent;
+  scrollbar-width: thin;
+}
+
+.assign-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.assign-modal-body::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #CBD5E1;
+}
+
+.assign-modal-body::-webkit-scrollbar-button {
+  display: none;
+}
+
+.assign-modal-field-group {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.assign-modal-current {
+  display: flex;
+  min-height: 24px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--assign-slate-500);
+  font-size: 12.5px;
+}
+
+.assign-modal-current-label {
+  flex: 0 0 100%;
+}
+
+.assign-modal-staff-chip {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--assign-slate-700);
+  font-weight: 600;
+}
+
+.assign-modal-staff-chip > span:last-child {
+  overflow: hidden;
+  max-width: 150px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assign-modal-staff-avatar {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  place-items: center;
+  border: 1px solid rgba(47, 93, 143, 0.12);
+  border-radius: 50%;
+  background: var(--assign-brand-tint);
+  color: var(--assign-brand);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.assign-modal-change-arrow {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  color: var(--assign-slate-400);
+  animation: assignArrowIn 160ms var(--assign-ease) both;
+}
+
+.assign-modal-helper {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+  color: var(--assign-slate-500);
+  font-size: 13px;
+  animation: assignHelperIn 150ms ease both;
+}
+
+.assign-modal-helper svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+}
+
+.assign-modal-helper.is-ready {
+  color: #047857;
+}
+
+.assign-modal-helper.is-ready svg {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: assignCheckDraw 250ms ease forwards;
+}
+
+.assign-modal-footer {
+  display: flex;
+  min-height: 76px;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 0 24px;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+}
+
+.assign-modal-actions {
+  display: grid;
+  width: 100%;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+}
+
+.assign-modal-actions button {
+  display: inline-flex;
+  min-width: 112px;
+  height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.assign-modal-cancel {
+  padding: 0 18px;
+  border: 1px solid var(--assign-border);
+  background: #FFFFFF;
+  color: var(--assign-slate-700);
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.assign-modal-cancel:hover:not(:disabled) {
+  border-color: #CBD5E1;
+  background: #F8FAFC;
+}
+
+.assign-modal-submit {
+  position: relative;
+  overflow: hidden;
+  padding: 0 18px;
+  border: 0;
+  background: linear-gradient(115deg, #336699, #2A5483);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 8px 20px -8px rgba(47, 93, 143, 0.55);
+  color: #FFFFFF;
+  transition: filter 150ms ease, transform 150ms var(--assign-ease), box-shadow 150ms ease;
+}
+
+.assign-modal-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.assign-modal-submit:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.assign-modal-submit svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  transition: transform 200ms var(--assign-ease);
+}
+
+.assign-modal-submit:hover:not(:disabled) svg {
+  transform: translateX(1px);
+}
+
+.assign-modal-submit:disabled {
+  background: #F1F5F9;
+  box-shadow: none;
+  color: #94A3B8;
+  cursor: not-allowed;
+}
+
+.assign-modal-spinner {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #FFFFFF;
+  border-radius: 50%;
+  animation: assignSpin 700ms linear infinite;
+}
+
+.assign-modal-submit.is-enabled::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 20%, rgba(255, 255, 255, 0.22) 48%, transparent 72%);
+  content: '';
+  pointer-events: none;
+  animation: assignSheen 600ms ease-out both;
+}
+
+.assign-modal-body.is-first-open > .appointment-summary-card {
+  animation: assignFieldIn 260ms var(--assign-ease) both;
+}
+
+.assign-modal-body.is-first-open > .assign-modal-field-group {
+  animation: assignFieldIn 260ms var(--assign-ease) 40ms both;
+}
+
+.assign-modal-footer.is-first-open .assign-modal-cancel {
+  animation: assignFieldIn 260ms var(--assign-ease) 80ms both;
+}
+
+.assign-modal-footer.is-first-open .assign-modal-submit {
+  animation: assignFieldIn 260ms var(--assign-ease) 120ms both;
+}
+
+@keyframes assignOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes assignOverlayOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes assignCardIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes assignCardOut {
+  to { opacity: 0; transform: translateY(6px) scale(0.98); }
+}
+@keyframes assignFieldIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes assignHelperIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes assignArrowIn {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes assignCheckDraw { to { stroke-dashoffset: 0; } }
+@keyframes assignSheen {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+@keyframes assignSpin { to { transform: rotate(360deg); } }
+
+@media (max-width: 479px) {
+  .assign-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .assign-modal-card {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 16px);
+    border-radius: 24px 24px 0 0;
+    animation-name: assignSheetIn;
+  }
+
+  .assign-modal-card.is-closing {
+    animation-name: assignSheetOut;
+  }
+
+  .assign-modal-drag-handle {
+    display: block;
+    width: 36px;
+    height: 4px;
+    flex: 0 0 4px;
+    margin: 8px auto 0;
+    border-radius: 999px;
+    background: #CBD5E1;
+  }
+
+  .assign-modal-header {
+    flex-basis: 68px;
+    padding: 0 16px;
+    gap: 10px;
+  }
+
+  .assign-modal-body {
+    padding: 20px 16px;
+  }
+
+  .assign-modal-footer {
+    padding: 12px 16px max(16px, env(safe-area-inset-bottom));
+  }
+
+  .assign-modal-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .assign-modal-submit {
+    grid-row: 1;
+  }
+
+  .assign-modal-cancel {
+    grid-row: 2;
+  }
+
+  .assign-modal-actions button {
+    width: 100%;
+  }
+}
+
+@keyframes assignSheetIn {
+  from { opacity: 0.8; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes assignSheetOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assign-modal-overlay,
+  .assign-modal-card,
+  .assign-modal-body *,
+  .assign-modal-footer *,
+  .assign-modal-change-arrow,
+  .assign-modal-helper,
+  .assign-modal-spinner,
+  .assign-modal-submit.is-enabled::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .assign-modal-close:hover:not(:disabled),
+  .assign-modal-submit:hover:not(:disabled),
+  .assign-modal-submit:active:not(:disabled) {
+    transform: none;
+  }
+}

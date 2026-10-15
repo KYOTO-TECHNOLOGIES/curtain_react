@@ -18,6 +18,7 @@ export interface AppointmentTableProps {
   onSelectAppointment: (appointment: AppointmentListItem) => void;
   onAssign: (appointment: AppointmentListItem) => void;
   onQuote: (appointment: AppointmentListItem) => void;
+  onReschedule: (appointment: AppointmentListItem) => void;
   onClearFilters?: () => void;
   onCopyPhone?: (phone: string) => void;
   totalCount?: number;
@@ -43,6 +44,7 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
   onSelectAppointment,
   onAssign,
   onQuote,
+  onReschedule,
   onClearFilters,
   onCopyPhone,
   totalCount,
@@ -103,6 +105,7 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
     scheduled: stats?.by_status?.scheduled ?? 0,
     in_progress: stats?.by_status?.in_progress ?? 0,
     completed: stats?.by_status?.completed ?? 0,
+    quoted: stats?.by_status?.quoted ?? 0,
     cancelled: stats?.by_status?.cancelled ?? 0,
   };
 
@@ -112,7 +115,7 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
       key: 'id',
       label: 'ID',
       sortable: true,
-      width: '95px',
+      width: '130px',
       className: 'apt-col-id',
       render: (a) => (
         <span className="apt-id-chip" title={`Appointment #${a.id}`}>
@@ -124,6 +127,7 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
       key: 'customer',
       label: 'Customer Name',
       sortable: true,
+      width: '220px',
       className: 'apt-col-customer',
       render: (a) => (
         <CustomerCell
@@ -137,7 +141,7 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
       key: 'booking',
       label: 'Booking Date & Time',
       sortable: true,
-      width: '155px',
+      width: '190px',
       className: 'apt-col-booking',
       render: (a) => (
         <BookingCell
@@ -150,7 +154,7 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
       key: 'assignee',
       label: 'Assignee',
       sortable: false,
-      width: '165px',
+      width: '190px',
       className: 'apt-col-assignee',
       render: (a) => <AssigneeCell assigneeName={a.assigned_to_name} />,
     },
@@ -170,21 +174,29 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
           counts={statusCounts}
         />
       ),
-      render: (a) => <StatusBadge status={a.status} />,
+      render: (a) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <StatusBadge status={a.status} />
+          {a.has_quotation && a.status !== 'quoted' && (
+            <StatusBadge status="quoted" />
+          )}
+        </div>
+      ),
     },
     {
       key: 'actions',
       label: 'Actions',
-      align: 'right',
       sortable: false,
-      width: '195px',
+      width: '360px',
       className: 'apt-col-actions',
       render: (a) => (
         <RowActions
           appointmentId={a.id}
           isAssigned={Boolean(a.assigned_to_name || a.assigned_to)}
+          hasQuotation={Boolean(a.has_quotation)}
           onAssign={() => onAssign(a)}
           onQuote={() => onQuote(a)}
+          onReschedule={() => onReschedule(a)}
         />
       ),
     },

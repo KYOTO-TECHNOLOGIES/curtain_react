@@ -13,6 +13,7 @@ export const STATUS_CONFIGS: Record<string, StatusOptionConfig[]> = {
     { value: 'scheduled', label: 'Scheduled', color: '#2F5D8F', textColor: '#2F5D8F', tint: '#EEF4FA' },
     { value: 'in_progress', label: 'In Progress', color: '#F97316', textColor: '#EA580C', tint: '#FFF4EA' },
     { value: 'completed', label: 'Completed', color: '#10B981', textColor: '#059669', tint: '#E8F8F2' },
+    { value: 'quoted', label: 'Quoted', color: '#009688', textColor: '#00897B', tint: '#E0F7FA' },
     { value: 'cancelled', label: 'Cancelled', color: '#EF4444', textColor: '#DC2626', tint: '#FEEFEF' },
   ],
   quotations: [
