@@ -32,12 +32,17 @@ export interface DataTableProps<T> {
   rowStyle?: (row: T, index: number) => React.CSSProperties;
   emptyTitle?: string;
   emptyDescription?: string;
+  emptyContent?: React.ReactNode;
   onClearFilters?: () => void;
   footer?: React.ReactNode;
   mobileToolbar?: React.ReactNode;
   renderSkeletonRow?: (index: number) => React.ReactNode;
   skeletonCount?: number;
   className?: string;
+  tableClassName?: string;
+  scrollClassName?: string;
+  animateRows?: boolean;
+  animateDataChanges?: boolean;
 }
 
 export function DataTable<T>({
@@ -55,15 +60,26 @@ export function DataTable<T>({
   rowStyle,
   emptyTitle = 'No records found',
   emptyDescription = 'Try adjusting your search or filters to find what you are looking for.',
+  emptyContent,
   onClearFilters,
   footer,
   mobileToolbar,
   renderSkeletonRow,
   skeletonCount = 6,
   className = '',
+  tableClassName = '',
+  scrollClassName = '',
+  animateRows = true,
+  animateDataChanges = false,
 }: DataTableProps<T>) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const previousDataRef = useRef(data);
+  const hasLoadedInitialDataRef = useRef(data.length > 0);
+  const dataChangeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const exitRowsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [scrollPosition, setScrollPosition] = useState({ hasScrolled: false, atEnd: true });
+  const [dataChangeActive, setDataChangeActive] = useState(false);
+  const [exitingRows, setExitingRows] = useState<T[]>([]);
 
   const updateScrollPosition = useCallback(() => {
     const element = scrollRef.current;
@@ -85,15 +101,46 @@ export function DataTable<T>({
     return () => window.removeEventListener('resize', updateScrollPosition);
   }, [columns, data, updateScrollPosition]);
 
+  useEffect(() => {
+    if (!animateDataChanges) {
+      previousDataRef.current = data;
+      return;
+    }
+
+    const previousData = previousDataRef.current;
+    if (previousData === data) return;
+    previousDataRef.current = data;
+
+    if (!hasLoadedInitialDataRef.current) {
+      hasLoadedInitialDataRef.current = data.length > 0;
+      return;
+    }
+
+    const currentKeys = new Set(data.map(keyExtractor));
+    const removedRows = previousData.filter((row) => !currentKeys.has(keyExtractor(row)));
+    setExitingRows(removedRows);
+    setDataChangeActive(true);
+
+    if (dataChangeTimerRef.current) clearTimeout(dataChangeTimerRef.current);
+    if (exitRowsTimerRef.current) clearTimeout(exitRowsTimerRef.current);
+    dataChangeTimerRef.current = setTimeout(() => setDataChangeActive(false), 160);
+    exitRowsTimerRef.current = setTimeout(() => setExitingRows([]), 120);
+  }, [animateDataChanges, data, keyExtractor]);
+
+  useEffect(() => () => {
+    if (dataChangeTimerRef.current) clearTimeout(dataChangeTimerRef.current);
+    if (exitRowsTimerRef.current) clearTimeout(exitRowsTimerRef.current);
+  }, []);
+
   return (
     <div className={`apt-table-card ${className}`}>
       {mobileToolbar && <div className="apt-table-mobile-toolbar">{mobileToolbar}</div>}
       <div
         ref={scrollRef}
-        className={`apt-table-scroll${scrollPosition.hasScrolled ? ' is-scrolled' : ''}${scrollPosition.atEnd ? ' is-at-end' : ''}`}
+        className={['apt-table-scroll', scrollClassName, scrollPosition.hasScrolled && 'is-scrolled', scrollPosition.atEnd && 'is-at-end'].filter(Boolean).join(' ')}
         onScroll={updateScrollPosition}
       >
-        <table className="apt-table">
+        <table className={['apt-table', tableClassName].filter(Boolean).join(' ')}>
           <thead>
             <tr>
               {columns.map((col) => {
@@ -203,35 +250,39 @@ export function DataTable<T>({
             ) : data.length === 0 ? (
               // Empty State
               <tr>
-                <td colSpan={columns.length}>
-                  <div className="apt-empty-state">
-                    <div className="apt-empty-icon-badge">
-                      <CalendarX className="w-6 h-6" />
+                <td colSpan={columns.length} className={emptyContent ? 'apt-table-empty-custom' : undefined}>
+                  {emptyContent || (
+                    <div className="apt-empty-state">
+                      <div className="apt-empty-icon-badge">
+                        <CalendarX className="w-6 h-6" />
+                      </div>
+                      <div className="apt-empty-title">{emptyTitle}</div>
+                      <div className="apt-empty-hint">{emptyDescription}</div>
+                      {onClearFilters && (
+                        <button
+                          type="button"
+                          className="apt-empty-clear-btn"
+                          onClick={onClearFilters}
+                        >
+                          Clear filters
+                        </button>
+                      )}
                     </div>
-                    <div className="apt-empty-title">{emptyTitle}</div>
-                    <div className="apt-empty-hint">{emptyDescription}</div>
-                    {onClearFilters && (
-                      <button
-                        type="button"
-                        className="apt-empty-clear-btn"
-                        onClick={onClearFilters}
-                      >
-                        Clear filters
-                      </button>
-                    )}
-                  </div>
+                  )}
                 </td>
               </tr>
             ) : (
               // Data Rows
-              data.map((row, index) => {
+              [...data, ...exitingRows.filter((row) => !data.some((item) => keyExtractor(item) === keyExtractor(row)))].map((row, index) => {
                 const key = keyExtractor(row);
+                const isExiting = !data.some((item) => keyExtractor(item) === key);
                 const customClasses = rowClassName ? rowClassName(row, index) : '';
                 const customStyles = rowStyle ? rowStyle(row, index) : undefined;
 
                 return (
                   <tr
                     key={key}
+                    aria-hidden={isExiting || undefined}
                     tabIndex={onRowClick ? 0 : undefined}
                     onClick={() => onRowClick?.(row)}
                     onKeyDown={(e) => {
@@ -240,9 +291,9 @@ export function DataTable<T>({
                         onRowClick(row);
                       }
                     }}
-                    className={`apt-row-enter ${customClasses}`}
+                    className={`${animateRows && !isExiting ? 'apt-row-enter' : ''} ${animateDataChanges && !isExiting && dataChangeActive ? 'apt-row-data-change' : ''} ${isExiting ? 'apt-row-exit' : ''} ${customClasses}`}
                     style={{
-                      animationDelay: `${Math.min(index, 12) * 30}ms`,
+                      animationDelay: animateRows ? `${Math.min(index, 12) * 30}ms` : undefined,
                       ...customStyles,
                     }}
                   >

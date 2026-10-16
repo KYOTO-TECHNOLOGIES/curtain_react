@@ -316,6 +316,24 @@
   animation: dtRowEnter 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+@keyframes dtRowDataChange {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+
+.apt-row-data-change {
+  animation: dtRowDataChange 160ms ease both;
+}
+
+@keyframes dtRowExit {
+  to { opacity: 0; }
+}
+
+.apt-row-exit {
+  animation: dtRowExit 120ms ease both;
+  pointer-events: none;
+}
+
 /* ── Row Flash on Update ───────────────────────────────────────── */
 @keyframes dtRowFlash {
   0% { background-color: var(--row-flash-color, rgba(47, 93, 143, 0.12)); }
@@ -417,6 +435,11 @@
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
+  }
+  .apt-row-data-change,
+  .apt-row-exit {
+    animation: none !important;
+    opacity: 1 !important;
   }
   .apt-row-flash {
     animation: none !important;

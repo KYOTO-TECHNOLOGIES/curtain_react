@@ -1,16 +1,70 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, Pencil, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import {
+  Plus, Search, SearchX, UsersRound, Pencil, Trash2, Copy, Check,
+  X, ShieldCheck, Headset, BriefcaseBusiness, UserCog, AlertCircle, Loader2,
+} from 'lucide-react';
+import type { CSSProperties } from 'react';
 import { usersApi } from '../../api/users';
 import { rolesApi } from '../../api/roles';
 import type { User, Role, UpdateUserRequest } from '../../types';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { DataTable, type DataTableColumn } from '../../components/ui/DataTable';
 import { createUserSchema, editUserSchema, type CreateUserFormValues, type EditUserFormValues } from '../../lib/validationSchemas';
 import { Pagination } from '../../components/ui/Pagination';
 import { usePagination } from '../../hooks/usePagination';
+import './UsersPage.css';
+
+const userPalette = [
+  { color: '#2F5D8F', tint: '#EEF4FA', ink: '#2F5D8F', ring: 'rgba(47, 93, 143, 0.18)' },
+  { color: '#10B981', tint: '#E8F8F2', ink: '#047857', ring: 'rgba(16, 185, 129, 0.18)' },
+  { color: '#F97316', tint: '#FFF4EA', ink: '#C2410C', ring: 'rgba(249, 115, 22, 0.18)' },
+  { color: '#8B5CF6', tint: '#F5F3FF', ink: '#6D28D9', ring: 'rgba(139, 92, 246, 0.18)' },
+  { color: '#F59E0B', tint: '#FFFBEB', ink: '#B45309', ring: 'rgba(245, 158, 11, 0.18)' },
+  { color: '#14B8A6', tint: '#E0F7F4', ink: '#0F766E', ring: 'rgba(20, 184, 166, 0.18)' },
+  { color: '#6366F1', tint: '#EEF2FF', ink: '#4338CA', ring: 'rgba(99, 102, 241, 0.18)' },
+  { color: '#EC4899', tint: '#FDF2F8', ink: '#BE185D', ring: 'rgba(236, 72, 153, 0.18)' },
+];
+
+function stableHash(value: string) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function getInitials(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return '?';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
+}
+
+function getUserColor(user: User) {
+  return userPalette[stableHash(String(user.id || user.full_name)) % userPalette.length];
+}
+
+function getRolePresentation(roleName: string) {
+  const normalized = roleName.trim().toLowerCase();
+  if (normalized === 'administrator') {
+    return { ...userPalette[0], Icon: ShieldCheck };
+  }
+  if (normalized === 'receptionist') {
+    return { ...userPalette[3], Icon: Headset };
+  }
+  if (normalized === 'salesman') {
+    return { ...userPalette[5], Icon: BriefcaseBusiness };
+  }
+  return {
+    ...userPalette[stableHash(normalized || 'role') % userPalette.length],
+    Icon: UserCog,
+  };
+}
 
 // Shared field styles
 const inputCls = (hasError?: boolean) =>
@@ -27,6 +81,12 @@ export default function UsersPage() {
   const { showToast } = useToast();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [announcedSearch, setAnnouncedSearch] = useState('');
+  const [allUsersCount, setAllUsersCount] = useState(0);
+  const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
+  const [initialRowsEntering, setInitialRowsEntering] = useState(true);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pagination = usePagination();
 
   // Debounce search
@@ -36,6 +96,41 @@ export default function UsersPage() {
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAnnouncedSearch(search);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    if (search) setInitialRowsEntering(false);
+  }, [search]);
+
+  useEffect(() => {
+    const focusSearchOnSlash = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (
+        event.key !== '/' ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        target instanceof HTMLElement && (
+          target.isContentEditable ||
+          ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
+        )
+      ) return;
+      event.preventDefault();
+      searchInputRef.current?.focus();
+    };
+    window.addEventListener('keydown', focusSearchOnSlash);
+    return () => window.removeEventListener('keydown', focusSearchOnSlash);
+  }, []);
+
+  useEffect(() => () => {
+    if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+  }, []);
 
   // Reset page when search changes
   useEffect(() => {
@@ -90,6 +185,16 @@ export default function UsersPage() {
     ? ((rolesRes?.data as any).results as Role[])
     : [];
   const loading = loadingUsers || loadingRoles;
+
+  useEffect(() => {
+    if (!debouncedSearch) setAllUsersCount(totalCount);
+  }, [debouncedSearch, totalCount]);
+
+  useEffect(() => {
+    if (loading) return;
+    const timer = setTimeout(() => setInitialRowsEntering(false), 900);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   const load = () => {
     refetchUsers();
@@ -150,97 +255,240 @@ export default function UsersPage() {
     setDeleting(false);
   };
 
+  const copyEmail = async (email: string) => {
+    try {
+      await navigator.clipboard.writeText(email);
+      setCopiedEmail(email);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => setCopiedEmail(null), 1400);
+      showToast('Copied');
+    } catch {
+      showToast('Could not copy to clipboard', 'error');
+    }
+  };
+
   const filtered = users;
+  const isSearchActive = Boolean(announcedSearch.trim());
+  const visibleStart = totalCount === 0 ? 0 : (pagination.currentPage - 1) * pagination.pageSize + 1;
+  const visibleEnd = Math.min(pagination.currentPage * pagination.pageSize, totalCount);
+  const userColumns: DataTableColumn<User>[] = [
+    {
+      key: 'name',
+      label: 'Name',
+      size: 'flex',
+      className: 'users-table__name-cell',
+      render: (user) => (
+        <div className="users-table__user">
+          <span
+            className="users-table__avatar"
+            aria-hidden="true"
+            style={{
+              backgroundColor: getUserColor(user).tint,
+              color: getUserColor(user).ink,
+              boxShadow: `inset 0 0 0 1px ${getUserColor(user).ring}`,
+            }}
+          >
+            {getInitials(user.full_name)}
+          </span>
+          <span className="users-table__name" title={user.full_name}>{user.full_name}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'email',
+      label: 'Email',
+      size: 'cap',
+      className: 'users-table__email-cell',
+      render: (user) => (
+        <>
+          <span className="users-table__email" title={user.email}>{user.email}</span>
+          <button
+            type="button"
+            className="users-table__copy-button"
+            aria-label={`Copy email for ${user.full_name}`}
+            title={copiedEmail === user.email ? 'Copied' : 'Copy email'}
+            onClick={() => void copyEmail(user.email)}
+          >
+            {copiedEmail === user.email ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+          </button>
+        </>
+      ),
+    },
+    {
+      key: 'role',
+      label: 'Role',
+      size: 'fit',
+      className: 'users-table__role-cell',
+      render: (user) => {
+        const role = getRolePresentation(user.role?.name || '');
+        const RoleIcon = role.Icon;
+        return (
+          <span
+            className="users-table__role"
+            style={{
+              color: role.ink,
+              backgroundColor: role.tint,
+              borderColor: role.ring,
+            }}
+          >
+            <RoleIcon aria-hidden="true" />
+            {user.role?.name}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      size: 'fit',
+      className: 'users-table__status-cell',
+      render: (user) => (
+        <StatusBadge
+          status={user.is_active ? 'active' : 'inactive'}
+          label={user.is_active ? 'Active' : 'Inactive'}
+          className="users-table__status"
+        />
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      size: 'fit',
+      align: 'right',
+      className: 'users-table__actions-cell',
+      render: (user) => (
+        <div className="users-table__actions">
+          <button
+            type="button"
+            onClick={() => openEdit(user)}
+            className="users-table__action users-table__action--edit"
+            title="Edit user"
+            aria-label={`Edit ${user.full_name}`}
+          >
+            <Pencil aria-hidden="true" /><span>Edit</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setDeleteTarget(user)}
+            className="users-table__action users-table__action--delete"
+            title="Delete user"
+            aria-label={`Delete ${user.full_name}`}
+          >
+            <Trash2 aria-hidden="true" /><span>Delete</span>
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-6 animate-page-in">
+    <div className="users-page animate-page-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Users</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Manage system users and their roles</p>
+      <div className="users-page__header">
+        <div className="users-page__heading">
+          <span className="users-page__icon-badge" aria-hidden="true"><UsersRound /></span>
+          <div>
+            <h1>Users</h1>
+            <p>Manage system users and their roles</p>
+          </div>
         </div>
-        <button onClick={openCreate} className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2b5c8f] text-white text-sm font-medium rounded-xl hover:bg-[#1f456e] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
-          <Plus className="w-4 h-4" /> Add User
+        <button type="button" onClick={openCreate} className="users-page__add-button">
+          <Plus aria-hidden="true" /> <span>Add User</span>
         </button>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Search users…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full sm:w-80 pl-11 pr-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all"
-        />
-      </div>
-
-      {/* Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/60">
-                <th className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Name</th>
-                <th className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Email</th>
-                <th className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</th>
-                <th className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                <th className="text-right px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                <tr><td colSpan={5} className="px-6 py-16 text-center"><Loader2 className="w-6 h-6 animate-spin text-slate-300 mx-auto" /></td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-16 text-center text-slate-400">No users found</td></tr>
-              ) : filtered.map((u) => (
-                <tr key={u.id} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#2b5c8f] to-[#1f456e] flex items-center justify-center text-white text-xs font-semibold">
-                        {u.full_name.charAt(0)}
-                      </div>
-                      <span className="font-medium text-slate-800">{u.full_name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-slate-600">{u.email}</td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium">{u.role?.name}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${u.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${u.is_active ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                      {u.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => openEdit(u)} className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Edit">
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => setDeleteTarget(u)} className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Search and result count */}
+      <div className="users-page__toolbar">
+        <div className="users-page__search-wrap">
+          <Search className="users-page__search-icon" aria-hidden="true" />
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Search users…"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="users-page__search"
+            aria-label="Search users"
+          />
+          {search && (
+            <button
+              type="button"
+              className="users-page__clear-search"
+              aria-label="Clear search"
+              onClick={() => setSearch('')}
+            >
+              <X aria-hidden="true" />
+            </button>
+          )}
+          {!search && <kbd className="users-page__shortcut" aria-hidden="true">/</kbd>}
+        </div>
+        <div className={`users-page__count${isSearchActive ? ' is-searching' : ''}`} aria-live="polite" aria-atomic="true">
+          {isSearchActive && <span className="users-page__count-dot" aria-hidden="true" />}
+          <span className="users-page__count-value" key={`${isSearchActive}-${filtered.length}-${totalCount}`}>
+            {isSearchActive
+              ? `Showing ${totalCount.toLocaleString()} of ${allUsersCount.toLocaleString()}`
+              : `${totalCount.toLocaleString()} ${totalCount === 1 ? 'user' : 'users'}`}
+          </span>
         </div>
       </div>
 
-      {/* Pagination */}
-      <Pagination
-        totalCount={totalCount}
-        currentPage={pagination.currentPage}
-        pageSize={pagination.pageSize}
-        onPageChange={pagination.goToPage}
-        onPageSizeChange={pagination.setPageSize}
-        loading={loadingUsers}
+      {/* Table */}
+      <DataTable
+        columns={userColumns}
+        data={filtered}
+        keyExtractor={(user) => user.id}
+        loading={loading}
+        className={`users-table-card${initialRowsEntering && !loading ? ' is-first-load' : ''}`}
+        tableClassName="users-table"
+        scrollClassName="users-table-scroll"
+        animateRows={initialRowsEntering}
+        animateDataChanges
+        rowClassName={() => 'users-table__row'}
+        rowStyle={(user) => ({
+          '--user-accent': getRolePresentation(user.role?.name || '').color,
+        }) as CSSProperties}
+        skeletonCount={5}
+        renderSkeletonRow={() => (
+          <tr className="users-table__skeleton" aria-hidden="true">
+            <td className="dt-col-flex"><span className="users-skeleton__name"><i /><b /></span></td>
+            <td className="dt-col-cap"><span className="users-skeleton__line" /></td>
+            <td className="dt-col-fit"><span className="users-skeleton__pill" /></td>
+            <td className="dt-col-fit"><span className="users-skeleton__pill users-skeleton__pill--status" /></td>
+            <td className="dt-col-fit dt-col-actions"><span className="users-skeleton__actions"><i /><i /></span></td>
+          </tr>
+        )}
+        emptyContent={
+          <div className="users-table__empty">
+            <span className="users-table__empty-icon" aria-hidden="true">
+              {isSearchActive ? <SearchX /> : <UsersRound />}
+            </span>
+            <strong>No users found</strong>
+            {isSearchActive && (
+              <>
+                <span>Try a different name or email</span>
+                <button type="button" onClick={() => setSearch('')}>Clear search</button>
+              </>
+            )}
+          </div>
+        }
+        footer={(
+          <span className="apt-footer-count users-table__footer">
+            Showing <strong>{visibleStart}–{visibleEnd}</strong> of <strong>{totalCount.toLocaleString()}</strong>
+          </span>
+        )}
       />
+
+      {/* Pagination */}
+      <div className="users-page__pagination">
+        <Pagination
+          totalCount={totalCount}
+          currentPage={pagination.currentPage}
+          pageSize={pagination.pageSize}
+          onPageChange={pagination.goToPage}
+          onPageSizeChange={pagination.setPageSize}
+          loading={loadingUsers}
+        />
+      </div>
 
       {/* Form Modal */}
       <Modal open={formOpen} onClose={() => setFormOpen(false)} title={editingUser ? 'Edit User' : 'Create User'}>
