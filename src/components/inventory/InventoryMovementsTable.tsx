@@ -92,7 +92,7 @@ export const InventoryMovementsTable: React.FC<InventoryMovementsTableProps> = (
       key: 'date',
       label: 'Timestamp',
       sortable: true,
-      width: '180px',
+      size: 'fit',
       render: (m) => (
         <div className="flex items-center gap-2">
           <Calendar className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
@@ -106,6 +106,7 @@ export const InventoryMovementsTable: React.FC<InventoryMovementsTableProps> = (
       key: 'item',
       label: 'Stock Item',
       sortable: true,
+      size: 'flex',
       className: 'inv-col-item',
       render: (m) => (
         <div className="flex items-center gap-2 py-1">
@@ -120,7 +121,7 @@ export const InventoryMovementsTable: React.FC<InventoryMovementsTableProps> = (
       key: 'type',
       label: 'Movement Type',
       sortable: true,
-      width: '160px',
+      size: 'fit',
       render: (m) => {
         if (m.movement_type === 'in') {
           return (
@@ -150,7 +151,7 @@ export const InventoryMovementsTable: React.FC<InventoryMovementsTableProps> = (
       key: 'quantity',
       label: 'Quantity',
       sortable: true,
-      width: '130px',
+      size: 'fit',
       render: (m) => {
         const isPositive = m.movement_type === 'in';
         const isNegative = m.movement_type === 'out';
@@ -169,7 +170,7 @@ export const InventoryMovementsTable: React.FC<InventoryMovementsTableProps> = (
     {
       key: 'reference',
       label: 'Reference / Note',
-      width: '200px',
+      size: 'cap',
       render: (m) => (
         <div className="flex flex-col text-xs">
           {m.reference && (
@@ -189,9 +190,9 @@ export const InventoryMovementsTable: React.FC<InventoryMovementsTableProps> = (
     {
       key: 'user',
       label: 'Logged By',
-      width: '150px',
+      size: 'cap',
       render: (m) => (
-        <span className="text-xs font-semibold text-slate-600 truncate block">
+        <span className="text-xs font-semibold text-slate-600 truncate block" title={m.created_by_name || 'System Auto'}>
           {m.created_by_name || 'System Auto'}
         </span>
       ),

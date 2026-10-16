@@ -163,13 +163,14 @@
   flex-shrink: 0;
 }
 
-/* ── Column Widths ─────────────────────────────────────────────── */
+/* ── Content-based column minimums ─────────────────────────────── */
 .inv-col-sku,
-.inv-col-item,
-.inv-col-supplier {
-  width: auto;
-  min-width: 190px;
-}
+.inv-col-item { min-width: 220px; }
+.inv-col-supplier { min-width: 104px; }
+.inv-col-category { min-width: 118px; }
+.inv-col-stock { min-width: 136px; }
+.inv-col-value { min-width: 112px; }
+.inv-col-actions { min-width: 144px; }
 
 /* ── Actions Row ───────────────────────────────────────────────── */
 .inv-action-group {
@@ -195,7 +196,7 @@
   white-space: nowrap;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1360px) {
   .inv-action-btn-pill span {
     display: none;
   }

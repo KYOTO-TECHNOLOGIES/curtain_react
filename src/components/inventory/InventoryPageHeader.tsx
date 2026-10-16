@@ -1,29 +1,23 @@
 import React from 'react';
-import { Download, Plus, ChevronRight, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Download, Plus, ChevronRight, RefreshCw } from 'lucide-react';
 import '../appointments/AppointmentHeader.css';
 
 interface InventoryPageHeaderProps {
   activeTab: 'items' | 'suppliers' | 'reorders' | 'movements';
-  lowStockCount?: number;
   onExport?: () => void;
-  onReorderLowStock?: () => void;
   onAddItem?: () => void;
   onAddSupplier?: () => void;
   onNewReorder?: () => void;
   onRefresh?: () => void;
-  isReorderingLowStock?: boolean;
 }
 
 export const InventoryPageHeader: React.FC<InventoryPageHeaderProps> = ({
   activeTab,
-  lowStockCount = 0,
   onExport,
-  onReorderLowStock,
   onAddItem,
   onAddSupplier,
   onNewReorder,
   onRefresh,
-  isReorderingLowStock = false,
 }) => {
   const getBreadcrumbLabel = () => {
     switch (activeTab) {
@@ -82,28 +76,6 @@ export const InventoryPageHeader: React.FC<InventoryPageHeaderProps> = ({
           <Download className="export-icon" strokeWidth={2.2} />
           <span className="hidden sm:inline">Export List</span>
         </button>
-
-        {/* Reorder Low Stock (visible when low stock exists) */}
-        {activeTab === 'items' && lowStockCount > 0 && onReorderLowStock && (
-          <button
-            type="button"
-            onClick={onReorderLowStock}
-            disabled={isReorderingLowStock}
-            className="inline-flex items-center gap-2 h-10 px-3.5 sm:px-4 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-900 font-semibold text-sm hover:bg-amber-100 hover:border-amber-300 transition-all shadow-sm active:scale-95 disabled:opacity-50"
-            title="Auto-create reorder requests for all low stock items"
-          >
-            <AlertTriangle
-              className={`w-4 h-4 text-amber-600 ${isReorderingLowStock ? 'animate-spin' : 'animate-bounce'}`}
-              strokeWidth={2.2}
-            />
-            <span className="hidden sm:inline">
-              {isReorderingLowStock ? 'Generating...' : `Reorder Low Stock (${lowStockCount})`}
-            </span>
-            <span className="sm:hidden">
-              Reorder ({lowStockCount})
-            </span>
-          </button>
-        )}
 
         {/* Tab Specific Primary Action */}
         {activeTab === 'items' && onAddItem && (

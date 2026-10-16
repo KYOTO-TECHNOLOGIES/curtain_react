@@ -141,7 +141,7 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({
       key: 'id',
       label: 'Payment ID',
       sortable: true,
-      width: '125px',
+      size: 'fit',
       className: 'pay-col-id',
       render: (p) => (
         <span className="pay-id-chip" title={`Payment #${p.id}`}>
@@ -154,7 +154,7 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({
       key: 'invoice',
       label: 'Invoice / Ref',
       sortable: true,
-      width: '165px',
+      size: 'fit',
       className: 'pay-col-invoice',
       render: (p) => {
         const invId = p.invoice_number || p.invoice || 'N/A';
@@ -183,7 +183,7 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({
       key: 'amount',
       label: 'Amount Paid',
       sortable: true,
-      width: '155px',
+      size: 'fit',
       className: 'pay-col-amount',
       render: (p) => (
         <div className="pay-amount-cell">
@@ -198,7 +198,7 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({
       key: 'method',
       label: 'Method',
       sortable: false,
-      width: '180px',
+      size: 'fit',
       className: 'pay-col-method',
       headerAddonOnly: true,
       headerAddon: (
@@ -219,6 +219,7 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({
       key: 'date',
       label: 'Details',
       sortable: true,
+      size: 'cap',
       className: 'pay-col-details',
       render: (p) => (
         <div className="pay-details-container">
@@ -243,7 +244,7 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({
       label: 'Actions',
       align: 'right',
       sortable: false,
-      width: '160px',
+      size: 'fit',
       className: 'pay-col-actions',
       render: (p) => (
         <div className="pay-actions-cell" onClick={(e) => e.stopPropagation()}>
@@ -264,28 +265,28 @@ export const PaymentTable: React.FC<PaymentTableProps> = ({
 
   const renderSkeletonRow = (idx: number) => (
     <tr key={`pay-skeleton-${idx}`} className="apt-table-row">
-      <td className="pay-col-id">
+      <td className="pay-col-id dt-col-fit">
         <div className="apt-skeleton-block" style={{ width: '75px', height: '26px', borderRadius: '8px' }} />
       </td>
-      <td className="pay-col-invoice">
+      <td className="pay-col-invoice dt-col-fit">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <div className="apt-skeleton-block" style={{ width: '85px', height: '22px', borderRadius: '6px' }} />
           <div className="apt-skeleton-block" style={{ width: '70px', height: '12px' }} />
         </div>
       </td>
-      <td className="pay-col-amount">
+      <td className="pay-col-amount dt-col-fit">
         <div className="apt-skeleton-block" style={{ width: '105px', height: '18px' }} />
       </td>
-      <td className="pay-col-method">
+      <td className="pay-col-method dt-col-fit">
         <div className="apt-skeleton-block" style={{ width: '95px', height: '24px', borderRadius: '999px' }} />
       </td>
-      <td className="pay-col-details">
+      <td className="pay-col-details dt-col-cap">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <div className="apt-skeleton-block" style={{ width: '110px', height: '13px' }} />
           <div className="apt-skeleton-block" style={{ width: '90px', height: '13px' }} />
         </div>
       </td>
-      <td className="pay-col-actions text-right">
+      <td className="pay-col-actions dt-col-fit dt-col-actions text-right">
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <div className="apt-skeleton-block" style={{ width: '105px', height: '34px', borderRadius: '10px' }} />
         </div>

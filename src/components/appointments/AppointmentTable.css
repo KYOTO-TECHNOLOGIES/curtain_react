@@ -189,13 +189,13 @@
   animation: aptRowFlash 1.2s ease-out forwards;
 }
 
-/* ── Column Widths ─────────────────────────────────────────────── */
-.apt-col-id { width: 130px; min-width: 130px; }
-.apt-col-customer { width: 220px; min-width: 220px; }
-.apt-col-booking { width: 190px; min-width: 170px; }
-.apt-col-assignee { width: 190px; min-width: 190px; }
-.apt-col-status { width: 150px; min-width: 150px; }
-.apt-col-actions { width: 360px; min-width: 360px; padding-right: 24px; }
+/* ── Content-based column minimums ─────────────────────────────── */
+.apt-col-id { min-width: 82px; }
+.apt-col-customer { min-width: 220px; }
+.apt-col-booking { min-width: 136px; }
+.apt-col-assignee { min-width: 120px; }
+.apt-col-status { min-width: 116px; }
+.apt-col-actions { min-width: 180px; }
 
 /* ── ID Chip ───────────────────────────────────────────────────── */
 .apt-id-chip {

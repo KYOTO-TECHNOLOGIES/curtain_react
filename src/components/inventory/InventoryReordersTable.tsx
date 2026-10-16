@@ -103,6 +103,7 @@ export const InventoryReordersTable: React.FC<InventoryReordersTableProps> = ({
       key: 'item',
       label: 'Stock Item',
       sortable: true,
+      size: 'flex',
       className: 'inv-col-item',
       render: (r) => (
         <div className="flex items-center gap-3 py-1">
@@ -127,7 +128,7 @@ export const InventoryReordersTable: React.FC<InventoryReordersTableProps> = ({
       key: 'quantity',
       label: 'Order Qty',
       sortable: true,
-      width: '130px',
+      size: 'fit',
       render: (r) => (
         <div>
           <span className="text-base font-extrabold text-slate-900 font-mono">
@@ -140,9 +141,9 @@ export const InventoryReordersTable: React.FC<InventoryReordersTableProps> = ({
       key: 'supplier',
       label: 'Supplier',
       sortable: true,
-      width: '180px',
+      size: 'cap',
       render: (r) => (
-        <span className="text-[13px] font-semibold text-slate-700 truncate block">
+        <span className="text-[13px] font-semibold text-slate-700 truncate block" title={r.supplier_name || '—'}>
           {r.supplier_name || '—'}
         </span>
       ),
@@ -151,7 +152,7 @@ export const InventoryReordersTable: React.FC<InventoryReordersTableProps> = ({
       key: 'status',
       label: 'Status',
       sortable: true,
-      width: '180px',
+      size: 'fit',
       render: (r) => {
         const config = REORDER_STATUS_MAP[r.status] || REORDER_STATUS_MAP.pending;
         const Icon = config.icon;
@@ -170,7 +171,7 @@ export const InventoryReordersTable: React.FC<InventoryReordersTableProps> = ({
       key: 'date',
       label: 'Timestamps',
       sortable: true,
-      width: '160px',
+      size: 'fit',
       render: (r) => (
         <div className="flex flex-col text-xs gap-0.5">
           <span className="font-semibold text-slate-700">
@@ -192,7 +193,7 @@ export const InventoryReordersTable: React.FC<InventoryReordersTableProps> = ({
     {
       key: 'actions',
       label: 'Update Status',
-      width: '210px',
+      size: 'fit',
       align: 'right',
       render: (r) => (
         <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>

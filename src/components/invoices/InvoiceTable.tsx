@@ -106,7 +106,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({
       key: 'id',
       label: 'Invoice / Quote #',
       sortable: true,
-      width: '145px',
+      size: 'fit',
       className: 'inv-col-id',
       render: (i) => (
         <div className="inv-id-container">
@@ -124,6 +124,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({
       key: 'customer',
       label: 'Customer',
       sortable: true,
+      size: 'flex',
       className: 'inv-col-customer',
       render: (i) => (
         <CustomerCell
@@ -137,7 +138,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({
       key: 'amount',
       label: 'Total / Balance',
       sortable: true,
-      width: '160px',
+      size: 'fit',
       className: 'inv-col-amount',
       render: (i) => {
         const balance = parseFloat(i.balance_due || '0');
@@ -164,7 +165,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({
       key: 'timeline',
       label: 'Timeline',
       sortable: true,
-      width: '175px',
+      size: 'fit',
       className: 'inv-col-timeline',
       render: (i) => (
         <div className="inv-timeline-container">
@@ -183,7 +184,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({
       key: 'status',
       label: 'Status',
       sortable: false,
-      width: '168px',
+      size: 'fit',
       className: 'inv-col-status',
       headerAddonOnly: true,
       headerAddon: (
@@ -207,7 +208,7 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({
       label: 'Actions',
       align: 'right',
       sortable: false,
-      width: '205px',
+      size: 'fit',
       className: 'inv-col-actions',
       render: (i) => (
         <div className="inv-actions-cell" onClick={(e) => e.stopPropagation()}>
@@ -241,13 +242,13 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({
 
   const renderSkeletonRow = (idx: number) => (
     <tr key={`inv-skeleton-${idx}`} className="apt-table-row">
-      <td className="inv-col-id">
+      <td className="inv-col-id dt-col-fit">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <div className="apt-skeleton-block" style={{ width: '85px', height: '26px', borderRadius: '8px' }} />
           <div className="apt-skeleton-block" style={{ width: '70px', height: '12px' }} />
         </div>
       </td>
-      <td className="inv-col-customer">
+      <td className="inv-col-customer dt-col-flex">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div className="apt-skeleton-block" style={{ width: '36px', height: '36px', borderRadius: '12px', flexShrink: 0 }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -256,22 +257,22 @@ export const InvoiceTable: React.FC<InvoiceTableProps> = ({
           </div>
         </div>
       </td>
-      <td className="inv-col-amount">
+      <td className="inv-col-amount dt-col-fit">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <div className="apt-skeleton-block" style={{ width: '100px', height: '18px' }} />
           <div className="apt-skeleton-block" style={{ width: '75px', height: '12px' }} />
         </div>
       </td>
-      <td className="inv-col-timeline">
+      <td className="inv-col-timeline dt-col-fit">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <div className="apt-skeleton-block" style={{ width: '110px', height: '13px' }} />
           <div className="apt-skeleton-block" style={{ width: '95px', height: '13px' }} />
         </div>
       </td>
-      <td className="inv-col-status">
+      <td className="inv-col-status dt-col-fit">
         <div className="apt-skeleton-block" style={{ width: '90px', height: '24px', borderRadius: '999px' }} />
       </td>
-      <td className="inv-col-actions text-right">
+      <td className="inv-col-actions dt-col-fit dt-col-actions text-right">
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
           <div className="apt-skeleton-block" style={{ width: '90px', height: '34px', borderRadius: '10px' }} />
           <div className="apt-skeleton-block" style={{ width: '55px', height: '34px', borderRadius: '10px' }} />

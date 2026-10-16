@@ -54,6 +54,14 @@
   outline-offset: 2px;
 }
 
+.select-menu-option-suffix {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: #94A3B8;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Chevron indicator */
 .select-menu-chevron {
   width: 16px;

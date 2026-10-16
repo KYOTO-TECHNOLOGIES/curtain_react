@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -12,13 +12,32 @@ import { useToast } from '../../components/ui/Toast';
 import { customerSchema, type CustomerFormValues } from '../../lib/validationSchemas';
 import { Pagination } from '../../components/ui/Pagination';
 import { usePagination } from '../../hooks/usePagination';
+import './CustomersPage.css';
 
 export default function CustomersPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const [tableScrollPosition, setTableScrollPosition] = useState({ hasScrolled: false, atEnd: true });
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const pagination = usePagination();
+
+  useEffect(() => {
+    const element = tableScrollRef.current;
+    if (!element) return;
+    const updateScrollPosition = () => setTableScrollPosition({
+      hasScrolled: element.scrollLeft > 0,
+      atEnd: element.scrollLeft + element.clientWidth >= element.scrollWidth - 1,
+    });
+    updateScrollPosition();
+    element.addEventListener('scroll', updateScrollPosition, { passive: true });
+    window.addEventListener('resize', updateScrollPosition);
+    return () => {
+      element.removeEventListener('scroll', updateScrollPosition);
+      window.removeEventListener('resize', updateScrollPosition);
+    };
+  }, []);
 
   // Debounce search for backend call
   useEffect(() => {
@@ -162,70 +181,73 @@ export default function CustomersPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1000px]">
+        <div
+          ref={tableScrollRef}
+          className={`customers-table-scroll${tableScrollPosition.hasScrolled ? ' is-scrolled' : ''}${tableScrollPosition.atEnd ? ' is-at-end' : ''}`}
+        >
+          <table className="customers-data-table">
             <thead>
               <tr className="border-b border-slate-100 bg-white">
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">ID</th>
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Customer</th>
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Company</th>
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Phone</th>
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Email</th>
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Location</th>
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Created</th>
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                <th className="dt-col-fit">ID</th>
+                <th className="dt-col-flex">Customer</th>
+                <th className="dt-col-cap">Company</th>
+                <th className="dt-col-fit">Phone</th>
+                <th className="dt-col-cap">Email</th>
+                <th className="dt-col-cap">Location</th>
+                <th className="dt-col-fit">Created</th>
+                <th className="dt-col-fit dt-col-actions text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-16 text-center">
+                  <td colSpan={8} className="customers-table-state">
                     <Loader2 className="w-8 h-8 animate-spin text-[#2b5c8f] mx-auto" />
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-16 text-center text-slate-500 font-medium">
+                  <td colSpan={8} className="customers-table-state text-slate-500 font-medium">
                     No customers found.
                   </td>
                 </tr>
               ) : filtered.map((c) => (
                 <tr key={c.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => navigate(`/customers/${c.id}`)}>
-                  <td className="px-6 py-5 align-middle">
+                  <td className="dt-col-fit">
                     <span className="text-sm font-extrabold text-slate-800">#{c.id}</span>
                   </td>
-                  <td className="px-6 py-5 align-middle">
+                  <td className="dt-col-flex">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-700 text-[11px] font-bold">
                         {c.first_name?.charAt(0)?.toUpperCase() || 'C'}{c.last_name?.charAt(0)?.toUpperCase() || 'U'}
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[14px] font-bold text-slate-700">{c.full_name}</span>
+                        <span className="customers-truncate text-[14px] font-bold text-slate-700" title={c.full_name}>{c.full_name}</span>
                         <span className="text-[12px] text-slate-400 font-medium">{c.is_active ? 'Active' : 'Inactive'}</span>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-5 align-middle">
-                    <span className="text-sm font-medium text-slate-600">{c.company_name || 'Individual'}</span>
+                  <td className="dt-col-cap">
+                    <span className="customers-truncate text-sm font-medium text-slate-600" title={c.company_name || 'Individual'}>{c.company_name || 'Individual'}</span>
                   </td>
-                  <td className="px-6 py-5 align-middle">
+                  <td className="dt-col-fit">
                     <span className="text-sm font-medium text-slate-500 whitespace-nowrap">{c.phone || '—'}</span>
                   </td>
-                  <td className="px-6 py-5 align-middle">
-                    <span className="text-sm font-medium text-slate-600 truncate max-w-[220px] inline-block">{c.email || '—'}</span>
+                  <td className="dt-col-cap">
+                    <span className="customers-truncate text-sm font-medium text-slate-600" title={c.email || '—'}>{c.email || '—'}</span>
                   </td>
-                  <td className="px-6 py-5 align-middle">
+                  <td className="dt-col-cap">
                     <div className="flex items-center gap-2 text-slate-500">
                       <MapPin className="w-4 h-4 text-slate-400" />
-                      <span className="text-sm font-medium">{[c.city, c.country].filter(Boolean).join(', ') || '—'}</span>
+                      <span className="customers-truncate text-sm font-medium" title={[c.city, c.country].filter(Boolean).join(', ') || '—'}>{[c.city, c.country].filter(Boolean).join(', ') || '—'}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-5 align-middle">
+                  <td className="dt-col-fit">
                     <span className="text-sm font-medium text-slate-500">
                       {c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}
                     </span>
                   </td>
-                  <td className="px-6 py-5 align-middle text-right" onClick={(e) => e.stopPropagation()}>
+                  <td className="dt-col-fit dt-col-actions text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-2">
                       <button onClick={() => openEdit(c)} className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-[12px] rounded-lg transition-colors">
                         <Pencil className="w-3.5 h-3.5" /> Edit

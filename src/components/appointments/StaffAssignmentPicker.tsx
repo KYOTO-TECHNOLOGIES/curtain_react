@@ -33,6 +33,8 @@ interface StaffAssignmentPickerProps {
   error?: string;
   placeholder?: string;
   allowUnassigned?: boolean;
+  unassignedLabel?: string;
+  className?: string;
 }
 
 function getNameAndEmail(option: StaffAssignmentOption) {
@@ -83,6 +85,8 @@ export function StaffAssignmentPicker({
   error,
   placeholder = 'Select a staff member...',
   allowUnassigned = false,
+  unassignedLabel = 'Unassigned',
+  className = '',
 }: StaffAssignmentPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isRendered, setIsRendered] = useState(false);
@@ -343,7 +347,7 @@ export function StaffAssignmentPicker({
               >
                 <span className="staff-picker__unassigned-icon"><UserPlus aria-hidden="true" /></span>
                 <span className="staff-picker__copy">
-                  <span className="staff-picker__name">Unassigned</span>
+                  <span className="staff-picker__name">{unassignedLabel}</span>
                   <span className="staff-picker__email">No one assigned yet</span>
                 </span>
                 {value === '' && <Check className="staff-picker__check" aria-hidden="true" />}
@@ -368,7 +372,7 @@ export function StaffAssignmentPicker({
   );
 
   return (
-    <div className={`staff-picker ${isOpen ? 'is-open' : ''} ${disabled ? 'is-disabled' : ''} ${error ? 'is-invalid' : ''}`}>
+    <div className={`staff-picker ${isOpen ? 'is-open' : ''} ${disabled ? 'is-disabled' : ''} ${error ? 'is-invalid' : ''} ${className}`}>
       <div className="staff-picker__label-row">
         <label htmlFor={id} className="staff-picker__label">
           {label}{required && <span className="staff-picker__required"> *</span>}
@@ -412,7 +416,7 @@ export function StaffAssignmentPicker({
           ) : (
             <span className={`staff-picker__placeholder ${allowUnassigned && value === '' ? 'is-unassigned' : ''}`}>
               <span className="staff-picker__unassigned-icon"><UserPlus aria-hidden="true" /></span>
-              {allowUnassigned && value === '' ? 'Unassigned' : placeholder}
+              {allowUnassigned && value === '' ? unassignedLabel : placeholder}
             </span>
           )}
           {!disabled && <ChevronDown className="staff-picker__chevron" aria-hidden="true" />}

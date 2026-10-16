@@ -4,6 +4,7 @@ import {
   Loader2,
   Search,
   X,
+  Package,
   ArrowDownRight,
   ArrowUpRight,
   SlidersHorizontal,
@@ -35,10 +36,14 @@ import { InventoryItemsTable } from '../../components/inventory/InventoryItemsTa
 import { InventorySuppliersTable } from '../../components/inventory/InventorySuppliersTable';
 import { InventoryReordersTable } from '../../components/inventory/InventoryReordersTable';
 import { InventoryMovementsTable } from '../../components/inventory/InventoryMovementsTable';
+import SupplierModal from '../../components/inventory/SupplierModal';
+import { StaffAssignmentPicker } from '../../components/appointments/StaffAssignmentPicker';
 import { Pagination } from '../../components/ui/Pagination';
 import { usePagination } from '../../hooks/usePagination';
 import '../../components/appointments/FilterBar.css';
 import { COLUMN_FILTER_CONFIG, INVENTORY_CATEGORIES as CATEGORIES } from '../../components/ui/filterConfig.js';
+import '../../components/invoices/LogPaymentModal.css';
+import './InventoryPage.css';
 
 const UNITS: { value: InventoryUnit; label: string }[] = [
   { value: 'roll', label: 'Roll' },
@@ -149,7 +154,6 @@ export default function InventoryPage() {
   });
 
   const [saving, setSaving] = useState(false);
-  const [isReorderingLowStock, setIsReorderingLowStock] = useState(false);
 
   // Queries
   const itemsQuery = useQuery({
@@ -532,20 +536,6 @@ export default function InventoryPage() {
     }
   };
 
-  const createFromLowStock = async () => {
-    setIsReorderingLowStock(true);
-    try {
-      const res = await inventoryApi.createReordersFromLowStock();
-      const count = res.data?.length || 0;
-      showToast(count ? `${count} reorder(s) generated for low stock` : 'No new reorders needed', 'success');
-      refreshAll();
-      setTab('reorders');
-    } catch (err: any) {
-      showToast(err?.response?.data?.detail || 'Failed to create reorders', 'error');
-    }
-    setIsReorderingLowStock(false);
-  };
-
   // CSV Export
   const handleExportCSV = () => {
     if (!filteredItems.length) {
@@ -622,14 +612,11 @@ export default function InventoryPage() {
       {/* 1. Modern Page Header (Design Spells Style) */}
       <InventoryPageHeader
         activeTab={tab}
-        lowStockCount={stats?.low_stock_count ?? 0}
         onExport={handleExportCSV}
-        onReorderLowStock={createFromLowStock}
         onAddItem={openCreateItem}
         onAddSupplier={openCreateSupplier}
         onNewReorder={() => openReorder()}
         onRefresh={refreshAll}
-        isReorderingLowStock={isReorderingLowStock}
       />
 
       {/* 2. Interactive KPI Stat Cards (Design Spells Micro-interactions) */}
@@ -835,221 +822,178 @@ export default function InventoryPage() {
         open={itemModalOpen}
         onClose={() => setItemModalOpen(false)}
         title={editingItem ? `Edit Item: ${editingItem.sku}` : 'Add New Stock Item'}
-        maxWidth="max-w-2xl"
+        subtitle={editingItem ? 'Update inventory item details' : 'Add a product to your inventory'}
+        variant="payment"
+        isBusy={saving}
+        headerBadgeContent={<Package />}
       >
-        <div className="space-y-5 max-h-[75vh] overflow-y-auto pr-1">
-          {/* Section: Basic Identity */}
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">
-              1. Item Identity
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  SKU Code *
-                </label>
-                <div className="relative">
-                  <Warehouse className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="text"
-                    required
-                    value={itemForm.sku}
-                    onChange={(e) => setItemForm({ ...itemForm, sku: e.target.value })}
-                    placeholder="e.g. FAB-LINEN-01"
-                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Item Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={itemForm.name}
-                  onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })}
-                  placeholder="e.g. Belgian Pure Linen"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Category
-                </label>
-                <select
-                  value={itemForm.category}
-                  onChange={(e) => setItemForm({ ...itemForm, category: e.target.value as InventoryCategory })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all bg-white"
-                >
-                  {CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Stock Unit
-                </label>
-                <select
-                  value={itemForm.unit}
-                  onChange={(e) => setItemForm({ ...itemForm, unit: e.target.value as InventoryUnit })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all bg-white"
-                >
-                  {UNITS.map((u) => (
-                    <option key={u.value} value={u.value}>
-                      {u.label} ({u.value})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Section: Stock Levels & Limits */}
-          <div className="pt-2 border-t border-slate-100">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">
-              2. Stock Levels & Thresholds
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-              {!editingItem && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Initial Stock Qty
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={itemForm.quantity_on_hand}
-                    onChange={(e) => setItemForm({ ...itemForm, quantity_on_hand: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Reorder Level (Min)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={itemForm.reorder_level}
-                  onChange={(e) => setItemForm({ ...itemForm, reorder_level: e.target.value })}
-                  placeholder="e.g. 10"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Standard Reorder Qty
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={itemForm.reorder_quantity}
-                  onChange={(e) => setItemForm({ ...itemForm, reorder_quantity: e.target.value })}
-                  placeholder="e.g. 50"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section: Pricing, Storage & Supplier */}
-          <div className="pt-2 border-t border-slate-100">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">
-              3. Procurement & Storage
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Unit Cost (AED)
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
-                    AED
-                  </span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={itemForm.unit_cost}
-                    onChange={(e) => setItemForm({ ...itemForm, unit_cost: e.target.value })}
-                    className="w-full pl-12 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Warehouse Location
-                </label>
-                <input
-                  type="text"
-                  value={itemForm.location || ''}
-                  onChange={(e) => setItemForm({ ...itemForm, location: e.target.value })}
-                  placeholder="e.g. Aisle 4, Shelf B"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Preferred Supplier
-                </label>
-                <select
-                  value={itemForm.supplier ?? ''}
-                  onChange={(e) => setItemForm({ ...itemForm, supplier: e.target.value ? Number(e.target.value) : null })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all bg-white"
-                >
-                  <option value="">None / Open Market</option>
-                  {suppliers.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Item Notes & Specs
-            </label>
-            <textarea
-              value={itemForm.notes || ''}
-              onChange={(e) => setItemForm({ ...itemForm, notes: e.target.value })}
-              placeholder="Width, weight, color code, washing instructions..."
-              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all h-20 resize-none"
-            />
-          </div>
-
-          <div className="flex gap-3 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setItemModalOpen(false)}
-              className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+        <form className="payment-modal-form inventory-item-form" onSubmit={(event) => event.preventDefault()}>
+          <div className="payment-modal-body-shell">
+            <div
+              className="payment-modal-body inventory-item-modal-body"
+              onScroll={(event) => {
+                const body = event.currentTarget;
+                const shell = body.parentElement;
+                shell?.classList.toggle('has-top-scroll', body.scrollTop > 0);
+                shell?.classList.toggle('has-bottom-scroll', body.scrollHeight - body.clientHeight - body.scrollTop > 1);
+              }}
             >
+              <section className="inventory-item-section">
+                <h3 className="inventory-item-section-title">1. Item Identity</h3>
+                <div className="inventory-item-grid inventory-item-grid--two">
+                  <div className="payment-field inventory-item-field">
+                    <div className="payment-field-label-row">
+                      <label className="payment-field-label" htmlFor="item-sku">SKU Code<span className="payment-required-mark">*</span></label>
+                    </div>
+                    <div className="payment-icon-control inventory-item-control">
+                      <Warehouse className="payment-leading-icon" aria-hidden="true" />
+                      <input
+                        id="item-sku"
+                        data-payment-autofocus
+                        type="text"
+                        required
+                        value={itemForm.sku}
+                        onChange={(e) => setItemForm({ ...itemForm, sku: e.target.value })}
+                        placeholder="e.g. FAB-LINEN-01"
+                        className="payment-standard-input"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="payment-field inventory-item-field">
+                    <div className="payment-field-label-row">
+                      <label className="payment-field-label" htmlFor="item-name">Item Name<span className="payment-required-mark">*</span></label>
+                    </div>
+                    <div className="payment-icon-control inventory-item-control">
+                      <input
+                        id="item-name"
+                        type="text"
+                        required
+                        value={itemForm.name}
+                        onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })}
+                        placeholder="e.g. Belgian Pure Linen"
+                        className="payment-standard-input inventory-item-no-icon"
+                      />
+                    </div>
+                  </div>
+
+                  <StaffAssignmentPicker
+                    id="item-category"
+                    label="Category"
+                    value={itemForm.category}
+                    options={CATEGORIES.map(({ value, label }) => ({ value, name: label }))}
+                    onChange={(event) => setItemForm({ ...itemForm, category: event.target.value as InventoryCategory })}
+                  />
+
+                  <StaffAssignmentPicker
+                    id="item-unit"
+                    label="Stock Unit"
+                    value={itemForm.unit}
+                    options={UNITS.map(({ value, label }) => ({ value, name: `${label} (${value})` }))}
+                    onChange={(event) => setItemForm({ ...itemForm, unit: event.target.value as InventoryUnit })}
+                  />
+                </div>
+              </section>
+
+              <section className="inventory-item-section">
+                <h3 className="inventory-item-section-title">2. Stock Levels &amp; Thresholds</h3>
+                <div className="inventory-item-grid inventory-item-grid--three">
+                  {!editingItem && (
+                    <div className="payment-field inventory-item-field">
+                      <div className="payment-field-label-row">
+                        <label className="payment-field-label" htmlFor="item-quantity">Initial Stock Qty</label>
+                        <span className="payment-optional-tag">Optional</span>
+                      </div>
+                      <div className="payment-icon-control inventory-item-control">
+                        <input id="item-quantity" type="number" step="0.01" value={itemForm.quantity_on_hand} onChange={(e) => setItemForm({ ...itemForm, quantity_on_hand: e.target.value })} className="payment-standard-input inventory-item-no-icon" />
+                      </div>
+                    </div>
+                  )}
+                  <div className="payment-field inventory-item-field">
+                    <div className="payment-field-label-row">
+                      <label className="payment-field-label" htmlFor="item-reorder-level">Reorder Level (Min)</label>
+                      <span className="payment-optional-tag">Optional</span>
+                    </div>
+                    <div className="payment-icon-control inventory-item-control">
+                      <input id="item-reorder-level" type="number" step="0.01" value={itemForm.reorder_level} onChange={(e) => setItemForm({ ...itemForm, reorder_level: e.target.value })} placeholder="e.g. 10" className="payment-standard-input inventory-item-no-icon" />
+                    </div>
+                  </div>
+                  <div className="payment-field inventory-item-field">
+                    <div className="payment-field-label-row">
+                      <label className="payment-field-label" htmlFor="item-reorder-quantity">Standard Reorder Qty</label>
+                      <span className="payment-optional-tag">Optional</span>
+                    </div>
+                    <div className="payment-icon-control inventory-item-control">
+                      <input id="item-reorder-quantity" type="number" step="0.01" value={itemForm.reorder_quantity} onChange={(e) => setItemForm({ ...itemForm, reorder_quantity: e.target.value })} placeholder="e.g. 50" className="payment-standard-input inventory-item-no-icon" />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="inventory-item-section">
+                <h3 className="inventory-item-section-title">3. Procurement &amp; Storage</h3>
+                <div className="inventory-item-grid inventory-item-grid--procurement">
+                  <div className="payment-field inventory-item-field">
+                    <div className="payment-field-label-row">
+                      <label className="payment-field-label" htmlFor="item-unit-cost">Unit Cost (AED)</label>
+                      <span className="payment-optional-tag">Optional</span>
+                    </div>
+                    <div className="payment-icon-control inventory-item-control">
+                      <span className="payment-currency-prefix inventory-item-currency">AED</span>
+                      <input id="item-unit-cost" type="number" step="0.01" value={itemForm.unit_cost} onChange={(e) => setItemForm({ ...itemForm, unit_cost: e.target.value })} className="payment-standard-input" />
+                    </div>
+                  </div>
+                  <div className="payment-field inventory-item-field">
+                    <div className="payment-field-label-row">
+                      <label className="payment-field-label" htmlFor="item-location">Warehouse Location</label>
+                      <span className="payment-optional-tag">Optional</span>
+                    </div>
+                    <div className="payment-icon-control inventory-item-control">
+                      <input id="item-location" type="text" value={itemForm.location || ''} onChange={(e) => setItemForm({ ...itemForm, location: e.target.value })} placeholder="e.g. Aisle 4, Shelf B" className="payment-standard-input inventory-item-no-icon" />
+                    </div>
+                  </div>
+                  <StaffAssignmentPicker
+                    id="item-supplier"
+                    label="Preferred Supplier"
+                    value={String(itemForm.supplier ?? '')}
+                    options={suppliers.map((supplier) => ({ value: String(supplier.id), name: supplier.name }))}
+                    onChange={(event) => setItemForm({ ...itemForm, supplier: event.target.value ? Number(event.target.value) : null })}
+                    optional
+                    allowUnassigned
+                    unassignedLabel="None / Open Market"
+                    className="inventory-item-supplier-picker"
+                  />
+                </div>
+              </section>
+
+              <div className="payment-field inventory-item-field">
+                <div className="payment-field-label-row">
+                  <label className="payment-field-label" htmlFor="item-notes">Item Notes &amp; Specs</label>
+                  <span className="payment-optional-tag">Optional</span>
+                </div>
+                <textarea
+                  id="item-notes"
+                  value={itemForm.notes || ''}
+                  onChange={(e) => setItemForm({ ...itemForm, notes: e.target.value })}
+                  placeholder="Width, weight, color code, washing instructions..."
+                  className="payment-notes-input inventory-item-notes"
+                />
+              </div>
+            </div>
+            <span className="payment-body-fade payment-body-fade-top" aria-hidden="true" />
+            <span className="payment-body-fade payment-body-fade-bottom" aria-hidden="true" />
+          </div>
+
+          <footer className="payment-modal-footer inventory-item-modal-footer">
+            <button type="button" onClick={() => setItemModalOpen(false)} className="payment-cancel-button">
               Cancel
             </button>
-            <button
-              type="button"
-              onClick={saveItem}
-              disabled={saving}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-[#2F5D8F] text-white text-sm font-bold hover:bg-[#23476E] transition-colors disabled:opacity-60 inline-flex items-center justify-center gap-2 shadow-sm"
-            >
+            <button type="button" onClick={saveItem} disabled={saving} className="payment-submit-button">
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}
               {editingItem ? 'Save Item Changes' : 'Create Stock Item'}
             </button>
-          </div>
-        </div>
+          </footer>
+        </form>
       </Modal>
 
       {/* ── Modal: Adjust Stock Level (Design Spells Micro-interactions) ── */}
@@ -1322,101 +1266,24 @@ export default function InventoryPage() {
         </div>
       </Modal>
 
-      {/* ── Modal: Add / Edit Supplier ─────────────────────────────── */}
-      <Modal
+      <SupplierModal
         open={supplierModalOpen}
         onClose={() => setSupplierModalOpen(false)}
+        onSubmit={saveSupplier}
         title={editingSupplier ? `Edit Supplier: ${editingSupplier.name}` : 'Add New Supplier'}
-        maxWidth="max-w-lg"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Supplier / Mill Name *
-            </label>
-            <input
-              type="text"
-              required
-              value={supplierForm.name}
-              onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })}
-              placeholder="e.g. Al Habtoor Textiles LLC"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Contact Person
-            </label>
-            <input
-              type="text"
-              value={supplierForm.contact_person || ''}
-              onChange={(e) => setSupplierForm({ ...supplierForm, contact_person: e.target.value })}
-              placeholder="e.g. Tariq Mansoor"
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Phone Number
-              </label>
-              <input
-                type="tel"
-                value={supplierForm.phone || ''}
-                onChange={(e) => setSupplierForm({ ...supplierForm, phone: e.target.value })}
-                placeholder="+971 4 000 0000"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all font-mono"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={supplierForm.email || ''}
-                onChange={(e) => setSupplierForm({ ...supplierForm, email: e.target.value })}
-                placeholder="sales@supplier.ae"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Warehouse / Factory Address
-            </label>
-            <textarea
-              value={supplierForm.address || ''}
-              onChange={(e) => setSupplierForm({ ...supplierForm, address: e.target.value })}
-              placeholder="Warehouse #14, Al Quoz Industrial Area 3, Dubai"
-              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] transition-all h-16 resize-none"
-            />
-          </div>
-
-          <div className="flex gap-3 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setSupplierModalOpen(false)}
-              className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={saveSupplier}
-              disabled={saving}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-[#2F5D8F] text-white text-sm font-bold hover:bg-[#23476E] transition-colors disabled:opacity-60 inline-flex items-center justify-center gap-2 shadow-sm"
-            >
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-              {editingSupplier ? 'Save Supplier' : 'Add Supplier'}
-            </button>
-          </div>
-        </div>
-      </Modal>
+        submitLabel={editingSupplier ? 'Save Supplier' : 'Add Supplier'}
+        isBusy={saving}
+        name={supplierForm.name}
+        contactPerson={supplierForm.contact_person || ''}
+        phone={supplierForm.phone || ''}
+        email={supplierForm.email || ''}
+        address={supplierForm.address || ''}
+        onNameChange={(name) => setSupplierForm({ ...supplierForm, name })}
+        onContactPersonChange={(contact_person) => setSupplierForm({ ...supplierForm, contact_person })}
+        onPhoneChange={(phone) => setSupplierForm({ ...supplierForm, phone })}
+        onEmailChange={(email) => setSupplierForm({ ...supplierForm, email })}
+        onAddressChange={(address) => setSupplierForm({ ...supplierForm, address })}
+      />
 
       {/* ── Confirm Modals ─────────────────────────────────────────── */}
       <ConfirmModal

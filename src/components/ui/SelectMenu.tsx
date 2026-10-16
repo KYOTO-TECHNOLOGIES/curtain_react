@@ -25,6 +25,7 @@ export interface SelectMenuProps {
   placeholder?: string;
   ariaLabel?: string;
   className?: string;
+  menuClassName?: string;
   disabled?: boolean;
   size?: 'default' | 'sm' | 'header';
   placement?: 'auto' | 'top-start';
@@ -43,6 +44,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
   placeholder = 'Select option...',
   ariaLabel,
   className = '',
+  menuClassName = '',
   disabled = false,
   size = 'default',
   placement: preferredPlacement = 'auto',
@@ -375,7 +377,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
     <div
       ref={popoverRef}
       id={`${selectId}-popover`}
-      className={`select-menu-popover ${size === 'sm' ? 'select-menu-popover--compact' : ''} ${size === 'header' ? 'select-menu-popover--header' : ''} placement-${placement} ${isClosing ? 'is-closing' : ''}`}
+      className={`select-menu-popover ${size === 'sm' ? 'select-menu-popover--compact' : ''} ${size === 'header' ? 'select-menu-popover--header' : ''} ${menuClassName} placement-${placement} ${isClosing ? 'is-closing' : ''}`}
       style={popoverStyle}
       role="listbox"
       aria-label={ariaLabel || placeholder}
@@ -490,7 +492,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
       <div
         ref={popoverRef}
         id={`${selectId}-dialog`}
-        className={`select-menu-bottom-sheet ${size === 'header' ? 'select-menu-bottom-sheet--header' : ''} ${isClosing ? 'is-closing' : ''}`}
+        className={`select-menu-bottom-sheet ${size === 'header' ? 'select-menu-bottom-sheet--header' : ''} ${menuClassName} ${isClosing ? 'is-closing' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel || placeholder}

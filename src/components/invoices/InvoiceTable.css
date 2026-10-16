@@ -1,12 +1,12 @@
 /* ── Invoice Table Custom Styles ───────────────────────────────── */
 
-/* ── Column Widths ─────────────────────────────────────────────── */
-.inv-col-id { width: 145px; }
-.inv-col-customer { width: auto; min-width: 220px; }
-.inv-col-amount { width: 160px; }
-.inv-col-timeline { width: 175px; }
-.inv-col-status { width: 168px; }
-.inv-col-actions { width: 205px; }
+/* ── Content-based column minimums ─────────────────────────────── */
+.inv-col-id { min-width: 130px; }
+.inv-col-customer { min-width: 220px; }
+.inv-col-amount { min-width: 142px; }
+.inv-col-timeline { min-width: 128px; }
+.inv-col-status { min-width: 116px; }
+.inv-col-actions { min-width: 158px; }
 
 /* ── Invoice ID & Quote Reference ──────────────────────────────── */
 .inv-id-container {
@@ -100,9 +100,13 @@
 }
 
 .inv-timeline-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: max-content max-content;
   align-items: center;
-  gap: 5px;
+  column-gap: 8px;
+  row-gap: 2px;
+  width: max-content;
+  max-width: none;
   white-space: nowrap;
 }
 
@@ -112,7 +116,7 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #64748B;
-  width: 48px;
+  width: auto;
   flex-shrink: 0;
 }
 

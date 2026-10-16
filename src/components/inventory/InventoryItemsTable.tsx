@@ -137,6 +137,7 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
       key: 'sku',
       label: 'Item & SKU',
       sortable: true,
+      size: 'flex',
       className: 'inv-col-sku',
       render: (item) => {
         const isCopied = copiedSku === item.sku;
@@ -181,7 +182,7 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
       key: 'category',
       label: 'Category',
       sortable: false,
-      width: '160px',
+      size: 'fit',
       className: 'inv-col-category',
       headerAddonOnly: true,
       headerAddon: (
@@ -219,7 +220,8 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
       key: 'stock',
       label: 'Stock Health',
       sortable: true,
-      width: '175px',
+      size: 'fit',
+      className: 'inv-col-stock',
       render: (item) => {
         const onHand = parseFloat(item.quantity_on_hand || '0');
         const reorderLevel = parseFloat(item.reorder_level || '0');
@@ -274,7 +276,8 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
       key: 'value',
       label: 'Cost & Value',
       sortable: true,
-      width: '145px',
+      size: 'fit',
+      className: 'inv-col-value',
       render: (item) => {
         const val = parseFloat(item.stock_value || '0');
         const unitCost = parseFloat(item.unit_cost || '0');
@@ -292,7 +295,8 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
       key: 'supplier',
       label: 'Supplier',
       sortable: true,
-      width: '140px',
+      size: 'cap',
+      className: 'inv-col-supplier',
       render: (item) => {
         if (!item.supplier_name) {
           return <span className="text-slate-400 text-xs">—</span>;
@@ -309,7 +313,8 @@ export const InventoryItemsTable: React.FC<InventoryItemsTableProps> = ({
     {
       key: 'actions',
       label: 'Actions',
-      width: '210px',
+      size: 'fit',
+      className: 'inv-col-actions',
       align: 'right',
       render: (item) => (
         <div className="inv-action-group" onClick={(e) => e.stopPropagation()}>

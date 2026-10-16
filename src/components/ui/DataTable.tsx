@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronDown, AlertCircle, CalendarX } from 'lucide-react';
 import './DataTable.css';
 
@@ -11,7 +11,7 @@ export interface DataTableColumn<T> {
   align?: 'left' | 'center' | 'right';
   className?: string;
   headerClassName?: string;
-  width?: string;
+  size?: 'fit' | 'flex' | 'cap';
   render?: (row: T, index: number) => React.ReactNode;
   headerAddon?: React.ReactNode;
   headerAddonOnly?: boolean;
@@ -62,10 +62,37 @@ export function DataTable<T>({
   skeletonCount = 6,
   className = '',
 }: DataTableProps<T>) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrollPosition, setScrollPosition] = useState({ hasScrolled: false, atEnd: true });
+
+  const updateScrollPosition = useCallback(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    const nextPosition = {
+      hasScrolled: element.scrollLeft > 0,
+      atEnd: element.scrollLeft + element.clientWidth >= element.scrollWidth - 1,
+    };
+    setScrollPosition((current) => (
+      current.hasScrolled === nextPosition.hasScrolled && current.atEnd === nextPosition.atEnd
+        ? current
+        : nextPosition
+    ));
+  }, []);
+
+  useEffect(() => {
+    updateScrollPosition();
+    window.addEventListener('resize', updateScrollPosition);
+    return () => window.removeEventListener('resize', updateScrollPosition);
+  }, [columns, data, updateScrollPosition]);
+
   return (
     <div className={`apt-table-card ${className}`}>
       {mobileToolbar && <div className="apt-table-mobile-toolbar">{mobileToolbar}</div>}
-      <div className="apt-table-scroll">
+      <div
+        ref={scrollRef}
+        className={`apt-table-scroll${scrollPosition.hasScrolled ? ' is-scrolled' : ''}${scrollPosition.atEnd ? ' is-at-end' : ''}`}
+        onScroll={updateScrollPosition}
+      >
         <table className="apt-table">
           <thead>
             <tr>
@@ -85,8 +112,7 @@ export function DataTable<T>({
                     scope="col"
                     className={`${col.className || ''} ${col.headerClassName || ''} ${
                       col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
-                    }`}
-                    style={col.width ? { width: col.width } : undefined}
+                    } dt-col-${col.size || 'fit'}${col.key === 'actions' ? ' dt-col-actions' : ''}`}
                     aria-sort={col.sortable ? ariaSortVal : undefined}
                   >
                     {col.headerAddonOnly ? col.headerAddon : (
@@ -135,8 +161,11 @@ export function DataTable<T>({
               ) : (
                 Array.from({ length: skeletonCount }).map((_, idx) => (
                   <tr key={`default-skeleton-${idx}`}>
-                    {columns.map((_, cIdx) => (
-                      <td key={`skel-col-${cIdx}`}>
+                    {columns.map((column, cIdx) => (
+                      <td
+                        key={`skel-col-${cIdx}`}
+                        className={`dt-col-${column.size || 'fit'}${column.key === 'actions' ? ' dt-col-actions' : ''}`}
+                      >
                         <div
                           className="apt-skeleton-block"
                           style={{
@@ -222,7 +251,7 @@ export function DataTable<T>({
                         key={col.key}
                         className={`${col.className || ''} ${
                           col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
-                        }`}
+                        } dt-col-${col.size || 'fit'}${col.key === 'actions' ? ' dt-col-actions' : ''}`}
                       >
                         {col.render
                           ? col.render(row, index)
