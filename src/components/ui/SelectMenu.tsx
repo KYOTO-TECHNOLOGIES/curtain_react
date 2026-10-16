@@ -34,6 +34,7 @@ export interface SelectMenuProps {
   headerMaxPillWidth?: number;
   searchable?: boolean;
   searchPlaceholder?: string;
+  showOptionSuffix?: boolean;
 }
 
 export const SelectMenu: React.FC<SelectMenuProps> = ({
@@ -53,6 +54,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
   headerMaxPillWidth,
   searchable,
   searchPlaceholder = 'Search...',
+  showOptionSuffix = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isRendered, setIsRendered] = useState(false);
@@ -443,7 +445,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
 
                 <span className={`truncate flex-1 ${opt.wrapLabel ? 'select-menu-option-label--wrap' : ''}`} title={opt.wrapLabel ? opt.label : undefined}>
                   {opt.label}
-                  {size === 'sm' && opt.suffix && (
+                  {(size === 'sm' || showOptionSuffix) && opt.suffix && (
                     <span className="select-menu-option-suffix"> {opt.suffix}</span>
                   )}
                 </span>
@@ -559,7 +561,10 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
                 }}
               >
                 {renderIndicator(opt)}
-                <span className={`truncate flex-1 ${opt.wrapLabel ? 'select-menu-option-label--wrap' : ''}`} title={opt.wrapLabel ? opt.label : undefined}>{opt.label}</span>
+                <span className={`truncate flex-1 ${opt.wrapLabel ? 'select-menu-option-label--wrap' : ''}`} title={opt.wrapLabel ? opt.label : undefined}>
+                  {opt.label}
+                  {showOptionSuffix && opt.suffix && <span className="select-menu-option-suffix"> {opt.suffix}</span>}
+                </span>
                 {opt.count !== undefined && (
                   <span className="select-menu-count-badge">{opt.count}</span>
                 )}

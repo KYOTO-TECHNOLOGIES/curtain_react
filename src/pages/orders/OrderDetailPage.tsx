@@ -36,7 +36,9 @@ const STATUS_OPTIONS: OrderStatus[] = [
 ];
 
 const ORDER_STATUS_CONFIG = STATUS_CONFIGS.orders;
-const ORDER_PROGRESS_STATUSES = STATUS_OPTIONS.filter((status) => status !== 'cancelled');
+const ORDER_PROGRESS_STATUSES: Exclude<OrderStatus, 'cancelled'>[] = STATUS_OPTIONS.filter(
+  (status): status is Exclude<OrderStatus, 'cancelled'> => status !== 'cancelled'
+);
 
 const displayStatus = (status: string) =>
   status.replace(/_/g, ' ').replace(/^\w/, (letter) => letter.toUpperCase());
@@ -266,7 +268,9 @@ export default function OrderDetailPage() {
     ? new Date(createdDate.getFullYear(), createdDate.getMonth(), createdDate.getDate() + productionDays)
     : null;
   const quotationNumber = order.quotation_id || order.quotation;
-  const currentProgressIndex = ORDER_PROGRESS_STATUSES.indexOf(order.order_status);
+  const currentProgressIndex = order.order_status === 'cancelled'
+    ? -1
+    : ORDER_PROGRESS_STATUSES.indexOf(order.order_status);
   const progressPercent = currentProgressIndex < 0
     ? 0
     : (currentProgressIndex / (ORDER_PROGRESS_STATUSES.length - 1)) * 100;

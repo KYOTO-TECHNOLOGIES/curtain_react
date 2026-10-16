@@ -180,6 +180,7 @@ export default function QuotationBuilderPage() {
       status: selectedAppointment.status,
       assigned_to: selectedAppointment.assigned_to,
       assigned_to_name: selectedAppointment.assignee_name || selectedAppointment.assigned_to_name,
+      assigned_to_username: selectedAppointment.assignee_username || selectedAppointment.assigned_to_username,
       location_building: selectedAppointment.location?.building_name || '',
       location_unit: selectedAppointment.location?.unit_number || '',
       location_full_address: selectedAppointment.location?.full_address || '',

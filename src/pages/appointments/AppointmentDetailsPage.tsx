@@ -6,11 +6,9 @@ import {
   ArrowLeft,
   Building2,
   CalendarDays,
-  FileText,
   Loader2,
   MapPin,
   PencilLine,
-  Phone,
   Save,
   UserCheck,
   UserRound,
@@ -68,12 +66,6 @@ const formatDate = (value: string | null | undefined) => {
     month: 'short',
     year: 'numeric',
   });
-};
-
-const formatTime = (value: string | null | undefined) => {
-  if (!value) return '—';
-  if (value.length <= 5) return value;
-  return value.slice(0, 5);
 };
 
 const buildFormState = (appointment: AppointmentDetail): AppointmentFormState => ({
@@ -279,12 +271,6 @@ export default function AppointmentDetailsPage() {
       setIsSaving(false);
     }
   };
-
-  const customerName = formState
-    ? `${formState.customer_first_name} ${formState.customer_last_name}`.trim() || '—'
-    : appointment
-      ? `${appointment.customer?.first_name || ''} ${appointment.customer?.last_name || ''}`.trim() || '—'
-      : '—';
 
   if (isLoading) {
     return (

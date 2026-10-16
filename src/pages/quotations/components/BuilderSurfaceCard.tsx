@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Banknote,
   ChevronDown,
-  Hand,
   Layers3,
   Mic,
   PanelTop,
@@ -11,7 +10,6 @@ import {
   SlidersHorizontal,
   Tag,
   Trash2,
-  Zap,
 } from 'lucide-react';
 import { SelectMenu, type SelectOption } from '../../../components/ui/SelectMenu';
 import type {

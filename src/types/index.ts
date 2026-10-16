@@ -255,6 +255,8 @@ export interface AppointmentListItem {
   assigned_to: number | null;
   assigned_to_name: string | null;
   assigned_to_username: string | null;
+  location_building?: string;
+  location_unit?: string;
   assignee?: number | AppointmentAssignee | null;
   assignee_id?: number | null;
   assignee_name?: string | null;
