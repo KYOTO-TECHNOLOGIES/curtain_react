@@ -1,13 +1,5 @@
 /* ── Quotation Table Custom Styles ─────────────────────────────── */
 
-/* ── Content-based column minimums ─────────────────────────────── */
-.qt-col-id { min-width: 104px; }
-.qt-col-customer { min-width: 220px; }
-.qt-col-amount { min-width: 118px; }
-.qt-col-dates { min-width: 178px; }
-.qt-col-status { min-width: 116px; }
-.qt-col-actions { min-width: 112px; }
-
 /* ── Quote ID Chip ─────────────────────────────────────────────── */
 .quote-id-chip {
   display: inline-flex;

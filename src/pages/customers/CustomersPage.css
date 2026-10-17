@@ -45,18 +45,15 @@
 }
 
 .customers-data-table .dt-col-fit {
-  width: 1%;
-  min-width: 74px;
   white-space: nowrap;
 }
 
 .customers-data-table .dt-col-flex {
-  width: auto;
-  min-width: 220px;
+  white-space: nowrap;
 }
 
 .customers-data-table .dt-col-cap {
-  width: 1%;
+  white-space: nowrap;
   max-width: 240px;
 }
 

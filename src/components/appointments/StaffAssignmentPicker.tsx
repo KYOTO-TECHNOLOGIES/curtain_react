@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, Ref } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertCircle, ChevronDown, Search, UserPlus, X, Check } from 'lucide-react';
@@ -130,8 +130,9 @@ export function StaffAssignmentPicker({
     if (!trigger) return;
     const rect = trigger.getBoundingClientRect();
     const width = Math.min(Math.max(rect.width, 300), window.innerWidth - 16);
+    const contentHeight = popoverRef.current?.scrollHeight;
     const rowsHeight = filteredOptions.length * 52 + (hasUnassigned ? 64 : 0);
-    const desiredHeight = Math.min(rowsHeight + (isSearchable ? 50 : 12), 320);
+    const desiredHeight = Math.min(contentHeight || rowsHeight + (isSearchable ? 50 : 12), 320);
     const below = window.innerHeight - rect.bottom - 8;
     const above = rect.top - 8;
     const placement = below < desiredHeight && above > below ? 'top' : 'bottom';
@@ -178,7 +179,7 @@ export function StaffAssignmentPicker({
     closeMenu(true);
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isOpen) return;
     updatePosition();
     requestAnimationFrame(() => {
@@ -194,7 +195,7 @@ export function StaffAssignmentPicker({
     };
   }, [isOpen]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isOpen) updatePosition();
   }, [filteredOptions.length]);
 

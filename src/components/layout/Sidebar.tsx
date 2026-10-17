@@ -1,4 +1,5 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import React, { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react';
+import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import {
   LayoutDashboard,
@@ -17,9 +18,13 @@ import {
   Factory,
   Wrench,
   Warehouse,
+  ChevronsLeft,
 } from 'lucide-react';
 import type { AppDispatch } from '../../store';
 import { logoutUser } from '../../store/slices/authSlice';
+import { useSidebar } from './SidebarContext';
+import SidebarTooltip from './SidebarTooltip';
+import './Sidebar.css';
 
 interface SidebarProps {
   open: boolean;
@@ -55,94 +60,419 @@ const navSections = [
       { to: '/users', label: 'Users', icon: UserCog },
       { to: '/settings', label: 'Settings', icon: Settings },
     ],
-  }
+  },
 ];
+
+// Module-level flag to ensure the 25ms staggered entrance animation only plays once on first session load
+let hasPlayedEntranceAnimation = false;
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const location = useLocation();
 
+  const {
+    isCollapsed,
+    toggleCollapse,
+    isMobile,
+    isTabletOverlayOpen,
+    closeOverlay,
+  } = useSidebar();
+
+  const navRef = useRef<HTMLElement | null>(null);
+  const linksMapRef = useRef<Map<string, HTMLAnchorElement>>(new Map());
+
+  // Detect Mac for shortcut display in tooltip
+  const [isMac, setIsMac] = useState<boolean>(false);
+  useEffect(() => {
+    if (typeof navigator !== 'undefined') {
+      setIsMac(/Mac|iPod|iPhone|iPad/.test(navigator.platform || ''));
+    }
+  }, []);
+
+  // Entrance animation on first session mount only
+  const [shouldAnimateEntrance] = useState<boolean>(() => !hasPlayedEntranceAnimation);
+  useEffect(() => {
+    if (shouldAnimateEntrance) {
+      const timer = setTimeout(() => {
+        hasPlayedEntranceAnimation = true;
+      }, 360 + 14 * 25 + 50);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldAnimateEntrance]);
+
+  // Logout handler
   const handleLogout = async () => {
     await dispatch(logoutUser());
     navigate('/login', { replace: true });
   };
 
-  const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `group flex items-center gap-3.5 px-4 py-3 mx-4 rounded-xl text-[14px] font-semibold transition-all duration-200 ${
-      isActive
-        ? 'bg-white/10 text-white shadow-sm'
-        : 'text-white/70 hover:bg-white/5 hover:text-white'
-    }`;
+  // Shared sliding active highlight measurement
+  const [highlightStyle, setHighlightStyle] = useState<{
+    top: number;
+    height: number;
+    width: number;
+    opacity: number;
+  }>({
+    top: 0,
+    height: 44,
+    width: 0,
+    opacity: 0,
+  });
+
+  // Calculate active route key
+  const getActiveItemKey = useCallback(() => {
+    const currentPath = location.pathname;
+    const allItems = navSections.flatMap((s) => s.items);
+
+    // Exact match or prefix match (excluding /dashboard)
+    const matched = allItems.find((item) => {
+      if (item.to === '/dashboard') {
+        return currentPath === '/dashboard';
+      }
+      return currentPath === item.to || currentPath.startsWith(item.to + '/');
+    });
+
+    return matched ? matched.to : null;
+  }, [location.pathname]);
+
+  const activeKey = getActiveItemKey();
+
+  const updateHighlight = useCallback(() => {
+    if (!activeKey || !navRef.current) {
+      setHighlightStyle((prev) => ({ ...prev, opacity: 0 }));
+      return;
+    }
+    const el = linksMapRef.current.get(activeKey);
+    if (!el) {
+      setHighlightStyle((prev) => ({ ...prev, opacity: 0 }));
+      return;
+    }
+
+    setHighlightStyle({
+      top: el.offsetTop,
+      height: el.offsetHeight,
+      width: el.offsetWidth,
+      opacity: 1,
+    });
+  }, [activeKey]);
+
+  useLayoutEffect(() => {
+    updateHighlight();
+  }, [updateHighlight, isCollapsed, location.pathname]);
+
+  // Re-measure highlight on resize
+  useEffect(() => {
+    const navEl = navRef.current;
+    if (!navEl) return;
+    const ro = new ResizeObserver(() => {
+      updateHighlight();
+    });
+    ro.observe(navEl);
+    return () => ro.disconnect();
+  }, [updateHighlight]);
+
+  // Scroll active item into view on initial mount
+  useEffect(() => {
+    if (activeKey) {
+      const el = linksMapRef.current.get(activeKey);
+      el?.scrollIntoView({ block: 'nearest' });
+    }
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Update scroll fade masks
+  const [canScrollTop, setCanScrollTop] = useState(false);
+  const [canScrollBottom, setCanScrollBottom] = useState(false);
+
+  const checkScrollFades = useCallback(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    setCanScrollTop(scrollTop > 2);
+    setCanScrollBottom(scrollTop + clientHeight < scrollHeight - 2);
+  }, []);
+
+  useEffect(() => {
+    checkScrollFades();
+  }, [checkScrollFades, isCollapsed]);
+
+  // Mouse spotlight coordinates
+  const handleMouseMove = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty('--mx', `${e.clientX - rect.left}px`);
+    e.currentTarget.style.setProperty('--my', `${e.clientY - rect.top}px`);
+  };
+
+  const handleMouseLeave = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.currentTarget.style.removeProperty('--mx');
+    e.currentTarget.style.removeProperty('--my');
+  };
+
+  const handleLinkClick = () => {
+    if (isMobile && open) {
+      onClose();
+    }
+    if (isTabletOverlayOpen) {
+      closeOverlay();
+    }
+  };
+
+  // Determine aside classes
+  const isAsideCollapsed = isMobile ? false : isCollapsed;
+  const asideClasses = [
+    'cm-sidebar-aside',
+    isAsideCollapsed ? 'cm-sidebar--collapsed' : 'cm-sidebar--expanded',
+    isTabletOverlayOpen ? 'cm-sidebar--tablet-overlay' : '',
+    // Mobile transform
+    isMobile
+      ? open
+        ? 'translate-x-0'
+        : '-translate-x-full'
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  let globalItemIndex = 0;
 
   return (
-    <>
-      {/* Mobile backdrop */}
-      {open && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
-          onClick={onClose}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`
-          fixed top-0 left-0 z-50 h-screen w-62.5 flex flex-col
-          bg-[#2b5c8f]
-          transition-transform duration-300 ease-out
-          lg:translate-x-0 lg:static lg:z-auto
-          ${open ? 'translate-x-0' : '-translate-x-full'}
-        `}
-      >
-        {/* Logo */}
-        <div className="flex items-center justify-between px-6 py-8">
-          <div>
-            <h1 className="text-white font-bold text-[23px] tracking-tight leading-none mb-1 font-['Bricolage_Grotesque']">
-              CurtainMaster<span className="text-[#93c5fd]">.</span>
-            </h1>
-            <span className="text-white/60 text-[10px] font-semibold tracking-[0.2em] uppercase">
-              Enterprise Suite
-            </span>
-          </div>
-          <button onClick={onClose} className="lg:hidden p-1 text-white/70 hover:text-white transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 py-2 space-y-6 overflow-y-auto scrollbar-none">
-          {navSections.map((section, i) => (
-            <div key={i}>
-              {section.label && (
-                <p className="px-6 mb-3 text-[11px] font-bold tracking-[0.15em] text-white/50 uppercase">
-                  {section.label}
-                </p>
-              )}
-              <ul className="space-y-1">
-                {section.items.map((item: any, j: number) => (
-                  <li key={j}>
-                    <NavLink to={item.to} className={linkClass} onClick={onClose}>
-                      <item.icon className="w-4.5 h-4.5 shrink-0 opacity-80" strokeWidth={2.5} />
-                      <span className="flex-1">{item.label}</span>
-                    </NavLink>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </nav>
-
-        {/* User logout section */}
-        <div className="px-4 pb-6 mt-auto">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-[14px] font-semibold text-white/60 hover:bg-white/5 hover:text-white transition-all duration-200"
+    <aside
+      id="app-sidebar"
+      aria-label="Application sidebar"
+      className={asideClasses}
+    >
+      {/* ── HEADER ────────────────────────────────────────── */}
+      <div className="cm-sidebar-header">
+        <div className="cm-header-layout">
+          {/* Expanded Wordmark */}
+          <div
+            className={`cm-wordmark-wrapper ${
+              isAsideCollapsed ? 'cm-wordmark--hidden' : 'cm-wordmark--visible'
+            }`}
+            aria-hidden={isAsideCollapsed}
           >
-            <LogOut className="w-4.5 h-4.5 opacity-80" strokeWidth={2.5} />
-            Sign Out
-          </button>
+            <Link
+              to="/dashboard"
+              className="cm-logo-link group"
+              onClick={handleLinkClick}
+              aria-label="CurtainMaster Enterprise Suite"
+            >
+              <h1 className="cm-logo-title">
+                CurtainMaster<span className="cm-logo-dot">.</span>
+              </h1>
+              <span className="cm-logo-caption">ENTERPRISE SUITE</span>
+            </Link>
+          </div>
+
+          {/* Collapsed Monogram */}
+          <div
+            className={`cm-monogram-wrapper ${
+              isAsideCollapsed ? 'cm-monogram--visible' : 'cm-monogram--hidden'
+            }`}
+            aria-hidden={!isAsideCollapsed}
+          >
+            <SidebarTooltip content="CurtainMaster Dashboard" disabled={!isAsideCollapsed}>
+              <Link
+                to="/dashboard"
+                className="cm-monogram-tile"
+                onClick={handleLinkClick}
+                aria-label="CurtainMaster Enterprise Suite"
+              >
+                <span className="cm-monogram-text">C</span>
+                <span className="cm-logo-dot cm-monogram-dot">.</span>
+              </Link>
+            </SidebarTooltip>
+          </div>
+
+          {/* Desktop/Tablet Collapse Toggle */}
+          {!isMobile && (
+            <div
+              className={`cm-toggle-wrapper ${
+                isAsideCollapsed
+                  ? 'cm-toggle-wrapper--collapsed'
+                  : 'cm-toggle-wrapper--expanded'
+              }`}
+            >
+              <SidebarTooltip
+                content={isAsideCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                shortcut={isMac ? '⌘ B' : 'Ctrl B'}
+              >
+                <button
+                  type="button"
+                  onClick={toggleCollapse}
+                  aria-expanded={!isAsideCollapsed}
+                  aria-controls="app-sidebar"
+                  aria-label={isAsideCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                  className="cm-collapse-btn"
+                >
+                  <ChevronsLeft
+                    size={16}
+                    className={`cm-collapse-icon ${
+                      isAsideCollapsed ? 'cm-collapse-icon--flipped' : ''
+                    }`}
+                  />
+                </button>
+              </SidebarTooltip>
+            </div>
+          )}
+
+          {/* Mobile Close Button */}
+          {isMobile && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="cm-mobile-close-btn"
+              aria-label="Close navigation"
+            >
+              <X size={20} strokeWidth={1.75} />
+            </button>
+          )}
         </div>
-      </aside>
-    </>
+      </div>
+
+      {/* ── NAVIGATION ────────────────────────────────────── */}
+      <nav
+        aria-label="Main navigation"
+        className="cm-nav-scroll"
+        ref={navRef}
+        onScroll={checkScrollFades}
+        data-mask-top={canScrollTop ? 'true' : undefined}
+        data-mask-bottom={canScrollBottom ? 'true' : undefined}
+      >
+        <div className="cm-nav-inner">
+          {/* Shared Sliding Active Highlight */}
+          <div
+            className="cm-active-highlight"
+            style={{
+              transform: `translateY(${highlightStyle.top}px)`,
+              height: `${highlightStyle.height}px`,
+              width: `${highlightStyle.width}px`,
+              opacity: highlightStyle.opacity,
+            }}
+            aria-hidden="true"
+          >
+            {/* Flush left 3px x 20px accent bar */}
+            <span className="cm-active-accent-bar" />
+          </div>
+
+          {navSections.map((section, sectionIdx) => {
+            const sectionHeaderId = `cm-section-label-${sectionIdx}`;
+
+            return (
+              <div
+                key={sectionIdx}
+                className="cm-section-group"
+                role={section.label ? 'group' : undefined}
+                aria-labelledby={section.label ? sectionHeaderId : undefined}
+              >
+                {/* Section Header */}
+                {section.label && (
+                  <div
+                    className={`cm-section-header ${
+                      isAsideCollapsed
+                        ? 'cm-section-header--collapsed'
+                        : 'cm-section-header--expanded'
+                    }`}
+                  >
+                    <span
+                      id={sectionHeaderId}
+                      className={isAsideCollapsed ? 'cm-sr-only' : 'cm-section-title'}
+                    >
+                      {section.label}
+                    </span>
+                    {isAsideCollapsed ? (
+                      <div className="cm-section-divider-collapsed" aria-hidden="true" />
+                    ) : (
+                      <span className="cm-section-line" aria-hidden="true" />
+                    )}
+                  </div>
+                )}
+
+                {/* Section Items */}
+                <ul className="cm-items-list">
+                  {section.items.map((item) => {
+                    const itemIdx = globalItemIndex++;
+                    const IconComponent = item.icon;
+
+                    const entranceStyle = shouldAnimateEntrance
+                      ? {
+                          animation:
+                            'cm-item-entrance 360ms cubic-bezier(0.22, 1, 0.36, 1) both',
+                          animationDelay: `${Math.min(itemIdx, 14) * 25}ms`,
+                        }
+                      : undefined;
+
+                    return (
+                      <li key={item.to} className="cm-nav-item" style={entranceStyle}>
+                        <SidebarTooltip
+                          content={item.label}
+                          disabled={!isAsideCollapsed}
+                        >
+                          <NavLink
+                            to={item.to}
+                            onClick={handleLinkClick}
+                            onMouseMove={handleMouseMove}
+                            onMouseLeave={handleMouseLeave}
+                            className={({ isActive }) =>
+                              `cm-nav-link ${isActive ? 'active' : ''}`
+                            }
+                            ref={(el) => {
+                              if (el) linksMapRef.current.set(item.to, el);
+                              else linksMapRef.current.delete(item.to);
+                            }}
+                          >
+                            <span className="cm-item-icon-wrapper">
+                              <IconComponent
+                                size={20}
+                                strokeWidth={1.75}
+                                className="cm-item-icon"
+                              />
+                            </span>
+                            <span
+                              className={`cm-item-label ${
+                                isAsideCollapsed ? 'cm-item-label--collapsed' : ''
+                              }`}
+                            >
+                              {item.label}
+                            </span>
+                          </NavLink>
+                        </SidebarTooltip>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* ── PINNED FOOTER (SIGN OUT) ───────────────────────── */}
+      <div className="cm-sidebar-footer">
+        <SidebarTooltip content="Sign Out" disabled={!isAsideCollapsed}>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className={`cm-nav-link cm-signout-btn ${
+              isAsideCollapsed ? 'cm-signout-btn--collapsed' : ''
+            }`}
+            aria-label="Sign out"
+          >
+            <span className="cm-item-icon-wrapper">
+              <LogOut size={20} strokeWidth={1.75} className="cm-item-icon cm-signout-icon" />
+            </span>
+            <span
+              className={`cm-item-label ${
+                isAsideCollapsed ? 'cm-item-label--collapsed' : ''
+              }`}
+            >
+              Sign Out
+            </span>
+          </button>
+        </SidebarTooltip>
+      </div>
+    </aside>
   );
 }

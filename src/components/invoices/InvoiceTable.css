@@ -1,13 +1,5 @@
 /* ── Invoice Table Custom Styles ───────────────────────────────── */
 
-/* ── Content-based column minimums ─────────────────────────────── */
-.inv-col-id { min-width: 130px; }
-.inv-col-customer { min-width: 220px; }
-.inv-col-amount { min-width: 142px; }
-.inv-col-timeline { min-width: 128px; }
-.inv-col-status { min-width: 116px; }
-.inv-col-actions { min-width: 158px; }
-
 /* ── Invoice ID & Quote Reference ──────────────────────────────── */
 .inv-id-container {
   display: flex;

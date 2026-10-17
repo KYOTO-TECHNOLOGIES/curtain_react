@@ -503,7 +503,7 @@ export default function CreateQuotationPage() {
       </div>
 
       {/* Sticky Bottom Bar */}
-      <div className="fixed bottom-0 left-0 right-0 lg:left-[250px] bg-white border-t border-slate-100 shadow-[0_-10px_40px_rgb(0,0,0,0.05)] z-40 p-4 md:px-8 md:py-5 flex flex-col md:flex-row items-center justify-between gap-6 backdrop-blur-md bg-white/90">
+      <div className="fixed bottom-0 left-0 right-0 lg:left-[var(--sidebar-w,264px)] transition-[left] duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] bg-white border-t border-slate-100 shadow-[0_-10px_40px_rgb(0,0,0,0.05)] z-40 p-4 md:px-8 md:py-5 flex flex-col md:flex-row items-center justify-between gap-6 backdrop-blur-md bg-white/90">
         
         <div className="flex items-center gap-8 md:gap-12 w-full md:w-auto overflow-x-auto">
           <div>

@@ -1,14 +1,5 @@
 /* ── Order Table Custom Styles ─────────────────────────────────── */
 
-/* ── Content-based column minimums ─────────────────────────────── */
-.ord-col-id { min-width: 92px; }
-.ord-col-customer { min-width: 220px; }
-.ord-col-quote { min-width: 94px; }
-.ord-col-prod { min-width: 118px; }
-.ord-col-status { min-width: 116px; }
-.ord-col-invoice { min-width: 100px; }
-.ord-col-actions { min-width: 118px; }
-
 /* ── Order ID Chip ─────────────────────────────────────────────── */
 .order-id-chip {
   display: inline-flex;
