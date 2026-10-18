@@ -4,19 +4,20 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Plus, Search, SearchX, UsersRound, Pencil, Trash2, Copy, Check,
-  X, ShieldCheck, Headset, BriefcaseBusiness, UserCog, AlertCircle, Loader2,
+  X, ShieldCheck, Headset, BriefcaseBusiness, UserCog,
 } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { usersApi } from '../../api/users';
 import { rolesApi } from '../../api/roles';
 import type { User, Role, UpdateUserRequest } from '../../types';
-import Modal, { ConfirmModal } from '../../components/ui/Modal';
+import { ConfirmModal } from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { DataTable, type DataTableColumn } from '../../components/ui/DataTable';
 import { createUserSchema, editUserSchema, type CreateUserFormValues, type EditUserFormValues } from '../../lib/validationSchemas';
 import { Pagination } from '../../components/ui/Pagination';
 import { usePagination } from '../../hooks/usePagination';
+import UserFormModal from './UserFormModal';
 import './UsersPage.css';
 
 const userPalette = [
@@ -65,17 +66,6 @@ function getRolePresentation(roleName: string) {
     Icon: UserCog,
   };
 }
-
-// Shared field styles
-const inputCls = (hasError?: boolean) =>
-  `w-full px-4 py-2.5 rounded-xl border ${hasError ? 'border-red-400 bg-red-50' : 'border-slate-200'} outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all text-sm`;
-
-const ErrorMsg = ({ message }: { message?: string }) =>
-  message ? (
-    <p className="flex items-center gap-1 text-red-500 text-xs mt-1.5 font-medium">
-      <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {message}
-    </p>
-  ) : null;
 
 export default function UsersPage() {
   const { showToast } = useToast();
@@ -424,6 +414,7 @@ export default function UsersPage() {
         </div>
         <div className={`users-page__count${isSearchActive ? ' is-searching' : ''}`} aria-live="polite" aria-atomic="true">
           {isSearchActive && <span className="users-page__count-dot" aria-hidden="true" />}
+          {!isSearchActive && <UsersRound className="users-page__count-icon" aria-hidden="true" />}
           <span className="users-page__count-value" key={`${isSearchActive}-${filtered.length}-${totalCount}`}>
             {isSearchActive
               ? `Showing ${totalCount.toLocaleString()} of ${allUsersCount.toLocaleString()}`
@@ -491,93 +482,17 @@ export default function UsersPage() {
       </div>
 
       {/* Form Modal */}
-      <Modal open={formOpen} onClose={() => setFormOpen(false)} title={editingUser ? 'Edit User' : 'Create User'}>
-        {editingUser ? (
-          /* ── Edit Form ── */
-          <form onSubmit={editForm.handleSubmit(handleEdit)} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name <span className="text-red-500">*</span></label>
-              <input
-                type="text"
-                placeholder="John Doe"
-                {...editForm.register('full_name')}
-                className={inputCls(!!editForm.formState.errors.full_name)}
-              />
-              <ErrorMsg message={editForm.formState.errors.full_name?.message} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Role <span className="text-red-500">*</span></label>
-              <select
-                {...editForm.register('role_id', { valueAsNumber: true })}
-                className={inputCls(!!editForm.formState.errors.role_id)}
-              >
-                <option value={0}>Select a role...</option>
-                {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-              <ErrorMsg message={editForm.formState.errors.role_id?.message} />
-            </div>
-            <div className="flex gap-3 pt-2">
-              <button type="button" onClick={() => setFormOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors">Cancel</button>
-              <button type="submit" disabled={saving} className="flex-1 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white font-medium text-sm hover:bg-[#1f456e] transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
-                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {saving ? 'Saving…' : 'Update'}
-              </button>
-            </div>
-          </form>
-        ) : (
-          /* ── Create Form ── */
-          <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email <span className="text-red-500">*</span></label>
-              <input
-                type="email"
-                placeholder="user@example.com"
-                {...createForm.register('email')}
-                className={inputCls(!!createForm.formState.errors.email)}
-              />
-              <ErrorMsg message={createForm.formState.errors.email?.message} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name <span className="text-red-500">*</span></label>
-              <input
-                type="text"
-                placeholder="John Doe"
-                {...createForm.register('full_name')}
-                className={inputCls(!!createForm.formState.errors.full_name)}
-              />
-              <ErrorMsg message={createForm.formState.errors.full_name?.message} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Password <span className="text-red-500">*</span></label>
-              <input
-                type="password"
-                placeholder="Min. 8 characters"
-                {...createForm.register('password')}
-                className={inputCls(!!createForm.formState.errors.password)}
-              />
-              <ErrorMsg message={createForm.formState.errors.password?.message} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Role <span className="text-red-500">*</span></label>
-              <select
-                {...createForm.register('role_id', { valueAsNumber: true })}
-                className={inputCls(!!createForm.formState.errors.role_id)}
-              >
-                <option value={0}>Select a role...</option>
-                {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-              <ErrorMsg message={createForm.formState.errors.role_id?.message} />
-            </div>
-            <div className="flex gap-3 pt-2">
-              <button type="button" onClick={() => setFormOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors">Cancel</button>
-              <button type="submit" disabled={saving} className="flex-1 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white font-medium text-sm hover:bg-[#1f456e] transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
-                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {saving ? 'Saving…' : 'Create'}
-              </button>
-            </div>
-          </form>
-        )}
-      </Modal>
+      <UserFormModal
+        open={formOpen}
+        editingUser={editingUser}
+        roles={roles}
+        saving={saving}
+        createForm={createForm}
+        editForm={editForm}
+        onClose={() => setFormOpen(false)}
+        onCreate={handleCreate}
+        onEdit={handleEdit}
+      />
 
       {/* Delete Confirm */}
       <ConfirmModal

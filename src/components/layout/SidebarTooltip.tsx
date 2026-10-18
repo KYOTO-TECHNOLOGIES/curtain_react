@@ -88,7 +88,7 @@ export default function SidebarTooltip({
     ref: (node: HTMLElement | null) => {
       triggerRef.current = node;
       // Preserve any existing ref on the child
-      const childRef = (children as any).ref;
+      const childRef = children.props.ref;
       if (typeof childRef === 'function') {
         childRef(node);
       } else if (childRef && 'current' in childRef) {
