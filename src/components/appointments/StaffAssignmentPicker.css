@@ -226,7 +226,7 @@
 
 .staff-picker__portal {
   position: fixed;
-  z-index: 10000;
+  z-index: var(--z-modal-popover, 1100);
   inset: 0;
 }
 

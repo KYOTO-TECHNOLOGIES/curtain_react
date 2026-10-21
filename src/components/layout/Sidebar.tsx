@@ -80,6 +80,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   } = useSidebar();
 
   const navRef = useRef<HTMLElement | null>(null);
+  const navInnerRef = useRef<HTMLDivElement | null>(null);
   const linksMapRef = useRef<Map<string, HTMLAnchorElement>>(new Map());
 
   // Detect Mac for shortcut display in tooltip
@@ -109,11 +110,13 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
   // Shared sliding active highlight measurement
   const [highlightStyle, setHighlightStyle] = useState<{
+    left: number;
     top: number;
     height: number;
     width: number;
     opacity: number;
   }>({
+    left: 0,
     top: 0,
     height: 44,
     width: 0,
@@ -125,11 +128,8 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     const currentPath = location.pathname;
     const allItems = navSections.flatMap((s) => s.items);
 
-    // Exact match or prefix match (excluding /dashboard)
+    // Exact match or prefix match for the current navigation item.
     const matched = allItems.find((item) => {
-      if (item.to === '/dashboard') {
-        return currentPath === '/dashboard';
-      }
       return currentPath === item.to || currentPath.startsWith(item.to + '/');
     });
 
@@ -139,7 +139,8 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const activeKey = getActiveItemKey();
 
   const updateHighlight = useCallback(() => {
-    if (!activeKey || !navRef.current) {
+    const navInner = navInnerRef.current;
+    if (!activeKey || !navInner) {
       setHighlightStyle((prev) => ({ ...prev, opacity: 0 }));
       return;
     }
@@ -149,8 +150,12 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       return;
     }
 
+    const linkRect = el.getBoundingClientRect();
+    const navRect = navInner.getBoundingClientRect();
+
     setHighlightStyle({
-      top: el.offsetTop,
+      left: linkRect.left - navRect.left,
+      top: linkRect.top - navRect.top,
       height: el.offsetHeight,
       width: el.offsetWidth,
       opacity: 1,
@@ -164,13 +169,22 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   // Re-measure highlight on resize
   useEffect(() => {
     const navEl = navRef.current;
-    if (!navEl) return;
+    const navInner = navInnerRef.current;
+    const activeLink = activeKey ? linksMapRef.current.get(activeKey) : null;
+    if (!navEl || !navInner) return;
     const ro = new ResizeObserver(() => {
       updateHighlight();
     });
     ro.observe(navEl);
-    return () => ro.disconnect();
-  }, [updateHighlight]);
+    ro.observe(navInner);
+    if (activeLink) ro.observe(activeLink);
+    navInner.addEventListener('animationend', updateHighlight);
+    document.fonts?.ready.then(updateHighlight);
+    return () => {
+      ro.disconnect();
+      navInner.removeEventListener('animationend', updateHighlight);
+    };
+  }, [activeKey, updateHighlight]);
 
   // Scroll active item into view on initial mount
   useEffect(() => {
@@ -341,21 +355,23 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         data-mask-top={canScrollTop ? 'true' : undefined}
         data-mask-bottom={canScrollBottom ? 'true' : undefined}
       >
-        <div className="cm-nav-inner">
+        <div className="cm-nav-inner" ref={navInnerRef}>
           {/* Shared Sliding Active Highlight */}
-          <div
-            className="cm-active-highlight"
-            style={{
-              transform: `translateY(${highlightStyle.top}px)`,
-              height: `${highlightStyle.height}px`,
-              width: `${highlightStyle.width}px`,
-              opacity: highlightStyle.opacity,
-            }}
-            aria-hidden="true"
-          >
-            {/* Flush left 3px x 20px accent bar */}
-            <span className="cm-active-accent-bar" />
-          </div>
+          {Boolean(activeKey) && (
+            <div
+              className="cm-active-highlight"
+              style={{
+                transform: `translate(${highlightStyle.left}px, ${highlightStyle.top}px)`,
+                height: `${highlightStyle.height}px`,
+                width: `${highlightStyle.width}px`,
+                opacity: highlightStyle.opacity,
+              }}
+              aria-hidden="true"
+            >
+              {/* Flush left 3px x 20px accent bar */}
+              <span className="cm-active-accent-bar" />
+            </div>
+          )}
 
           {navSections.map((section, sectionIdx) => {
             const sectionHeaderId = `cm-section-label-${sectionIdx}`;

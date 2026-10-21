@@ -16,7 +16,7 @@
 .cl-modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 999;
+  z-index: var(--z-modal-overlay, 1000);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -675,7 +675,7 @@
 /* ── Country Popover ───────────────────────────────────────────── */
 .cm-country-popover {
   position: fixed;
-  z-index: 10000;
+  z-index: var(--z-modal-popover, 1100);
   width: 300px;
   background: #FFFFFF;
   border-radius: 14px;

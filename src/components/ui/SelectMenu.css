@@ -468,7 +468,7 @@
 /* ── Popover Menu ──────────────────────────────────────────────── */
 .select-menu-popover {
   position: absolute;
-  z-index: 9999;
+  z-index: var(--z-modal-popover, 1100);
   background: #FFFFFF;
   border-radius: 14px;
   border: 1px solid rgba(15, 23, 42, 0.08);
@@ -805,7 +805,7 @@
   inset: 0;
   background-color: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(2px);
-  z-index: 9998;
+  z-index: var(--z-modal-popover, 1100);
   animation: backdropFadeIn 180ms ease forwards;
 }
 
@@ -824,7 +824,7 @@
   border-top-right-radius: 20px;
   padding: 12px 16px 24px;
   box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.15);
-  z-index: 9999;
+  z-index: var(--z-modal-popover, 1100);
   max-height: 80vh;
   display: flex;
   flex-direction: column;

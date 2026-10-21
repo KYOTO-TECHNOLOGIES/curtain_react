@@ -699,7 +699,7 @@
 }
 
 .order-status-menu.select-menu-bottom-sheet {
-  z-index: 10000;
+  z-index: var(--z-modal-popover, 1100);
 }
 
 .order-status-menu .select-menu-option {

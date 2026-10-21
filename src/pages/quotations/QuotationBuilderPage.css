@@ -949,11 +949,14 @@
 
 .qb-sticky-action-bar {
   position: sticky;
+  box-sizing: border-box;
+  width: 100%;
   z-index: 30;
   bottom: 0;
-  margin-top: 20px;
+  margin: 24px 0 0;
   padding: 10px 0 max(10px, env(safe-area-inset-bottom));
   border-top: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.88);
   box-shadow: 0 -8px 24px -16px rgba(15, 23, 42, 0.12);
   backdrop-filter: blur(10px);
@@ -962,16 +965,21 @@
 
 .qb-sticky-action-content {
   display: flex;
-  width: min(1120px, 100%);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1120px;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin: 0 auto;
+  padding: 0 16px;
 }
 
 .qb-cancel-button,
 .qb-save-button {
   display: inline-flex;
+  box-sizing: border-box;
+  flex: none;
   min-height: 44px;
   align-items: center;
   justify-content: center;
@@ -980,8 +988,14 @@
   font: inherit;
   font-size: 14px;
   font-weight: 600;
+  outline-offset: 2px;
   cursor: pointer;
   transition: transform var(--qb-duration-fast) var(--qb-ease), background-color var(--qb-duration-fast) ease, border-color var(--qb-duration-fast) ease, color var(--qb-duration-fast) ease, filter var(--qb-duration-fast) ease;
+}
+
+.qb-cancel-button:focus-visible,
+.qb-save-button:focus-visible {
+  outline: 2px solid var(--qb-brand);
 }
 
 .qb-cancel-button {
@@ -1007,7 +1021,7 @@
 .qb-save-button {
   min-width: 200px;
   padding: 0 20px;
-  border: 0;
+  border: 1px solid transparent;
   background: linear-gradient(115deg, #336699, #2A5483);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 8px 20px -8px rgba(47, 93, 143, 0.55);
   color: #FFFFFF;
@@ -1023,7 +1037,7 @@
 }
 
 .qb-save-button:disabled {
-  border: 1px solid #E2E8F0;
+  border-color: #E2E8F0;
   background: #F1F5F9;
   box-shadow: none;
   color: #94A3B8;
@@ -1161,10 +1175,8 @@
   }
 
   .qb-sticky-action-bar {
-    margin-right: -16px;
-    margin-left: -16px;
-    padding-right: 16px;
-    padding-left: 16px;
+    margin-right: 0;
+    margin-left: 0;
   }
 
   .qb-sticky-action-content {

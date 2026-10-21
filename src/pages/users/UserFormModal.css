@@ -5,7 +5,7 @@
   --user-modal-muted: #64748B;
   --user-modal-border: #E2E8F0;
   position: fixed;
-  z-index: 1300;
+  z-index: var(--z-modal-overlay, 1000);
   inset: 0;
   display: flex;
   align-items: center;
@@ -215,9 +215,13 @@
   min-width: 0;
   height: 48px;
   align-items: center;
+  gap: 14px;
+  padding: 0 14px;
   border: 1px solid var(--user-modal-border);
   border-radius: 12px;
   background: #fff;
+  overflow: hidden;
+  isolation: isolate;
   transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
@@ -243,7 +247,6 @@
   width: 18px;
   height: 18px;
   flex: 0 0 18px;
-  margin-left: 14px;
   color: #94A3B8;
   transition: color 150ms ease;
 }
@@ -253,18 +256,40 @@
 }
 
 .user-form-control input {
-  width: 100%;
+  flex: 1 1 auto;
   min-width: 0;
+  width: auto;
   height: 100%;
-  padding: 0 14px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
   border: 0;
-  border-radius: inherit;
-  outline: none;
+  border-radius: 0;
+  outline: 2px solid transparent;
+  outline-offset: 0;
   background: transparent;
   color: #1E293B;
   font: inherit;
   font-size: 15px;
   box-shadow: none;
+  -webkit-appearance: none;
+  appearance: none;
+  caret-color: var(--user-modal-brand);
+}
+
+.user-form-control input:hover,
+.user-form-control input:focus,
+.user-form-control input:focus-visible,
+.user-form-control input:active {
+  border: 0;
+  border-radius: 0;
+  outline: 2px solid transparent;
+  outline-offset: 0;
+  box-shadow: none;
+}
+
+.user-form-control:has(.user-form-email-check) {
+  padding-right: 12px;
 }
 
 .user-form-control input::placeholder {
@@ -280,7 +305,6 @@
   width: 20px;
   height: 20px;
   flex: 0 0 20px;
-  margin-right: 12px;
   padding: 3px;
   border: 1.5px solid #10B981;
   border-radius: 50%;
@@ -465,7 +489,7 @@
 
 .user-role-menu {
   position: fixed !important;
-  z-index: 1400;
+  z-index: var(--z-modal-popover, 1100);
   overflow: hidden !important;
   border-color: rgba(15, 23, 42, 0.06) !important;
   border-radius: 14px !important;
@@ -511,7 +535,7 @@
   height: 26px;
 }
 
-.select-menu-bottom-sheet.user-role-menu { z-index: 1401; }
+.select-menu-bottom-sheet.user-role-menu { z-index: var(--z-modal-popover, 1100); }
 
 .user-preview {
   display: flex;

@@ -15,7 +15,7 @@
 .payment-modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 999;
+  z-index: var(--z-modal-overlay, 1000);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -24,6 +24,14 @@
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   animation: paymentOverlayIn 200ms ease both;
+}
+
+.default-modal-overlay {
+  z-index: var(--z-modal-overlay, 1000);
+}
+
+.default-modal-card {
+  z-index: var(--z-modal-card, 1010);
 }
 
 .payment-modal-card {
@@ -170,7 +178,7 @@
 
 .area-modal-overlay {
   position: fixed;
-  z-index: 1000;
+  z-index: var(--z-modal-overlay, 1000);
   inset: 0;
   display: flex;
   align-items: center;
@@ -510,7 +518,7 @@
 
 .surface-modal-overlay {
     position: fixed;
-    z-index: 1100;
+    z-index: var(--z-modal-overlay, 1000);
     inset: 0;
     display: flex;
     align-items: center;
@@ -823,7 +831,7 @@
 .catalog-item-modal-overlay {
   --catalog-modal-brand: #2F5D8F;
   position: fixed;
-  z-index: 1200;
+  z-index: var(--z-modal-overlay, 1000);
   inset: 0;
   display: flex;
   align-items: center;

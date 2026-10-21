@@ -1,27 +1,208 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { CSSProperties, FocusEvent, KeyboardEvent, ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Outlet, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { Menu, Search, Bell, HelpCircle } from 'lucide-react';
+import {
+  Bell, BriefcaseBusiness, ConciergeBell, HelpCircle, Menu, Search, ShieldCheck,
+  UserCog, X,
+} from 'lucide-react';
 import Sidebar from './Sidebar';
 import { SidebarProvider, useSidebar } from './SidebarContext';
 import type { RootState } from '../../store';
+import './DashboardLayout.css';
+
+const rolePalette = [
+  { color: '#2F5D8F', tint: '#EEF4FA', ink: '#2F5D8F' },
+  { color: '#10B981', tint: '#E8F8F2', ink: '#047857' },
+  { color: '#F97316', tint: '#FFF4EA', ink: '#C2410C' },
+  { color: '#8B5CF6', tint: '#F3EFFE', ink: '#6D28D9' },
+  { color: '#F59E0B', tint: '#FFFBEB', ink: '#B45309' },
+  { color: '#14B8A6', tint: '#E6F8F6', ink: '#0F766E' },
+  { color: '#6366F1', tint: '#EEF2FF', ink: '#4338CA' },
+  { color: '#EC4899', tint: '#FDF2F8', ink: '#BE185D' },
+];
+
+function stableHash(value: string) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function getRolePresentation(role: string) {
+  const normalized = role.trim().toLowerCase();
+  if (normalized === 'administrator' || normalized === 'admin') {
+    return { ...rolePalette[0], Icon: ShieldCheck };
+  }
+  if (normalized === 'receptionist') {
+    return { ...rolePalette[3], Icon: ConciergeBell };
+  }
+  if (normalized === 'salesman') {
+    return { ...rolePalette[5], Icon: BriefcaseBusiness };
+  }
+  return {
+    ...rolePalette[stableHash(normalized || 'role') % rolePalette.length],
+    Icon: UserCog,
+  };
+}
+
+function TopbarTooltip({ content, children, className = '', tooltipClassName = '' }: {
+  content: ReactNode;
+  children: ReactNode;
+  className?: string;
+  tooltipClassName?: string;
+}) {
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const timerRef = useRef<number | null>(null);
+  const [visible, setVisible] = useState(false);
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+
+  const updatePosition = useCallback(() => {
+    const rect = anchorRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setPosition({
+      top: Math.round(rect.bottom + 8),
+      left: Math.round(rect.left + rect.width / 2),
+    });
+  }, []);
+
+  const show = useCallback((immediate: boolean) => {
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    const open = () => {
+      updatePosition();
+      setVisible(true);
+    };
+    if (immediate) open();
+    else timerRef.current = window.setTimeout(open, 150);
+  }, [updatePosition]);
+
+  const hide = useCallback(() => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setVisible(false);
+  }, []);
+
+  const handleBlur = (event: FocusEvent<HTMLSpanElement>) => {
+    if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
+    hide();
+  };
+  const handleMouseLeave = () => hide();
+
+  useEffect(() => {
+    if (!visible) return undefined;
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [visible, updatePosition]);
+
+  useEffect(() => () => {
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+  }, []);
+
+  return (
+    <>
+      <span
+        ref={anchorRef}
+        className={`cm-topbar-tooltip-anchor ${className}`}
+        onMouseEnter={() => show(false)}
+        onMouseLeave={handleMouseLeave}
+        onFocus={() => show(true)}
+        onBlur={handleBlur}
+      >
+        {children}
+      </span>
+      {visible && position && typeof document !== 'undefined' && createPortal(
+        <span
+          role="tooltip"
+          className={`cm-topbar-tooltip ${tooltipClassName}`}
+          style={{ top: position.top, left: position.left }}
+        >
+          {content}
+        </span>,
+        document.body,
+      )}
+    </>
+  );
+}
 
 function DashboardLayoutContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const { sidebarWidth, isReady, isTabletOverlayOpen, closeOverlay } = useSidebar();
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const scrollSentinelRef = useRef<HTMLSpanElement>(null);
 
   const user = useSelector((state: RootState) => state.auth.user);
-  const firstName = user?.full_name?.split(' ')[0] || 'Basheer';
+  const displayName = user?.full_name || 'Basheer';
   const roleName = user?.role?.name || 'Administrator';
-  const initial = firstName.charAt(0).toUpperCase();
+  const initial = displayName.trim().charAt(0).toUpperCase() || 'B';
+  const rolePresentation = getRolePresentation(roleName);
+  const RoleIcon = rolePresentation.Icon;
+
+  useEffect(() => {
+    const root = mainRef.current;
+    const sentinel = scrollSentinelRef.current;
+    if (!root || !sentinel) return undefined;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsScrolled(!entry.isIntersecting),
+      { root, threshold: 0 },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const handleSearchShortcut = (event: KeyboardEvent) => {
+      if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented) return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement
+        && target.closest('input, textarea, select, [contenteditable="true"]')
+      ) return;
+      if (document.querySelector('[aria-modal="true"], [role="dialog"]')) return;
+
+      event.preventDefault();
+      setMobileSearchOpen(true);
+      window.requestAnimationFrame(() => searchInputRef.current?.focus());
+    };
+
+    window.addEventListener('keydown', handleSearchShortcut);
+    return () => window.removeEventListener('keydown', handleSearchShortcut);
+  }, []);
+
+  const collapseMobileSearch = () => {
+    if (searchValue) return;
+    setMobileSearchOpen(false);
+  };
+
+  const handleSearchBlur = () => {
+    window.requestAnimationFrame(collapseMobileSearch);
+  };
+
+  const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape') {
+      setMobileSearchOpen(false);
+      searchInputRef.current?.blur();
+    }
+  };
 
   return (
     <div
-      className="flex h-screen bg-[#F6F8FB] overflow-hidden font-['Hanken_Grotesk'] text-[#0B1B33]"
-      style={{ '--sidebar-w': sidebarWidth } as React.CSSProperties}
+      className="cm-dashboard-shell flex h-screen overflow-hidden font-['Hanken_Grotesk']"
+      style={{ '--sidebar-w': sidebarWidth } as CSSProperties}
       data-ready={isReady ? 'true' : undefined}
     >
-      {/* Mobile Backdrop */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
@@ -29,8 +210,6 @@ function DashboardLayoutContent() {
           aria-hidden="true"
         />
       )}
-
-      {/* Tablet Overlay Backdrop (768px - 1279px when expanded) */}
       {isTabletOverlayOpen && (
         <div
           className="fixed inset-0 z-40 bg-[#0F172A]/35 backdrop-blur-[2px] transition-opacity duration-260"
@@ -39,81 +218,112 @@ function DashboardLayoutContent() {
         />
       )}
 
-      {/* Redesigned Sidebar */}
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Desktop & Mobile Topbar */}
-        <header className="flex items-center justify-between px-6 lg:px-8 py-4 bg-white/80 backdrop-blur-md border-b border-[#E2E8F0] h-[76px] shrink-0 z-20">
-          <div className="flex items-center gap-4 flex-1">
+      <div className="cm-dashboard-main flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header className={`cm-topbar${isScrolled ? ' is-scrolled' : ''}`}>
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="cm-topbar-menu"
+            aria-label="Open navigation menu"
+          >
+            <Menu aria-hidden="true" />
+          </button>
+
+          <div className={`cm-topbar-search-region${mobileSearchOpen ? ' is-mobile-open' : ''}`}>
             <button
-              onClick={() => setSidebarOpen(true)}
-              className="md:hidden p-2 -ml-2 rounded-xl text-[#64748B] hover:text-[#0B1B33] hover:bg-[#F1F5F9] transition-colors"
-              aria-label="Open navigation menu"
+              type="button"
+              className="cm-topbar-search-mobile-trigger"
+              aria-label="Open search"
+              onClick={() => {
+                setMobileSearchOpen(true);
+                window.requestAnimationFrame(() => searchInputRef.current?.focus());
+              }}
             >
-              <Menu className="w-5 h-5" />
+              <Search aria-hidden="true" />
             </button>
 
-            {/* Search Bar - Login Page Input Styling */}
-            <div className="hidden sm:flex items-center relative w-full max-w-[420px] group">
-              <Search
-                className="w-4.5 h-4.5 text-[#94A3B8] absolute left-3.5 pointer-events-none group-focus-within:text-[#0B1B33] transition-colors duration-150"
-                strokeWidth={2}
-              />
+            <div
+              role="search"
+              aria-label="Global search"
+              className={`cm-topbar-search-control${searchValue ? ' has-value' : ''}`}
+            >
+              <Search className="cm-topbar-search-icon" aria-hidden="true" />
               <input
+                ref={searchInputRef}
                 type="text"
+                value={searchValue}
+                onChange={(event) => setSearchValue(event.target.value)}
+                onBlur={handleSearchBlur}
+                onKeyDown={handleSearchKeyDown}
                 placeholder="Search orders, clients, textiles..."
-                className="w-full h-11 pl-10.5 pr-4 bg-white border border-[#E2E8F0] hover:border-[#CBD5E1] focus:border-[#2A5FA8] focus:ring-4 focus:ring-[#2A5FA8]/16 rounded-[14px] text-[14px] font-medium text-[#0B1B33] placeholder:text-[#94A3B8] shadow-[0_1px_2px_rgba(10,18,32,0.04),0_4px_12px_-4px_rgba(10,18,32,0.06)] outline-none transition-all duration-180"
+                aria-label="Search orders, clients, textiles"
               />
+              {searchValue && (
+                <button
+                  type="button"
+                  className="cm-topbar-search-clear"
+                  aria-label="Clear search"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    setSearchValue('');
+                    searchInputRef.current?.focus();
+                  }}
+                >
+                  <X aria-hidden="true" />
+                </button>
+              )}
+              <kbd className="cm-topbar-search-shortcut" aria-hidden="true">/</kbd>
             </div>
           </div>
 
-          {/* Right Actions */}
-          <div className="flex items-center gap-5">
-            <div className="flex items-center gap-2">
-              <button
-                title="Notifications"
-                className="w-10 h-10 rounded-[12px] flex items-center justify-center text-[#64748B] hover:text-[#0B1B33] hover:bg-[#F1F5F9] transition-colors relative"
-              >
-                <Bell className="w-5 h-5" strokeWidth={2} />
-                <span className="w-2 h-2 rounded-full bg-[#2A5FA8] absolute top-2.5 right-2.5"></span>
-              </button>
-              <button
-                title="Help & Documentation"
-                className="w-10 h-10 rounded-[12px] flex items-center justify-center text-[#64748B] hover:text-[#0B1B33] hover:bg-[#F1F5F9] transition-colors"
-              >
-                <HelpCircle className="w-5 h-5" strokeWidth={2} />
-              </button>
+          <div className="cm-topbar-spacer" />
+
+          <div className="cm-topbar-actions">
+            <div className="cm-topbar-icon-group">
+              <TopbarTooltip content="Notifications">
+                <button type="button" className="cm-topbar-icon-button cm-topbar-bell" aria-label="Notifications">
+                  <Bell aria-hidden="true" />
+                </button>
+              </TopbarTooltip>
+              <TopbarTooltip content="Help">
+                <button type="button" className="cm-topbar-icon-button cm-topbar-help" aria-label="Help">
+                  <HelpCircle aria-hidden="true" />
+                </button>
+              </TopbarTooltip>
             </div>
 
-            <div className="h-6 w-px bg-[#E2E8F0] hidden sm:block"></div>
+            <div className="cm-topbar-divider" aria-hidden="true" />
 
-            {/* User Profile */}
-            <Link
-              to="/profile"
-              className="flex items-center gap-3 group cursor-pointer hover:bg-slate-50/80 p-1.5 pr-3 rounded-2xl border border-transparent hover:border-[#E2E8F0] transition-all"
+            <TopbarTooltip
+              content={`${displayName} · ${roleName}`}
+              className="cm-topbar-user-tooltip-anchor"
+              tooltipClassName="cm-topbar-tooltip-user"
             >
-              <div
-                className="w-9.5 h-9.5 rounded-xl bg-gradient-to-b from-[#3366B2] to-[#2A5FA8] text-white flex items-center justify-center font-bold text-[14px] shadow-[0_2px_8px_-2px_rgba(42,95,168,0.5)] group-hover:scale-105 transition-all"
-                style={{ fontFamily: "'Bricolage Grotesque', sans-serif" }}
-              >
-                {initial}
-              </div>
-              <div className="hidden sm:block text-left">
-                <p className="text-[13.5px] font-bold text-[#0B1B33] leading-tight group-hover:text-[#2A5FA8] transition-colors">
-                  {firstName}
-                </p>
-                <p className="text-[11px] font-medium text-[#64748B]">
-                  {roleName}
-                </p>
-              </div>
-            </Link>
+              <Link to="/profile" className="cm-topbar-user" aria-label={`${displayName}, ${roleName}`}>
+                <span className="cm-topbar-avatar" aria-hidden="true">{initial}</span>
+                <span className="cm-topbar-user-copy">
+                  <span className="cm-topbar-user-name" title={displayName}>{displayName}</span>
+                  <span
+                    className="cm-topbar-role"
+                    style={{
+                      '--role-color': rolePresentation.color,
+                      '--role-tint': rolePresentation.tint,
+                      '--role-ink': rolePresentation.ink,
+                    } as CSSProperties}
+                  >
+                    <RoleIcon aria-hidden="true" />
+                    {roleName}
+                  </span>
+                </span>
+              </Link>
+            </TopbarTooltip>
           </div>
         </header>
 
-        {/* Scrollable content */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-[#F6F8FB] w-full min-w-0">
+        <main ref={mainRef} className="cm-dashboard-scroll flex-1 overflow-y-auto overflow-x-hidden w-full min-w-0">
+          <span ref={scrollSentinelRef} className="cm-topbar-scroll-sentinel" aria-hidden="true" />
           <div className="p-6 lg:p-8 max-w-[1400px] mx-auto w-full min-w-0">
             <Outlet />
           </div>

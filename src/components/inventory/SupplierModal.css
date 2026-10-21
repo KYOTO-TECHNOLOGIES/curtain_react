@@ -1,6 +1,6 @@
 .supplier-modal-overlay {
   position: fixed;
-  z-index: 1100;
+  z-index: var(--z-modal-overlay, 1000);
   inset: 0;
   display: flex;
   align-items: center;

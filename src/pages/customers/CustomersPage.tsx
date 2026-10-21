@@ -1,24 +1,96 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import type { CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, Pencil, Trash2, Loader2, MapPin, User, Mail, Globe, Building2, CheckCircle2 } from 'lucide-react';
+import {
+  Plus, Search, SearchX, Pencil, Trash2, Loader2, MapPin, User, UserRound, UserPlus, Mail,
+  Globe, Building2, CheckCircle2, UsersRound, X, Copy, Check, ContactRound, Keyboard, AlertCircle,
+} from 'lucide-react';
+import type { ReactNode } from 'react';
 import { customersApi } from '../../api/customers';
 import type { Customer, UpdateCustomerRequest } from '../../types';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
-import { FormInput } from '../../components/ui/FormInput';
+import { FlagAE } from '../../components/appointments/countryData';
 import { useToast } from '../../components/ui/Toast';
 import { customerSchema, type CustomerFormValues } from '../../lib/validationSchemas';
 import { Pagination } from '../../components/ui/Pagination';
+import { StatusBadge } from '../../components/ui/StatusBadge';
 import { usePagination } from '../../hooks/usePagination';
 import './CustomersPage.css';
+import './CustomerFormModal.css';
+
+interface CustomerFormFieldProps {
+  id: string;
+  label: string;
+  required?: boolean;
+  edited?: boolean;
+  error?: string;
+  className?: string;
+  children: ReactNode;
+}
+
+function CustomerFormField({
+  id,
+  label,
+  required = false,
+  edited = false,
+  error,
+  className = '',
+  children,
+}: CustomerFormFieldProps) {
+  const errorId = `${id}-error`;
+  return (
+    <div className={`customer-form-field${className ? ` ${className}` : ''}${error ? ' has-error' : ''}`}>
+      <div className="customer-form-field__label-row">
+        <label htmlFor={id}>
+          {label}{required && <span className="customer-form-field__required" aria-hidden="true">*</span>}
+        </label>
+        {edited && <span className="customer-form-field__edited"><i aria-hidden="true" />Edited</span>}
+        {!required && <span className="customer-form-field__optional">Optional</span>}
+      </div>
+      {children}
+      {error && <p className="customer-form-field__error" id={errorId} role="alert"><AlertCircle aria-hidden="true" />{error}</p>}
+    </div>
+  );
+}
+
+const customerAvatarPalette = [
+  { color: '#2F5D8F', tint: '#EEF4FA', ink: '#2F5D8F' },
+  { color: '#10B981', tint: '#E8F8F2', ink: '#047857' },
+  { color: '#F97316', tint: '#FFF4EA', ink: '#C2410C' },
+  { color: '#8B5CF6', tint: '#F5F3FF', ink: '#6D28D9' },
+  { color: '#F59E0B', tint: '#FFFBEB', ink: '#B45309' },
+  { color: '#14B8A6', tint: '#E0F7F4', ink: '#0F766E' },
+  { color: '#6366F1', tint: '#EEF2FF', ink: '#4338CA' },
+  { color: '#EC4899', tint: '#FDF2F8', ink: '#BE185D' },
+];
+
+function getCustomerColor(id: number) {
+  const hash = String(id).split('').reduce((value, character) => (
+    (value * 31 + character.charCodeAt(0)) | 0
+  ), 0);
+  return customerAvatarPalette[Math.abs(hash) % customerAvatarPalette.length];
+}
+
+function getCustomerInitials(firstName: string, lastName: string) {
+  const first = firstName.trim().split(/\s+/)[0] || '';
+  const last = lastName.trim().split(/\s+/)[0] || '';
+  return `${first.slice(0, 1)}${last.slice(0, 1)}`.toUpperCase() || 'C';
+}
 
 export default function CustomersPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const tableScrollRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const initialCustomerIds = useRef<Set<number>>(new Set());
+  const initialRowsCaptured = useRef(false);
+  const initialRowsTimer = useRef<number | undefined>(undefined);
   const [tableScrollPosition, setTableScrollPosition] = useState({ hasScrolled: false, atEnd: true });
+  const [initialRowsFinished, setInitialRowsFinished] = useState(false);
+  const [copiedValue, setCopiedValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const pagination = usePagination();
@@ -67,6 +139,7 @@ export default function CustomersPage() {
   });
 
   const { register, handleSubmit, reset, formState: { errors } } = form;
+  const currentFormValues = form.watch();
 
   const { data: customersRes, isLoading, refetch } = useQuery({
     queryKey: ['customers', debouncedSearch, pagination.currentPage, pagination.pageSize],
@@ -87,6 +160,44 @@ export default function CustomersPage() {
     return { items: [] as Customer[], totalCount: 0 };
   }, [customersRes]);
   const loading = isLoading;
+
+  useEffect(() => {
+    if (!loading && customersRes && !initialRowsCaptured.current) {
+      initialRowsCaptured.current = true;
+      initialCustomerIds.current = new Set(customers.map((customer) => customer.id));
+      initialRowsTimer.current = window.setTimeout(() => setInitialRowsFinished(true), 800);
+    }
+  }, [customers, customersRes, loading]);
+
+  useEffect(() => () => {
+    if (initialRowsTimer.current !== undefined) window.clearTimeout(initialRowsTimer.current);
+  }, []);
+
+  useEffect(() => {
+    const handleSearchShortcut = (event: KeyboardEvent) => {
+      if (event.key !== '/' || event.altKey || event.ctrlKey || event.metaKey) return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement
+        && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+      ) return;
+      event.preventDefault();
+      searchInputRef.current?.focus();
+    };
+    window.addEventListener('keydown', handleSearchShortcut);
+    return () => window.removeEventListener('keydown', handleSearchShortcut);
+  }, []);
+
+  const copyCustomerValue = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedValue(value);
+      showToast('Copied');
+      window.setTimeout(() => setCopiedValue((current) => current === value ? '' : current), 1400);
+    } catch {
+      showToast('Could not copy to clipboard', 'error');
+    }
+  };
 
   const load = () => {
     refetch();
@@ -151,188 +262,520 @@ export default function CustomersPage() {
   };
 
   const filtered = customers;
+  const isSearchActive = Boolean(debouncedSearch.trim());
+  const customerCountLabel = isSearchActive
+    ? `Showing ${filtered.length} of ${totalCount}`
+    : `${totalCount} ${totalCount === 1 ? 'customer' : 'customers'}`;
+  const modalAvatarColor = editingCustomer ? getCustomerColor(editingCustomer.id) : null;
+  const customerModalBadge = editingCustomer && modalAvatarColor ? (
+    <span
+      className="customer-modal-avatar"
+      style={{
+        '--customer-accent': modalAvatarColor.color,
+        '--customer-tint': modalAvatarColor.tint,
+        '--customer-ink': modalAvatarColor.ink,
+      } as CSSProperties}
+      aria-hidden="true"
+    >
+      {getCustomerInitials(editingCustomer.first_name, editingCustomer.last_name) || <UserRound />}
+    </span>
+  ) : (
+    <span className="customer-modal-icon-badge" aria-hidden="true"><UserPlus /></span>
+  );
 
   return (
-    <div className="space-y-6 animate-page-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Customers</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Manage customer directory and details</p>
+    <div className="customers-page">
+      <header className="customers-page__header customers-page__enter">
+        <div className="customers-page__title-row">
+          <span className="customers-page__title-icon" aria-hidden="true">
+            <ContactRound />
+          </span>
+          <div className="customers-page__title-copy">
+            <h1>Customers</h1>
+            <p>Manage customer directory and details</p>
+          </div>
         </div>
-        <button onClick={openCreate} className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2b5c8f] text-white text-sm font-medium rounded-xl hover:bg-[#1f456e] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
-          <Plus className="w-4 h-4" /> Add Customer
+        <button type="button" onClick={openCreate} className="customers-page__add-button">
+          <Plus aria-hidden="true" /> <span>Add Customer</span>
         </button>
-      </div>
+      </header>
 
-      <div className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] overflow-hidden border border-slate-100">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-slate-100 bg-slate-50/60">
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+      <section className="customers-table-card customers-page__enter" aria-label="Customer directory">
+        <div className="customers-toolbar">
+          <div className="customers-toolbar__search-control">
+            <Search className="customers-toolbar__search-icon" aria-hidden="true" />
             <input
+              ref={searchInputRef}
               type="text"
               placeholder="Search customers..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all"
+              aria-label="Search customers"
+              className="customers-toolbar__search-input"
             />
+            {searchQuery ? (
+              <button
+                type="button"
+                className="customers-toolbar__clear"
+                onClick={() => setSearchQuery('')}
+                aria-label="Clear search"
+                title="Clear search"
+              >
+                <X aria-hidden="true" />
+              </button>
+            ) : (
+              <span className="customers-toolbar__shortcut" aria-hidden="true">
+                <Keyboard /> /
+              </span>
+            )}
           </div>
-          <div className="text-sm text-slate-500 font-medium">
-            {totalCount} {totalCount === 1 ? 'customer' : 'customers'}
+          <div className={`customers-count${isSearchActive ? ' is-searching' : ''}`} aria-live="polite" aria-atomic="true">
+            {isSearchActive && <span className="customers-count__dot" aria-hidden="true" />}
+            <UsersRound aria-hidden="true" />
+            <span key={customerCountLabel} className="customers-count__label">{customerCountLabel}</span>
           </div>
         </div>
 
         <div
           ref={tableScrollRef}
-          className={`customers-table-scroll${tableScrollPosition.hasScrolled ? ' is-scrolled' : ''}${tableScrollPosition.atEnd ? ' is-at-end' : ''}`}
+          className={`customers-table-scroll${tableScrollPosition.hasScrolled ? ' is-scrolled' : ''}`}
         >
           <table className="customers-data-table">
             <thead>
-              <tr className="border-b border-slate-100 bg-white">
-                <th className="dt-col-fit">ID</th>
-                <th className="dt-col-flex">Customer</th>
-                <th className="dt-col-cap">Company</th>
-                <th className="dt-col-fit">Phone</th>
-                <th className="dt-col-cap">Email</th>
-                <th className="dt-col-cap">Location</th>
-                <th className="dt-col-fit">Created</th>
-                <th className="dt-col-fit dt-col-actions text-right">Actions</th>
+              <tr>
+                <th scope="col">ID</th>
+                <th scope="col">Customer</th>
+                <th scope="col">Company</th>
+                <th scope="col">Phone</th>
+                <th scope="col">Email</th>
+                <th scope="col">Location</th>
+                <th scope="col">Created</th>
+                <th scope="col" className="customers-actions-heading">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={8} className="customers-table-state">
-                    <Loader2 className="w-8 h-8 animate-spin text-[#2b5c8f] mx-auto" />
-                  </td>
-                </tr>
+                Array.from({ length: 6 }, (_, index) => (
+                  <tr className="customers-skeleton-row" key={`customer-skeleton-${index}`} aria-hidden="true">
+                    <td><span className="customers-skeleton customers-skeleton--id" /></td>
+                    <td><span className="customers-skeleton-customer"><i /><span><b /><em /></span></span></td>
+                    <td><span className="customers-skeleton customers-skeleton--company" /></td>
+                    <td><span className="customers-skeleton customers-skeleton--phone" /></td>
+                    <td><span className="customers-skeleton customers-skeleton--email" /></td>
+                    <td><span className="customers-skeleton customers-skeleton--location" /></td>
+                    <td><span className="customers-skeleton customers-skeleton--date" /></td>
+                    <td><span className="customers-skeleton customers-skeleton--actions" /></td>
+                  </tr>
+                ))
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="customers-table-state text-slate-500 font-medium">
-                    No customers found.
-                  </td>
-                </tr>
-              ) : filtered.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => navigate(`/customers/${c.id}`)}>
-                  <td className="dt-col-fit">
-                    <span className="text-sm font-extrabold text-slate-800">#{c.id}</span>
-                  </td>
-                  <td className="dt-col-flex">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-700 text-[11px] font-bold">
-                        {c.first_name?.charAt(0)?.toUpperCase() || 'C'}{c.last_name?.charAt(0)?.toUpperCase() || 'U'}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="customers-truncate text-[14px] font-bold text-slate-700" title={c.full_name}>{c.full_name}</span>
-                        <span className="text-[12px] text-slate-400 font-medium">{c.is_active ? 'Active' : 'Inactive'}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="dt-col-cap">
-                    <span className="customers-truncate text-sm font-medium text-slate-600" title={c.company_name || 'Individual'}>{c.company_name || 'Individual'}</span>
-                  </td>
-                  <td className="dt-col-fit">
-                    <span className="text-sm font-medium text-slate-500 whitespace-nowrap">{c.phone || '—'}</span>
-                  </td>
-                  <td className="dt-col-cap">
-                    <span className="customers-truncate text-sm font-medium text-slate-600" title={c.email || '—'}>{c.email || '—'}</span>
-                  </td>
-                  <td className="dt-col-cap">
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <MapPin className="w-4 h-4 text-slate-400" />
-                      <span className="customers-truncate text-sm font-medium" title={[c.city, c.country].filter(Boolean).join(', ') || '—'}>{[c.city, c.country].filter(Boolean).join(', ') || '—'}</span>
-                    </div>
-                  </td>
-                  <td className="dt-col-fit">
-                    <span className="text-sm font-medium text-slate-500">
-                      {c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}
+                  <td colSpan={8} className="customers-table-state">
+                    <span className="customers-empty__icon" aria-hidden="true">
+                      {isSearchActive ? <SearchX /> : <UsersRound />}
                     </span>
-                  </td>
-                  <td className="dt-col-fit dt-col-actions text-right" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => openEdit(c)} className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-[12px] rounded-lg transition-colors">
-                        <Pencil className="w-3.5 h-3.5" /> Edit
+                    <strong>{isSearchActive ? 'No customers found' : 'No customers yet'}</strong>
+                    <span>
+                      {isSearchActive
+                        ? 'Try a different name, phone or email'
+                        : 'Customers will appear here once they are added.'}
+                    </span>
+                    {isSearchActive && (
+                      <button type="button" className="customers-empty__clear" onClick={() => setSearchQuery('')}>
+                        Clear search
                       </button>
-                      <button onClick={() => setDeleteTarget(c)} className="inline-flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 hover:bg-red-100 font-bold text-[12px] rounded-lg transition-colors">
-                        <Trash2 className="w-3.5 h-3.5" /> Delete
+                    )}
+                  </td>
+                </tr>
+              ) : filtered.map((c, index) => {
+                const avatarColor = getCustomerColor(c.id);
+                const location = [c.city, c.country].filter(Boolean).join(', ');
+                const createdAt = c.created_at ? new Date(c.created_at) : null;
+                const rowStyle = {
+                  '--customer-accent': avatarColor.color,
+                  '--customer-tint': avatarColor.tint,
+                  '--customer-ink': avatarColor.ink,
+                  '--row-index': Math.min(index, 11),
+                } as CSSProperties;
+                const rowAnimation = !initialRowsFinished && initialCustomerIds.current.has(c.id);
+                return (
+                <tr
+                  key={c.id}
+                  className={`customers-data-row${rowAnimation ? ' customers-data-row--enter' : ''}`}
+                  style={rowStyle}
+                  onClick={() => navigate(`/customers/${c.id}`)}
+                >
+                  <td data-label="ID">
+                    <span className="customers-id-chip">#{c.id}</span>
+                  </td>
+                  <td data-label="Customer" className="customers-customer-cell">
+                    <div className="customers-customer">
+                      <span className="customers-avatar" aria-hidden="true">{getCustomerInitials(c.first_name, c.last_name)}</span>
+                      <span className="customers-customer__details">
+                        <span className="customers-customer__name" title={c.full_name}>{c.full_name}</span>
+                        <StatusBadge
+                          status={c.is_active ? 'active' : 'inactive'}
+                          label={c.is_active ? 'Active' : 'Inactive'}
+                          className="customers-status-badge"
+                        />
+                      </span>
+                    </div>
+                  </td>
+                  <td data-label="Company">
+                    {c.company_name ? (
+                      <span className="customers-company" title={c.company_name}>
+                        <Building2 aria-hidden="true" /> <span>{c.company_name}</span>
+                      </span>
+                    ) : (
+                      <span className="customers-individual">
+                        <User aria-hidden="true" /> Individual
+                      </span>
+                    )}
+                  </td>
+                  <td data-label="Phone">
+                    {c.phone ? (
+                      <span className="customers-copy-cell customers-phone">
+                        <span title={c.phone}>{c.phone}</span>
+                        <button
+                          type="button"
+                          className="customers-copy-button"
+                          aria-label={`Copy phone number for ${c.full_name}`}
+                          title={copiedValue === c.phone ? 'Copied' : 'Copy phone number'}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void copyCustomerValue(c.phone);
+                          }}
+                        >
+                          {copiedValue === c.phone ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+                        </button>
+                      </span>
+                    ) : <span className="customers-empty-value">—</span>}
+                  </td>
+                  <td data-label="Email">
+                    {c.email ? (
+                      <span className="customers-copy-cell customers-email">
+                        <span className="customers-email__value" title={c.email}>{c.email}</span>
+                        <button
+                          type="button"
+                          className="customers-copy-button"
+                          aria-label={`Copy email for ${c.full_name}`}
+                          title={copiedValue === c.email ? 'Copied' : 'Copy email'}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void copyCustomerValue(c.email);
+                          }}
+                        >
+                          {copiedValue === c.email ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+                        </button>
+                      </span>
+                    ) : (
+                      <span className="customers-empty-value">—<span className="customers-visually-hidden">Not provided</span></span>
+                    )}
+                  </td>
+                  <td data-label="Location">
+                    {location ? (
+                      <span className="customers-location" title={location}>
+                        <MapPin aria-hidden="true" /> <span>{location}</span>
+                      </span>
+                    ) : <span className="customers-empty-value">—</span>}
+                  </td>
+                  <td data-label="Created">
+                    {createdAt && !Number.isNaN(createdAt.getTime()) ? (
+                      <time className="customers-created" dateTime={c.created_at}>
+                        {new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(createdAt)}
+                      </time>
+                    ) : <span className="customers-empty-value">—</span>}
+                  </td>
+                  <td data-label="Actions" className="customers-actions-cell" onClick={(event) => event.stopPropagation()}>
+                    <div className="customers-actions">
+                      <button type="button" onClick={() => openEdit(c)} aria-label={`Edit ${c.full_name}`} title="Edit customer">
+                        <Pencil aria-hidden="true" /><span>Edit</span>
+                      </button>
+                      <button type="button" onClick={() => setDeleteTarget(c)} aria-label={`Delete ${c.full_name}`} title="Delete customer">
+                        <Trash2 aria-hidden="true" /><span>Delete</span>
                       </button>
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
-      </div>
 
-      {/* Pagination */}
-      <Pagination
-        totalCount={totalCount}
-        currentPage={pagination.currentPage}
-        pageSize={pagination.pageSize}
-        onPageChange={pagination.goToPage}
-        onPageSizeChange={pagination.setPageSize}
-        loading={isLoading}
-      />
+        <Pagination
+          totalCount={totalCount}
+          currentPage={pagination.currentPage}
+          pageSize={pagination.pageSize}
+          onPageChange={pagination.goToPage}
+          onPageSizeChange={pagination.setPageSize}
+          loading={isLoading}
+        />
+      </section>
 
-      {/* Form Modal */}
-      <Modal open={formOpen} onClose={() => setFormOpen(false)} title={editingCustomer ? 'Edit Customer' : 'Create Customer'} maxWidth="max-w-2xl">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* Personal Information */}
-          <div className="bg-slate-50/50 rounded-2xl border border-slate-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3 bg-white">
-              <div className="w-8 h-8 rounded-lg bg-[#eef2ff] flex items-center justify-center text-[#2b5c8f]">
-                <User className="w-4 h-4" />
-              </div>
-              <h3 className="text-[15px] font-bold text-[#1e293b]">Personal Information</h3>
+      <Modal
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        title={editingCustomer ? 'Edit Customer' : 'Create Customer'}
+        subtitle={editingCustomer ? 'Update contact details and company information' : 'Add a customer to your directory'}
+        context={editingCustomer ? `#${editingCustomer.id}` : undefined}
+        headerMeta={editingCustomer && (
+          <StatusBadge
+            status={editingCustomer.is_active ? 'active' : 'inactive'}
+            label={editingCustomer.is_active ? 'Active' : 'Inactive'}
+            className="customer-modal-status"
+          />
+        )}
+        headerBadgeContent={customerModalBadge}
+        variant="customer"
+        isBusy={saving}
+        footer={(
+          <div className="customer-modal-footer-content">
+            <div className="customer-modal-footer-buttons">
+              <button
+                type="button"
+                className="customer-modal-cancel"
+                onClick={() => setFormOpen(false)}
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="customer-form"
+                className="customer-modal-submit"
+                disabled={saving}
+                aria-busy={saving}
+              >
+                {saving ? <Loader2 aria-hidden="true" /> : <CheckCircle2 aria-hidden="true" />}
+                <span>{saving ? 'Saving…' : editingCustomer ? 'Update Customer' : 'Create Customer'}</span>
+              </button>
             </div>
-            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <FormInput label="First Name" icon={User} required error={errors.first_name?.message} {...register('first_name')} placeholder="e.g. Abdullah" />
-              <FormInput label="Last Name" icon={User} required error={errors.last_name?.message} {...register('last_name')} placeholder="e.g. Ahmed" />
-              <FormInput label="Email Address" type="email" icon={Mail} error={errors.email?.message} {...register('email')} placeholder="customer@example.com" />
-              <div>
-                <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Phone Number</label>
-                <div className={`flex border ${errors.phone ? 'border-red-300' : 'border-slate-200'} rounded-xl overflow-hidden focus-within:border-[#2b5c8f] focus-within:ring-2 focus-within:ring-[#2b5c8f]/10 transition-all bg-white`}>
-                  <div className="flex items-center gap-1.5 px-3 bg-slate-50/80 border-r border-slate-200">
-                    <span className="text-base">🇦🇪</span>
-                    <span className="text-[13px] font-bold text-slate-700">+971</span>
-                  </div>
-                  <input type="tel" {...register('phone')} placeholder="50 000 0000" className="flex-1 px-4 py-3 bg-transparent text-slate-800 text-[14px] font-semibold outline-none" />
+            <span className="customer-modal-submit-hint" aria-hidden="true"><kbd>↵</kbd> Enter to save</span>
+          </div>
+        )}
+      >
+        <form id="customer-form" onSubmit={handleSubmit(onSubmit)} className="customer-modal-form" noValidate>
+          <section className="customer-form-section">
+            <div className="customer-form-section__heading">
+              <span className="customer-form-section__icon customer-form-section__icon--personal"><User aria-hidden="true" /></span>
+              <h3>Personal Information</h3>
+              <span aria-hidden="true" />
+            </div>
+            <div className="customer-form-grid">
+              <CustomerFormField
+                id="customer-first-name"
+                label="First Name"
+                required
+                edited={Boolean(editingCustomer && (currentFormValues.first_name ?? '') !== editingCustomer.first_name)}
+                error={errors.first_name?.message}
+              >
+                <div className="customer-modal-control">
+                  <UserRound className="customer-modal-control__icon" aria-hidden="true" />
+                  <input
+                    {...register('first_name')}
+                    id="customer-first-name"
+                    data-customer-autofocus
+                    type="text"
+                    autoComplete="off"
+                    autoCapitalize="words"
+                    spellCheck={false}
+                    readOnly={saving}
+                    aria-invalid={Boolean(errors.first_name)}
+                    aria-describedby={errors.first_name ? 'customer-first-name-error' : undefined}
+                    placeholder="e.g. Abdullah"
+                  />
                 </div>
-                {errors.phone && <p className="text-[12px] text-red-500 font-medium mt-1">{errors.phone.message}</p>}
-              </div>
-              <div className="sm:col-span-2">
-                <FormInput label="Company Name" icon={Building2} error={errors.company_name?.message} {...register('company_name')} placeholder="e.g. ACME LLC" />
-              </div>
+              </CustomerFormField>
+              <CustomerFormField
+                id="customer-last-name"
+                label="Last Name"
+                required
+                edited={Boolean(editingCustomer && (currentFormValues.last_name ?? '') !== editingCustomer.last_name)}
+                error={errors.last_name?.message}
+              >
+                <div className="customer-modal-control">
+                  <UserRound className="customer-modal-control__icon" aria-hidden="true" />
+                  <input
+                    {...register('last_name')}
+                    id="customer-last-name"
+                    type="text"
+                    autoComplete="off"
+                    autoCapitalize="words"
+                    spellCheck={false}
+                    readOnly={saving}
+                    aria-invalid={Boolean(errors.last_name)}
+                    aria-describedby={errors.last_name ? 'customer-last-name-error' : undefined}
+                    placeholder="e.g. Ahmed"
+                  />
+                </div>
+              </CustomerFormField>
+              <CustomerFormField
+                id="customer-email"
+                label="Email Address"
+                edited={Boolean(editingCustomer && (currentFormValues.email ?? '') !== (editingCustomer.email || ''))}
+                error={errors.email?.message}
+              >
+                <div className="customer-modal-control">
+                  <Mail className="customer-modal-control__icon" aria-hidden="true" />
+                  <input
+                    {...register('email')}
+                    id="customer-email"
+                    type="email"
+                    inputMode="email"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    readOnly={saving}
+                    aria-invalid={Boolean(errors.email)}
+                    aria-describedby={errors.email ? 'customer-email-error' : undefined}
+                    placeholder="customer@example.com"
+                  />
+                  {/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(currentFormValues.email || '') && (
+                    <Check className="customer-modal-email-check" aria-label="Email format looks valid" />
+                  )}
+                </div>
+              </CustomerFormField>
+              <CustomerFormField
+                id="customer-phone"
+                label="Phone Number"
+                edited={Boolean(editingCustomer && (currentFormValues.phone ?? '') !== (editingCustomer.phone || ''))}
+                error={errors.phone?.message}
+              >
+                <div className={`customer-modal-control customer-modal-phone${errors.phone ? ' has-error' : ''}`}>
+                  <span className="customer-modal-phone__country" aria-hidden="true">
+                    <FlagAE />
+                    <span>+971</span>
+                  </span>
+                  <input
+                    {...register('phone')}
+                    id="customer-phone"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    readOnly={saving}
+                    aria-invalid={Boolean(errors.phone)}
+                    aria-describedby={errors.phone ? 'customer-phone-error' : undefined}
+                    placeholder="50 000 0000"
+                  />
+                </div>
+              </CustomerFormField>
+              <CustomerFormField
+                id="customer-company"
+                label="Company Name"
+                className="customer-form-field--full"
+                edited={Boolean(editingCustomer && (currentFormValues.company_name ?? '') !== (editingCustomer.company_name || ''))}
+                error={errors.company_name?.message}
+              >
+                <div className="customer-modal-control">
+                  <Building2 className="customer-modal-control__icon" aria-hidden="true" />
+                  <input
+                    {...register('company_name')}
+                    id="customer-company"
+                    type="text"
+                    autoComplete="off"
+                    autoCapitalize="words"
+                    readOnly={saving}
+                    aria-invalid={Boolean(errors.company_name)}
+                    aria-describedby={errors.company_name ? 'customer-company-error' : undefined}
+                    placeholder="e.g. ACME LLC"
+                  />
+                </div>
+              </CustomerFormField>
             </div>
-          </div>
+          </section>
 
-          {/* Location Details */}
-          <div className="bg-slate-50/50 rounded-2xl border border-slate-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3 bg-white">
-              <div className="w-8 h-8 rounded-lg bg-[#ecfdf5] flex items-center justify-center text-[#10b981]">
-                <MapPin className="w-4 h-4" />
-              </div>
-              <h3 className="text-[15px] font-bold text-[#1e293b]">Location Details</h3>
+          <section className="customer-form-section">
+            <div className="customer-form-section__heading">
+              <span className="customer-form-section__icon customer-form-section__icon--location"><MapPin aria-hidden="true" /></span>
+              <h3>Location Details</h3>
+              <span aria-hidden="true" />
             </div>
-            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div className="sm:col-span-2">
-                <FormInput label="Address Line 1" icon={MapPin} error={errors.address_line_1?.message} {...register('address_line_1')} placeholder="Street address" />
-              </div>
-              <div className="sm:col-span-2">
-                <FormInput label="Address Line 2" icon={MapPin} error={errors.address_line_2?.message} {...register('address_line_2')} placeholder="Apartment, suite, building, etc." />
-              </div>
-              <FormInput label="City" icon={Globe} error={errors.city?.message} {...register('city')} placeholder="Dubai" />
-              <FormInput label="Country" icon={Globe} error={errors.country?.message} {...register('country')} placeholder="UAE" />
+            <div className="customer-form-grid">
+              <CustomerFormField
+                id="customer-address-1"
+                label="Address Line 1"
+                className="customer-form-field--full"
+                edited={Boolean(editingCustomer && (currentFormValues.address_line_1 ?? '') !== (editingCustomer.address_line_1 || ''))}
+                error={errors.address_line_1?.message}
+              >
+                <div className="customer-modal-control">
+                  <MapPin className="customer-modal-control__icon" aria-hidden="true" />
+                  <input
+                    {...register('address_line_1')}
+                    id="customer-address-1"
+                    type="text"
+                    autoComplete="off"
+                    readOnly={saving}
+                    aria-invalid={Boolean(errors.address_line_1)}
+                    aria-describedby={errors.address_line_1 ? 'customer-address-1-error' : undefined}
+                    placeholder="Street address"
+                  />
+                </div>
+              </CustomerFormField>
+              <CustomerFormField
+                id="customer-address-2"
+                label="Address Line 2"
+                className="customer-form-field--full"
+                edited={Boolean(editingCustomer && (currentFormValues.address_line_2 ?? '') !== (editingCustomer.address_line_2 || ''))}
+                error={errors.address_line_2?.message}
+              >
+                <div className="customer-modal-control">
+                  <MapPin className="customer-modal-control__icon" aria-hidden="true" />
+                  <input
+                    {...register('address_line_2')}
+                    id="customer-address-2"
+                    type="text"
+                    autoComplete="off"
+                    readOnly={saving}
+                    aria-invalid={Boolean(errors.address_line_2)}
+                    aria-describedby={errors.address_line_2 ? 'customer-address-2-error' : undefined}
+                    placeholder="Apartment, suite, building, etc."
+                  />
+                </div>
+              </CustomerFormField>
+              <CustomerFormField
+                id="customer-city"
+                label="City"
+                edited={Boolean(editingCustomer && (currentFormValues.city ?? '') !== (editingCustomer.city || ''))}
+                error={errors.city?.message}
+              >
+                <div className="customer-modal-control">
+                  <Globe className="customer-modal-control__icon" aria-hidden="true" />
+                  <input
+                    {...register('city')}
+                    id="customer-city"
+                    type="text"
+                    autoComplete="address-level2"
+                    autoCapitalize="words"
+                    readOnly={saving}
+                    aria-invalid={Boolean(errors.city)}
+                    aria-describedby={errors.city ? 'customer-city-error' : undefined}
+                    placeholder="Dubai"
+                  />
+                </div>
+              </CustomerFormField>
+              <CustomerFormField
+                id="customer-country"
+                label="Country"
+                edited={Boolean(editingCustomer && (currentFormValues.country ?? '') !== (editingCustomer.country || ''))}
+                error={errors.country?.message}
+              >
+                <div className="customer-modal-control">
+                  <Globe className="customer-modal-control__icon" aria-hidden="true" />
+                  <input
+                    {...register('country')}
+                    id="customer-country"
+                    type="text"
+                    autoComplete="country-name"
+                    autoCapitalize="words"
+                    readOnly={saving}
+                    aria-invalid={Boolean(errors.country)}
+                    aria-describedby={errors.country ? 'customer-country-error' : undefined}
+                    placeholder="UAE"
+                  />
+                </div>
+              </CustomerFormField>
             </div>
-          </div>
-
-          <div className="flex items-center justify-between mt-6 pt-6 border-t border-slate-200">
-            <button type="button" onClick={() => setFormOpen(false)} className="px-6 py-3 rounded-xl border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-colors">Cancel</button>
-            <button type="submit" disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-[#2b5c8f] text-white font-bold text-sm rounded-xl shadow-md shadow-[#2b5c8f]/20 hover:bg-[#1f456e] hover:-translate-y-0.5 transition-all disabled:opacity-70">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              {saving ? 'Saving…' : editingCustomer ? 'Update Customer' : 'Create Customer'}
-            </button>
-          </div>
+          </section>
         </form>
       </Modal>
 
