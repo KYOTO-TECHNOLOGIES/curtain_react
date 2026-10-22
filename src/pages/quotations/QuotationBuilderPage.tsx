@@ -18,6 +18,8 @@ import {
   type CatalogModel,
   type CatalogItem,
   type MotorType,
+  type WorkType,
+  type ChargeTemplate,
 } from '../../api/catalog';
 import { quotationsApi } from '../../api/quotations';
 import { useToast } from '../../components/ui/Toast';
@@ -126,6 +128,11 @@ export default function QuotationBuilderPage() {
     enabled: !!selectedAppointmentId,
   });
 
+  const { data: workTypesRes } = useQuery({
+    queryKey: ['work_types'],
+    queryFn: () => catalogApi.workTypes(),
+  });
+
   const { data: fabricTypesRes } = useQuery({
     queryKey: ['fabric_types'],
     queryFn: () => catalogApi.fabricTypes(),
@@ -142,8 +149,15 @@ export default function QuotationBuilderPage() {
   });
 
   const { data: motorsRes } = useQuery({
-    queryKey: ['motors'],
-    queryFn: () => catalogApi.motors(),
+    queryKey: ['motors', quotationSettings.work_type],
+    queryFn: () => catalogApi.motors({ work_type: quotationSettings.work_type }),
+    enabled: !!quotationSettings.work_type,
+  });
+
+  const { data: chargesRes } = useQuery({
+    queryKey: ['charges', quotationSettings.work_type],
+    queryFn: () => catalogApi.charges({ work_type: quotationSettings.work_type }),
+    enabled: !!quotationSettings.work_type,
   });
 
   const toArray = <T,>(res: any): T[] => {
@@ -158,6 +172,10 @@ export default function QuotationBuilderPage() {
   const models = toArray<CatalogModel>(modelsRes);
   const items = toArray<CatalogItem>(itemsRes);
   const motors = toArray<MotorType>(motorsRes);
+  const workTypes = toArray<WorkType>(workTypesRes);
+  const includedCharges = toArray<ChargeTemplate>(chargesRes);
+  const selectedWorkType = workTypes.find((workType) => workType.id === quotationSettings.work_type) || workTypes[0];
+  const workTypeFeatures = selectedWorkType?.features;
 
   const fetchedAppointments: AppointmentListItem[] = toArray<AppointmentListItem>(appointmentsRes);
   const selectedAppointment: AppointmentDetail | null = selectedAppointmentRes?.data || null;
@@ -359,16 +377,42 @@ export default function QuotationBuilderPage() {
           area_type: area.area_type,
           display_name: area.display_name,
           sort_order: area.sort_order,
-          surfaces: area.surfaces.map((surface) => ({
+          surfaces: area.surfaces.map((surface) => {
+            const spec = { ...surface.spec };
+            if (workTypeFeatures?.motor === false) {
+              spec.motor_control_type = 'manual';
+              spec.motor_type = null;
+              spec.motor_price_per_unit = '0';
+            }
+            if (workTypeFeatures?.charges === false) {
+              spec.smart_integration = false;
+              spec.alexa_quantity = 0;
+              spec.alexa_unit_price = '0';
+            }
+            if (workTypeFeatures?.pelmet === false) {
+              spec.pelmet_enabled = false;
+              spec.pelmet_width_cm = '0';
+              spec.pelmet_price_per_metre = '0';
+            }
+            const alexaCharge = includedCharges.find((charge) => charge.kind === 'alexa');
+            const pelmetCharge = includedCharges.find((charge) => charge.kind === 'pelmet');
+            if (spec.smart_integration && alexaCharge && (!spec.alexa_unit_price || spec.alexa_unit_price === '0')) {
+              spec.alexa_unit_price = alexaCharge.price;
+            }
+            if (spec.pelmet_enabled && pelmetCharge && (!spec.pelmet_price_per_metre || spec.pelmet_price_per_metre === '0')) {
+              spec.pelmet_price_per_metre = pelmetCharge.price;
+            }
+            return {
             surface_name: surface.surface_name,
             surface_type: surface.surface_type,
             width_cm: surface.width_cm,
             height_cm: surface.height_cm,
-            opening_direction: surface.opening_direction,
+            opening_direction: workTypeFeatures?.draw === false ? 'one_way' : surface.opening_direction,
             special_requirements: surface.special_requirements,
             sort_order: surface.sort_order,
-            spec: surface.spec,
-          })),
+            spec,
+            };
+          }),
         })),
       };
 
@@ -458,6 +502,21 @@ export default function QuotationBuilderPage() {
           </div>
 
           <div className="qb-general-column">
+            <div className="qb-field">
+              <label htmlFor="quotation-work-type" className="qb-field-label block text-[15px] font-bold text-slate-700 mb-2">
+                Work Type
+              </label>
+              <select
+                id="quotation-work-type"
+                value={selectedWorkType?.id || quotationSettings.work_type}
+                onChange={(event) => setQuotationSettings({ ...quotationSettings, work_type: Number(event.target.value) })}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-[#5442f6] focus:ring-2 focus:ring-[#5442f6]/20 transition-all font-medium text-slate-700"
+              >
+                {workTypes.map((workType) => (
+                  <option key={workType.id} value={workType.id}>{workType.name}</option>
+                ))}
+              </select>
+            </div>
             <div className="qb-field">
               <span className="qb-field-label block text-[15px] font-bold text-slate-700 mb-2">Quotation Type</span>
               <QuotationTypeCards
@@ -624,6 +683,7 @@ export default function QuotationBuilderPage() {
                                   models={models}
                                   items={items}
                                   motors={motors}
+                                  features={workTypeFeatures}
                                   onDelete={() => handleDeleteSurface(area.tempId, surface.tempId)}
                                   onUpdateSpec={(updates) => handleUpdateSurfaceSpec(area.tempId, surface.tempId, updates)}
                                   calculateTotal={calculateSurfaceTotal}

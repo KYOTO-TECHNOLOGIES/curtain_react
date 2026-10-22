@@ -1,16 +1,32 @@
 import { api } from './client';
 
+export interface WorkTypeFeatures {
+  motor: boolean;
+  charges: boolean;
+  images: boolean;
+  draw: boolean;
+  pelmet: boolean;
+}
+
 export interface WorkType {
   id: number;
   name: string;
   pricing_unit: string;
-  features: {
-    motor: boolean;
-    charges: boolean;
-    images: boolean;
-  };
+  features: WorkTypeFeatures;
+  motor_ids?: number[];
+  motors?: MotorType[];
+  charge_ids?: number[];
+  charges?: ChargeTemplate[];
   created_at?: string;
   updated_at?: string;
+}
+
+export interface WorkTypeWrite {
+  name?: string;
+  pricing_unit?: string;
+  features?: Partial<WorkTypeFeatures>;
+  motor_ids?: number[];
+  charge_ids?: number[];
 }
 
 export interface FabricType {
@@ -39,11 +55,16 @@ export interface MotorType {
   updated_at?: string;
 }
 
+export type ChargeKind = 'manual' | 'motorized' | 'alexa' | 'pelmet' | 'other';
+export type ChargeUnit = 'm2' | 'm' | 'flat';
+
 export interface ChargeTemplate {
   id: number;
   name: string;
   price: string;
-  unit: string;
+  unit: ChargeUnit | string;
+  kind?: ChargeKind;
+  description?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -61,13 +82,13 @@ export interface CatalogItem {
 
 export const catalogApi = {
   // Work Types
-  workTypes: () =>
-    api.get<WorkType[]>('catalog/work-types/'),
+  workTypes: (params?: { feature?: string }) =>
+    api.get<WorkType[]>('catalog/work-types/', { params }),
 
-  createWorkType: (data: Partial<WorkType>) =>
+  createWorkType: (data: WorkTypeWrite) =>
     api.post<WorkType>('catalog/work-types/', data),
 
-  updateWorkType: (id: number, data: Partial<WorkType>) =>
+  updateWorkType: (id: number, data: WorkTypeWrite) =>
     api.patch<WorkType>(`catalog/work-types/${id}/`, data),
 
   deleteWorkType: (id: number) =>
@@ -113,8 +134,8 @@ export const catalogApi = {
     api.delete(`catalog/items/${id}/`),
 
   // Motor Types
-  motors: () =>
-    api.get<MotorType[]>('catalog/motors/'),
+  motors: (params?: { work_type?: number }) =>
+    api.get<MotorType[]>('catalog/motors/', { params }),
 
   createMotor: (data: Partial<MotorType>) =>
     api.post<MotorType>('catalog/motors/', data),
@@ -126,8 +147,8 @@ export const catalogApi = {
     api.delete(`catalog/motors/${id}/`),
 
   // Charge Templates
-  charges: () =>
-    api.get<ChargeTemplate[]>('catalog/charges/'),
+  charges: (params?: { work_type?: number; search?: string; unit?: string; kind?: string }) =>
+    api.get<ChargeTemplate[]>('catalog/charges/', { params }),
 
   createCharge: (data: Partial<ChargeTemplate>) =>
     api.post<ChargeTemplate>('catalog/charges/', data),

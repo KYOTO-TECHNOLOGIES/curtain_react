@@ -102,6 +102,8 @@ export type CatalogMotorFormValues = z.infer<typeof catalogMotorSchema>;
 export const catalogChargeSchema = z.object({
   name: z.string().min(1, 'Charge name is required'),
   price: z.string().min(1, 'Price is required'),
-  unit: z.string().min(1, 'Unit is required'),
+  unit: z.enum(['m2', 'm', 'flat']),
+  kind: z.enum(['manual', 'motorized', 'alexa', 'pelmet', 'other']).optional(),
+  description: z.string().optional(),
 });
 export type CatalogChargeFormValues = z.infer<typeof catalogChargeSchema>;

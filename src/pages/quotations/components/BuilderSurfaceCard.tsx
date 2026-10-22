@@ -17,6 +17,7 @@ import type {
   CatalogModel,
   FabricType,
   MotorType,
+  WorkTypeFeatures,
 } from '../../../api/catalog';
 import type { SurfaceSpec } from '../../../api/quotations';
 
@@ -35,6 +36,7 @@ interface Props {
   models: CatalogModel[];
   items: CatalogItem[];
   motors: MotorType[];
+  features?: Partial<WorkTypeFeatures>;
   onDelete: () => void;
   onUpdateSpec: (updates: Partial<SurfaceSpec>) => void;
   calculateTotal: (spec: SurfaceSpec, widthCm: number, heightCm: number) => string;
@@ -151,6 +153,7 @@ export default function BuilderSurfaceCard({
   models,
   items,
   motors,
+  features,
   onDelete,
   onUpdateSpec,
   calculateTotal,
@@ -229,9 +232,12 @@ export default function BuilderSurfaceCard({
     label: item.name,
     suffix: item.price_per_m2 == null ? undefined : String(item.price_per_m2),
   }));
+  const allowMotor = features?.motor !== false;
+  const allowCharges = features?.charges !== false;
+  const allowPelmet = features?.pelmet !== false;
   const controlOptions: SelectOption[] = [
     { value: 'manual', label: 'Manual' },
-    { value: 'motorized', label: 'Motorized' },
+    ...(allowMotor ? [{ value: 'motorized', label: 'Motorized' }] : []),
   ];
 
   return (
@@ -353,6 +359,7 @@ export default function BuilderSurfaceCard({
                 />
               </Field>
               <div className="qbc-option-grid">
+                {allowCharges && (
                 <OptionTile
                   id={`alexa-${safeId}`}
                   checked={surface.spec.smart_integration}
@@ -360,6 +367,8 @@ export default function BuilderSurfaceCard({
                   label="Smart Integration (Alexa)"
                   icon={Mic}
                 />
+                )}
+                {allowPelmet && (
                 <OptionTile
                   id={`pelmet-${safeId}`}
                   checked={surface.spec.pelmet_enabled}
@@ -367,11 +376,12 @@ export default function BuilderSurfaceCard({
                   label="Add Pelmet"
                   icon={PanelTop}
                 />
+                )}
               </div>
             </div>
             {(surface.spec.motor_control_type === 'motorized' || surface.spec.smart_integration || surface.spec.pelmet_enabled) && (
               <div className="qbc-extra-fields">
-                {surface.spec.motor_control_type === 'motorized' && (
+                {allowMotor && surface.spec.motor_control_type === 'motorized' && (
                   <Field id={`motor-${safeId}`} label="Motor Type">
                     <SelectMenu
                       id={`motor-${safeId}`}
@@ -392,7 +402,7 @@ export default function BuilderSurfaceCard({
                     />
                   </Field>
                 )}
-                {surface.spec.smart_integration && (
+                {allowCharges && surface.spec.smart_integration && (
                   <>
                     <Field id={`alexa-quantity-${safeId}`} label="Qty">
                       <input
@@ -413,7 +423,7 @@ export default function BuilderSurfaceCard({
                     />
                   </>
                 )}
-                {surface.spec.pelmet_enabled && (
+                {allowPelmet && surface.spec.pelmet_enabled && (
                   <>
                     <Field id={`pelmet-width-${safeId}`} label="Width (cm)">
                       <input

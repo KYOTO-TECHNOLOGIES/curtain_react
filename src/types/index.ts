@@ -159,15 +159,23 @@ export interface CreateOrGetCustomerResponse {
 
 // ── Catalog ─────────────────────────────────────────────
 
+export interface CatalogWorkTypeFeatures {
+  motor: boolean;
+  charges: boolean;
+  images: boolean;
+  draw: boolean;
+  pelmet: boolean;
+}
+
 export interface CatalogWorkType {
   id: number;
   name: string;
   pricing_unit?: string;
-  features?: {
-    motor?: boolean;
-    charges?: boolean;
-    images?: boolean;
-  };
+  features?: Partial<CatalogWorkTypeFeatures>;
+  motor_ids?: number[];
+  motors?: CatalogMotorType[];
+  charge_ids?: number[];
+  charges?: CatalogChargeTemplate[];
 }
 
 export interface CatalogFabricType {
@@ -204,6 +212,8 @@ export interface CatalogChargeTemplate {
   name: string;
   price: string;
   unit: string;
+  kind?: 'manual' | 'motorized' | 'alexa' | 'pelmet' | 'other';
+  description?: string;
 }
 
 // ── Appointments ────────────────────────────────────────

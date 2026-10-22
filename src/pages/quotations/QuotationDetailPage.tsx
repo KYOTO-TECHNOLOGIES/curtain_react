@@ -18,6 +18,7 @@ import {
   type CatalogModel,
   type CatalogItem,
   type MotorType,
+  type WorkType,
 } from '../../api/catalog';
 import { quotationsApi } from '../../api/quotations';
 import { useToast } from '../../components/ui/Toast';
@@ -71,9 +72,17 @@ export default function QuotationDetailPage() {
     queryFn: () => catalogApi.items(),
   });
 
+  const workTypeId = res?.data?.work_type;
+
+  const { data: workTypesRes } = useQuery({
+    queryKey: ['work_types'],
+    queryFn: () => catalogApi.workTypes(),
+  });
+
   const { data: motorsRes } = useQuery({
-    queryKey: ['motors'],
-    queryFn: () => catalogApi.motors(),
+    queryKey: ['motors', workTypeId],
+    queryFn: () => catalogApi.motors(workTypeId ? { work_type: workTypeId } : undefined),
+    enabled: !!workTypeId,
   });
 
   const toArray = <T,>(res: any): T[] => {
@@ -89,6 +98,7 @@ export default function QuotationDetailPage() {
   const models = toArray<CatalogModel>(modelsRes);
   const items = toArray<CatalogItem>(itemsRes);
   const motors = toArray<MotorType>(motorsRes);
+  const workTypes = toArray<WorkType>(workTypesRes);
 
   const [formData, setFormData] = useState<Partial<QuotationDetail>>({});
 
@@ -289,8 +299,29 @@ export default function QuotationDetailPage() {
     if (!id || !quotation) return;
     setSaving(true);
     try {
+      const features = workTypes.find((workType) => workType.id === quotation.work_type)?.features;
+      const areas = formData.areas?.map((area) => ({
+        ...area,
+        surfaces: area.surfaces.map((surface) => ({
+          ...surface,
+          opening_direction: features?.draw === false ? 'one_way' : surface.opening_direction,
+          spec: {
+            ...surface.spec,
+            ...(features?.motor === false
+              ? { motor_control_type: 'manual' as const, motor_type: null, motor_price_per_unit: '0' }
+              : {}),
+            ...(features?.charges === false
+              ? { smart_integration: false, alexa_quantity: 0, alexa_unit_price: '0' }
+              : {}),
+            ...(features?.pelmet === false
+              ? { pelmet_enabled: false, pelmet_width_cm: '0', pelmet_price_per_metre: '0' }
+              : {}),
+          },
+        })),
+      }));
       await quotationsApi.update(id, {
         ...formData,
+        areas,
         discount_percentage: formData.discount_percentage || 0,
       } as any);
       showToast('Quotation updated successfully', 'success');

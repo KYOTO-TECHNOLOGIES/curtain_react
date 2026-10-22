@@ -21,11 +21,13 @@ import { useQuery } from '@tanstack/react-query';
 import {
   catalogApi,
   type WorkType,
+  type WorkTypeFeatures,
   type FabricType,
   type CatalogModel,
   type CatalogItem,
   type MotorType,
   type ChargeTemplate,
+  type ChargeKind,
 } from '../../api/catalog';
 import { useToast } from '../../components/ui/Toast';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
@@ -33,6 +35,31 @@ import { FormInput } from '../../components/ui/FormInput';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { SelectMenu } from '../../components/ui/SelectMenu';
 import './CatalogPage.css';
+
+const FEATURE_FIELDS: { key: keyof WorkTypeFeatures; label: string }[] = [
+  { key: 'motor', label: 'Motor / Control Types' },
+  { key: 'charges', label: 'Control & Charges' },
+  { key: 'images', label: 'Item Images' },
+  { key: 'draw', label: 'Opening Direction (1 way / 2 way)' },
+  { key: 'pelmet', label: 'Pelmet (per metre)' },
+];
+
+function normalizeChargeUnit(unit?: string) {
+  const value = (unit || '').toLowerCase().replace('²', '2').replace('/', '');
+  if (value === 'm2' || value === 'perm2' || value === 'per_m2') return 'm2';
+  if (value === 'm' || value === 'perm') return 'm';
+  return 'flat';
+}
+
+function normalizeFeatures(features?: Partial<WorkTypeFeatures> | null): WorkTypeFeatures {
+  return {
+    motor: !!features?.motor,
+    charges: !!features?.charges,
+    images: !!features?.images,
+    draw: !!features?.draw,
+    pelmet: !!features?.pelmet,
+  };
+}
 
 type TabType = 'work-types' | 'fabric-types' | 'models' | 'items' | 'motors' | 'charges';
 const catalogTabs: TabType[] = ['work-types', 'fabric-types', 'models', 'items', 'motors', 'charges'];
@@ -128,7 +155,11 @@ export default function CatalogPage() {
     return [];
   };
 
-  const workTypes = toArray<WorkType>(workTypesRes);
+  const workTypes = toArray<WorkType>(workTypesRes).map((workType) => {
+    const features = normalizeFeatures(workType.features);
+    const options = FEATURE_FIELDS.filter((field) => features[field.key]).map((field) => field.label.split(' ')[0]).join(', ');
+    return { ...workType, features, options: options || 'None' };
+  });
   const fabricTypes = toArray<FabricType>(fabricTypesRes);
   const models = toArray<CatalogModel>(modelsRes);
   const items = toArray<CatalogItem>(itemsRes);
@@ -143,12 +174,12 @@ export default function CatalogPage() {
     charges,
   };
   const tabColumns: Record<TabType, string[]> = {
-    'work-types': ['id', 'name', 'pricing_unit'],
+    'work-types': ['id', 'name', 'pricing_unit', 'options'],
     'fabric-types': ['id', 'work_type_name', 'name'],
     models: ['id', 'fabric_type_name', 'name'],
     items: ['id', 'model_name', 'name', 'price_per_unit'],
     motors: ['id', 'name', 'price_per_m2'],
-    charges: ['id', 'name', 'price', 'unit'],
+    charges: ['id', 'name', 'kind', 'price', 'unit'],
   };
   const tabLoading: Record<TabType, boolean> = {
     'work-types': workTypesLoading,
@@ -188,8 +219,16 @@ export default function CatalogPage() {
     icon: <Package aria-hidden="true" />,
   })), [fabricTypes]);
   const unitOptions = useMemo(() => [
+    { value: 'm2', label: 'Per m²', icon: <FileText aria-hidden="true" /> },
+    { value: 'm', label: 'Per metre', icon: <FileText aria-hidden="true" /> },
     { value: 'flat', label: 'Flat', icon: <DollarSign aria-hidden="true" /> },
-    { value: 'per_m2', label: 'Per m2', icon: <FileText aria-hidden="true" /> },
+  ], []);
+  const chargeKindOptions = useMemo(() => [
+    { value: 'manual', label: 'Manual' },
+    { value: 'motorized', label: 'Motorized' },
+    { value: 'alexa', label: 'Alexa' },
+    { value: 'pelmet', label: 'Pelmet' },
+    { value: 'other', label: 'Other' },
   ], []);
   const previewModel = models.find((model) => String(model.id) === String(formData.model ?? ''));
   const previewName = String(formData.name ?? '');
@@ -356,11 +395,26 @@ export default function CatalogPage() {
     setSaving(true);
     try {
       if (activeTab === 'work-types') {
+        const features = normalizeFeatures(formData.features);
+        const payload = {
+          name: formData.name,
+          pricing_unit: formData.pricing_unit || 'm2',
+          features,
+          ...(features.motor ? { motor_ids: (formData.motor_ids || []) as number[] } : {}),
+          ...((features.charges || features.pelmet) ? {
+            charge_ids: ((formData.charge_ids || []) as number[]).filter((id) => {
+              const charge = charges.find((item) => item.id === id);
+              if (!charge) return false;
+              if (charge.kind === 'pelmet') return features.pelmet;
+              return features.charges;
+            }),
+          } : {}),
+        };
         if (editingItem) {
-          await catalogApi.updateWorkType(editingItem.id, { name: formData.name, pricing_unit: formData.pricing_unit || 'm2', features: formData.features || { motor: false, charges: false, images: false } });
+          await catalogApi.updateWorkType(editingItem.id, payload);
           showToast('Work type updated successfully', 'success');
         } else {
-          await catalogApi.createWorkType({ name: formData.name, pricing_unit: formData.pricing_unit || 'm2', features: formData.features || { motor: false, charges: false, images: false } });
+          await catalogApi.createWorkType(payload);
           showToast('Work type created successfully', 'success');
         }
         refetchWorkTypes();
@@ -402,10 +456,22 @@ export default function CatalogPage() {
         refetchMotors();
       } else if (activeTab === 'charges') {
         if (editingItem) {
-          await catalogApi.updateCharge(editingItem.id, { name: formData.name, price: formData.price || '0', unit: formData.unit || 'flat' });
+          await catalogApi.updateCharge(editingItem.id, {
+            name: formData.name,
+            price: formData.price || '0',
+            unit: normalizeChargeUnit(formData.unit),
+            kind: (formData.kind || 'other') as ChargeKind,
+            description: formData.description || '',
+          });
           showToast('Charge template updated successfully', 'success');
         } else {
-          await catalogApi.createCharge({ name: formData.name, price: formData.price || '0', unit: formData.unit || 'flat' });
+          await catalogApi.createCharge({
+            name: formData.name,
+            price: formData.price || '0',
+            unit: normalizeChargeUnit(formData.unit),
+            kind: (formData.kind || 'other') as ChargeKind,
+            description: formData.description || '',
+          });
           showToast('Charge template created successfully', 'success');
         }
         refetchCharges();
@@ -910,6 +976,94 @@ export default function CatalogPage() {
                   <div className="sm:col-span-2">
                     <FormInput label="Pricing Unit" value={formData.pricing_unit || ''} onChange={(e) => setFormData({ ...formData, pricing_unit: e.target.value })} placeholder="e.g. m2" />
                   </div>
+                  <div className="sm:col-span-2 space-y-2">
+                    <p className="text-sm font-semibold text-slate-700">Options</p>
+                    {FEATURE_FIELDS.map((field) => {
+                      const features = normalizeFeatures(formData.features);
+                      const checked = features[field.key];
+                      return (
+                        <label key={field.key} className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(event) => {
+                              const next = { ...features, [field.key]: event.target.checked };
+                              const nextForm = { ...formData, features: next };
+                              if (field.key === 'motor' && !event.target.checked) nextForm.motor_ids = [];
+                              if ((field.key === 'charges' || field.key === 'pelmet') && !next.charges && !next.pelmet) {
+                                nextForm.charge_ids = [];
+                              }
+                              setFormData(nextForm);
+                            }}
+                          />
+                          {field.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {normalizeFeatures(formData.features).motor && (
+                    <div className="sm:col-span-2 space-y-2">
+                      <p className="text-sm font-semibold text-slate-700">Included motors</p>
+                      {motors.length === 0 ? (
+                        <p className="text-sm text-slate-500">Add motors on the Motors tab first. Price stays on the global motor.</p>
+                      ) : motors.map((motor) => {
+                        const selected = ((formData.motor_ids || []) as number[]).includes(motor.id);
+                        return (
+                          <label key={motor.id} className="flex items-center justify-between gap-3 text-sm font-medium text-slate-600">
+                            <span className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={(event) => {
+                                  const current = new Set<number>((formData.motor_ids || []) as number[]);
+                                  if (event.target.checked) current.add(motor.id);
+                                  else current.delete(motor.id);
+                                  setFormData({ ...formData, motor_ids: Array.from(current) });
+                                }}
+                              />
+                              {motor.name}
+                            </span>
+                            <span className="text-slate-400">AED {motor.price_per_m2} / m²</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {(normalizeFeatures(formData.features).charges || normalizeFeatures(formData.features).pelmet) && (
+                    <div className="sm:col-span-2 space-y-2">
+                      <p className="text-sm font-semibold text-slate-700">Included charges</p>
+                      {charges.length === 0 ? (
+                        <p className="text-sm text-slate-500">Add charges on the Charges tab first. Price stays on the global charge.</p>
+                      ) : charges
+                        .filter((charge) => {
+                          const features = normalizeFeatures(formData.features);
+                          if (charge.kind === 'pelmet') return features.pelmet;
+                          return features.charges;
+                        })
+                        .map((charge) => {
+                          const selected = ((formData.charge_ids || []) as number[]).includes(charge.id);
+                          return (
+                            <label key={charge.id} className="flex items-center justify-between gap-3 text-sm font-medium text-slate-600">
+                              <span className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={selected}
+                                  onChange={(event) => {
+                                    const current = new Set<number>((formData.charge_ids || []) as number[]);
+                                    if (event.target.checked) current.add(charge.id);
+                                    else current.delete(charge.id);
+                                    setFormData({ ...formData, charge_ids: Array.from(current) });
+                                  }}
+                                />
+                                {charge.name}
+                                <span className="text-xs uppercase text-slate-400">{charge.kind || 'other'}</span>
+                              </span>
+                              <span className="text-slate-400">AED {charge.price} / {charge.unit}</span>
+                            </label>
+                          );
+                        })}
+                    </div>
+                  )}
                 </>
               )}
 
@@ -1010,12 +1164,42 @@ export default function CatalogPage() {
                   <div>
                     <FormInput type="number" step="0.01" label="Price" value={formData.price || ''} onChange={(e) => setFormData({ ...formData, price: e.target.value })} placeholder="e.g. 50.00" />
                   </div>
+                  <div className="sm:col-span-2">
+                    <FormInput label="Description" value={formData.description || ''} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="When this charge applies" />
+                  </div>
+                  <div>
+                    <div className="catalog-select-field">
+                      <label id="catalog-charge-kind-label">Kind</label>
+                      <SelectMenu
+                        id="catalog-charge-kind"
+                        value={String(formData.kind || 'other')}
+                        options={chargeKindOptions}
+                        onChange={(value) => setFormData({ ...formData, kind: value })}
+                        placeholder="Kind"
+                        ariaLabel="Kind"
+                        ariaLabelledBy="catalog-charge-kind-label"
+                        mobileTitle="Kind"
+                        className="catalog-model-select"
+                        menuClassName="catalog-model-menu catalog-select-menu"
+                        portalZIndex={1300}
+                        maxListHeight={320}
+                        preventScrollFocus
+                        preserveScrollLock
+                        positionBeforePaint
+                        keepMountedOnClose
+                        outsidePointerDown
+                        stopEscapePropagation
+                        selectionCloseDelayMs={120}
+                        showTriggerTitle
+                      />
+                    </div>
+                  </div>
                   <div>
                     <div className="catalog-select-field">
                       <label id="catalog-charge-unit-label">Unit</label>
                       <SelectMenu
                         id="catalog-charge-unit"
-                        value={String(formData.unit || 'flat')}
+                        value={normalizeChargeUnit(formData.unit)}
                         options={unitOptions}
                         onChange={(value) => setFormData({ ...formData, unit: value })}
                         placeholder="Unit"
