@@ -126,7 +126,7 @@ export const QuotationTable: React.FC<QuotationTableProps> = ({
       key: 'id',
       label: 'Quote #',
       sortable: true,
-      width: '135px',
+      size: 'fit',
       className: 'qt-col-id',
       render: (q) => (
         <span className="quote-id-chip" title={`Quotation ${q.id}`}>
@@ -139,6 +139,7 @@ export const QuotationTable: React.FC<QuotationTableProps> = ({
       key: 'customer',
       label: 'Customer',
       sortable: true,
+      size: 'flex',
       className: 'qt-col-customer',
       render: (q) => (
         <CustomerCell
@@ -152,7 +153,7 @@ export const QuotationTable: React.FC<QuotationTableProps> = ({
       key: 'amount',
       label: 'Amount',
       sortable: true,
-      width: '145px',
+      size: 'fit',
       className: 'qt-col-amount',
       render: (q) => (
         <div className="quote-amount-cell">
@@ -167,7 +168,7 @@ export const QuotationTable: React.FC<QuotationTableProps> = ({
       key: 'dates',
       label: 'Dates',
       sortable: true,
-      width: '185px',
+      size: 'fit',
       className: 'qt-col-dates',
       render: (q) => (
         <div className="quote-dates-cell">
@@ -190,7 +191,7 @@ export const QuotationTable: React.FC<QuotationTableProps> = ({
       key: 'status',
       label: 'Status',
       sortable: false,
-      width: '150px',
+      size: 'fit',
       className: 'qt-col-status',
       headerAddonOnly: true,
       headerAddon: (
@@ -209,7 +210,7 @@ export const QuotationTable: React.FC<QuotationTableProps> = ({
       label: 'Actions',
       align: 'right',
       sortable: false,
-      width: '145px',
+      size: 'fit',
       className: 'qt-col-actions',
       render: (q) => (
         <div className="quote-actions-cell" onClick={(e) => e.stopPropagation()}>
@@ -230,10 +231,10 @@ export const QuotationTable: React.FC<QuotationTableProps> = ({
 
   const renderSkeletonRow = (idx: number) => (
     <tr key={`qt-skeleton-${idx}`} className="apt-table-row">
-      <td className="qt-col-id">
+      <td className="qt-col-id dt-col-fit">
         <div className="apt-skeleton-block" style={{ width: '85px', height: '26px', borderRadius: '8px' }} />
       </td>
-      <td className="qt-col-customer">
+      <td className="qt-col-customer dt-col-flex">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div className="apt-skeleton-block" style={{ width: '36px', height: '36px', borderRadius: '12px', flexShrink: 0 }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -242,22 +243,22 @@ export const QuotationTable: React.FC<QuotationTableProps> = ({
           </div>
         </div>
       </td>
-      <td className="qt-col-amount">
+      <td className="qt-col-amount dt-col-fit">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <div className="apt-skeleton-block" style={{ width: '90px', height: '16px' }} />
           <div className="apt-skeleton-block" style={{ width: '40px', height: '12px', borderRadius: '4px' }} />
         </div>
       </td>
-      <td className="qt-col-dates">
+      <td className="qt-col-dates dt-col-fit">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <div className="apt-skeleton-block" style={{ width: '120px', height: '13px' }} />
           <div className="apt-skeleton-block" style={{ width: '110px', height: '13px' }} />
         </div>
       </td>
-      <td className="qt-col-status">
+      <td className="qt-col-status dt-col-fit">
         <div className="apt-skeleton-block" style={{ width: '84px', height: '24px', borderRadius: '999px' }} />
       </td>
-      <td className="qt-col-actions text-right">
+      <td className="qt-col-actions dt-col-fit dt-col-actions text-right">
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <div className="apt-skeleton-block" style={{ width: '100px', height: '34px', borderRadius: '10px' }} />
         </div>

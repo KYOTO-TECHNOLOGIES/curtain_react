@@ -1,13 +1,5 @@
 /* ── Quotation Table Custom Styles ─────────────────────────────── */
 
-/* ── Column Widths ─────────────────────────────────────────────── */
-.qt-col-id { width: 135px; }
-.qt-col-customer { width: auto; min-width: 230px; }
-.qt-col-amount { width: 145px; }
-.qt-col-dates { width: 185px; }
-.qt-col-status { width: 150px; }
-.qt-col-actions { width: 145px; }
-
 /* ── Quote ID Chip ─────────────────────────────────────────────── */
 .quote-id-chip {
   display: inline-flex;
@@ -63,24 +55,31 @@
 
 /* ── Dates Cell ────────────────────────────────────────────────── */
 .quote-dates-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+  display: inline-grid;
+  grid-template-columns: max-content max-content;
+  column-gap: 8px;
+  row-gap: 2px;
+  width: max-content;
+  max-width: none;
+  margin: 0;
+  padding: 0;
   white-space: nowrap;
 }
 
 .quote-date-row {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
+  display: contents;
 }
 
 .quote-date-label {
   font-size: 11.5px;
   font-weight: 600;
   color: #64748B;
-  min-width: 50px;
+  position: static;
+  float: none;
+  justify-self: start;
+  text-align: left;
+  overflow: visible;
+  white-space: nowrap;
 }
 
 .quote-date-value {
@@ -89,6 +88,11 @@
   color: #0F172A;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  position: static;
+  float: none;
+  justify-self: start;
+  text-align: left;
+  overflow: visible;
 }
 
 .quote-date-value-muted {
@@ -97,6 +101,11 @@
   color: #64748B;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  position: static;
+  float: none;
+  justify-self: start;
+  text-align: left;
+  overflow: visible;
 }
 
 /* ── Actions Cell ──────────────────────────────────────────────── */

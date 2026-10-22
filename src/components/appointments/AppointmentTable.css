@@ -34,8 +34,8 @@
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  table-layout: fixed;
-  min-width: 980px;
+  table-layout: auto;
+  min-width: 1250px;
 }
 
 .apt-table thead {
@@ -189,13 +189,13 @@
   animation: aptRowFlash 1.2s ease-out forwards;
 }
 
-/* ── Column Widths ─────────────────────────────────────────────── */
-.apt-col-id { width: 95px; }
-.apt-col-customer { width: auto; min-width: 240px; }
-.apt-col-booking { width: 155px; }
-.apt-col-assignee { width: 165px; }
-.apt-col-status { width: 150px; }
-.apt-col-actions { width: 195px; }
+/* ── Content-based column minimums ─────────────────────────────── */
+.apt-col-id { min-width: 82px; }
+.apt-col-customer { min-width: 220px; }
+.apt-col-booking { min-width: 136px; }
+.apt-col-assignee { min-width: 120px; }
+.apt-col-status { min-width: 116px; }
+.apt-col-actions { min-width: 180px; }
 
 /* ── ID Chip ───────────────────────────────────────────────────── */
 .apt-id-chip {
@@ -245,7 +245,7 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-  flex: 1;
+  flex: 0 1 auto;
   overflow: hidden;
 }
 
@@ -534,13 +534,14 @@
 .apt-actions-cell {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
+  justify-content: flex-start;
+  gap: 8px;
   white-space: nowrap;
 }
 
 .apt-action-btn {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   gap: 6px;
@@ -560,7 +561,14 @@
 .apt-action-btn .apt-action-icon {
   width: 16px;
   height: 16px;
+  flex-shrink: 0;
   transition: transform 150ms ease;
+}
+
+.apt-action-btn-assign {
+  flex: 0 0 110px;
+  width: 110px;
+  box-sizing: border-box;
 }
 
 .apt-action-btn:hover {
@@ -586,6 +594,32 @@
 
 .apt-action-btn-quote:hover {
   background-color: var(--apt-brand);
+  color: #FFFFFF;
+  transform: translateY(-1px);
+}
+
+/* Reschedule variant */
+.apt-action-btn-reschedule {
+  background-color: #F3E8FD;
+  color: #7C3AED;
+  border-color: rgba(139, 92, 246, 0.12);
+}
+
+.apt-action-btn-reschedule:hover {
+  background-color: #7C3AED;
+  color: #FFFFFF;
+  transform: translateY(-1px);
+}
+
+/* Quoted variant (appointment already has a quotation) */
+.apt-action-btn-quoted {
+  background-color: #E0F7FA;
+  color: #00897B;
+  border-color: rgba(0, 150, 136, 0.12);
+}
+
+.apt-action-btn-quoted:hover {
+  background-color: #009688;
   color: #FFFFFF;
   transform: translateY(-1px);
 }
@@ -682,9 +716,6 @@
   :root {
     --apt-cell-px: 14px;
   }
-  .apt-action-btn .apt-action-label {
-    display: none;
-  }
   .apt-action-btn {
     padding: 0 8px;
     min-width: 34px;
@@ -703,67 +734,16 @@
     table-layout: auto;
     min-width: 900px;
   }
-  .apt-action-btn .apt-action-label {
-    display: none;
-  }
   .apt-action-btn {
     padding: 0 8px;
     min-width: 34px;
   }
 }
 
-/* Below 768px: Stacked cards */
+/* Below 768px: Keep columns readable and scroll the table horizontally */
 @media (max-width: 767px) {
   .apt-table-scroll {
-    overflow-x: visible;
-  }
-  .apt-table,
-  .apt-table thead,
-  .apt-table tbody,
-  .apt-table th,
-  .apt-table td,
-  .apt-table tr {
-    display: block;
-  }
-  .apt-table thead {
-    display: none;
-  }
-  .apt-table tbody tr {
-    height: auto;
-    border-bottom: none;
-    margin-bottom: 12px;
-    border-radius: 16px;
-    border: 1px solid var(--apt-card-border);
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-    padding: 16px;
-  }
-  .apt-table tbody td:first-child::before {
-    display: none;
-  }
-  .apt-table td {
-    padding: 6px 0;
-    height: auto;
-  }
-  .apt-table td:first-child {
-    padding-top: 0;
-  }
-  .apt-table td:last-child {
-    padding-bottom: 0;
-  }
-  .apt-col-status {
-    width: auto;
-    position: absolute;
-    top: 16px;
-    right: 16px;
-  }
-  .apt-actions-cell {
-    justify-content: stretch;
-    width: 100%;
-    margin-top: 8px;
-  }
-  .apt-action-btn {
-    flex: 1;
-    justify-content: center;
+    overflow-x: auto;
   }
 }
 

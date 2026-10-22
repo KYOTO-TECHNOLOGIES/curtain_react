@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { UserCheck, Loader2 } from 'lucide-react';
+import { UserCheck, CalendarClock, Loader2, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { appointmentsApi } from '../../api/appointments';
 import { customersApi } from '../../api/customers';
@@ -13,6 +13,8 @@ import { AppointmentHeader } from '../../components/appointments/AppointmentHead
 import { FilterBar } from '../../components/appointments/FilterBar';
 import { AppointmentTable } from '../../components/appointments/AppointmentTable';
 import { CustomerLookupModal } from '../../components/appointments/CustomerLookupModal';
+import { AssignAppointmentModal } from '../../components/appointments/AssignAppointmentModal';
+import { RescheduleAppointmentModal } from '../../components/appointments/RescheduleAppointmentModal';
 import { Pagination } from '../../components/ui/Pagination';
 import { usePagination } from '../../hooks/usePagination';
 import { DatePicker } from '../../components/ui/DatePicker';
@@ -96,6 +98,15 @@ export default function AppointmentsPage() {
   const [assignUserId, setAssignUserId] = useState<number | ''>('');
   const [assigning, setAssigning] = useState(false);
   const [recentlyUpdatedId, setRecentlyUpdatedId] = useState<number | string | null>(null);
+  const [assignConfirmOpen, setAssignConfirmOpen] = useState(false);
+
+  // Reschedule modal state
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [rescheduleTarget, setRescheduleTarget] = useState<AppointmentListItem | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [rescheduling, setRescheduling] = useState(false);
+  const [rescheduleConfirmOpen, setRescheduleConfirmOpen] = useState(false);
 
   const { data: usersRes } = useQuery({
     queryKey: ['users'],
@@ -116,6 +127,12 @@ export default function AppointmentsPage() {
     setAssignOpen(true);
   };
 
+  // Show confirm dialog before assigning
+  const handleAssignConfirm = () => {
+    if (!assignTarget || assignUserId === '') return;
+    setAssignConfirmOpen(true);
+  };
+
   const handleAssign = async () => {
     if (!assignTarget || assignUserId === '') return;
     setAssigning(true);
@@ -124,12 +141,47 @@ export default function AppointmentsPage() {
       showToast('Appointment assigned successfully', 'success');
       setRecentlyUpdatedId(assignTarget.id);
       setTimeout(() => setRecentlyUpdatedId(null), 1500);
+      setAssignConfirmOpen(false);
       setAssignOpen(false);
       load();
     } catch (err: any) {
       showToast(err?.response?.data?.detail || 'Failed to assign appointment', 'error');
     }
     setAssigning(false);
+  };
+
+  // Open Reschedule modal
+  const openReschedule = (a: AppointmentListItem) => {
+    setRescheduleTarget(a);
+    setRescheduleDate(a.appointment_date || '');
+    setRescheduleTime(a.appointment_time ? a.appointment_time.slice(0, 5) : '');
+    setRescheduleOpen(true);
+  };
+
+  // Show confirm dialog before rescheduling
+  const handleRescheduleConfirm = () => {
+    if (!rescheduleTarget || !rescheduleDate || !rescheduleTime) return;
+    setRescheduleConfirmOpen(true);
+  };
+
+  const handleReschedule = async () => {
+    if (!rescheduleTarget || !rescheduleDate || !rescheduleTime) return;
+    setRescheduling(true);
+    try {
+      await appointmentsApi.reschedule(rescheduleTarget.id, {
+        appointment_date: rescheduleDate,
+        appointment_time: rescheduleTime,
+      });
+      showToast('Appointment rescheduled successfully', 'success');
+      setRecentlyUpdatedId(rescheduleTarget.id);
+      setTimeout(() => setRecentlyUpdatedId(null), 1500);
+      setRescheduleConfirmOpen(false);
+      setRescheduleOpen(false);
+      load();
+    } catch (err: any) {
+      showToast(err?.response?.data?.detail || 'Failed to reschedule appointment', 'error');
+    }
+    setRescheduling(false);
   };
 
   const openCreate = () => {
@@ -266,7 +318,8 @@ export default function AppointmentsPage() {
         stats={stats}
         onSelectAppointment={(a) => navigate(`/appointments/${a.id}`)}
         onAssign={(a) => openAssign(a)}
-        onQuote={(a) => navigate(`/appointments/${a.id}`)}
+        onQuote={(a) => navigate(`/quotations/create?appointment=${a.id}`)}
+        onReschedule={(a) => openReschedule(a)}
         onClearFilters={() => {
           setSearchQuery('');
           setStatusFilter('');
@@ -357,61 +410,97 @@ export default function AppointmentsPage() {
         onSearch={handleLookup}
         onCreateNewCustomer={handleCreateNewCustomer}
       />
-      {/* Assign Modal */}
-      <Modal open={assignOpen} onClose={() => setAssignOpen(false)} title="Assign Appointment" maxWidth="max-w-md">
-        <div className="space-y-6">
-          <div className="bg-slate-50/50 rounded-2xl border border-slate-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3 bg-white">
-              <div className="w-8 h-8 rounded-lg bg-[#eef2ff] flex items-center justify-center text-[#2b5c8f]">
-                <UserCheck className="w-4 h-4" />
-              </div>
-              <h3 className="text-[15px] font-bold text-[#1e293b]">Assignment Details</h3>
-            </div>
-            <div className="p-5 space-y-5">
-              {assignTarget && (
-                <div className="flex items-center gap-4 p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
-                  <div className="w-10 h-10 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center text-[13px] font-bold border border-slate-100">
-                    #{assignTarget.id}
-                  </div>
-                  <div>
-                    <p className="text-[14px] font-extrabold text-slate-800">{assignTarget.title || 'Appointment'}</p>
-                    <p className="text-[13px] text-slate-500 font-medium">{assignTarget.customer_name}</p>
-                  </div>
-                </div>
-              )}
+      <AssignAppointmentModal
+        open={assignOpen}
+        onClose={() => setAssignOpen(false)}
+        appointment={assignTarget}
+        assignUserId={assignUserId}
+        users={users}
+        assigning={assigning}
+        onAssign={handleAssignConfirm}
+        onStaffChange={(event) => setAssignUserId(event.target.value === '' ? '' : Number(event.target.value))}
+      />
 
-              <div>
-                <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Assign To <span className="text-red-500">*</span></label>
-                <select
-                  value={assignUserId}
-                  onChange={(e) => setAssignUserId(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="w-full px-4 py-3 bg-white border border-slate-200 focus:border-[#2b5c8f] rounded-xl text-[14px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#2b5c8f]/10 transition-all"
-                >
-                  <option value="">Select a staff member...</option>
-                  {(Array.isArray(users) ? users : []).map((u) => (
-                    <option key={u.id} value={u.id}>{u.full_name} — {u.email}</option>
-                  ))}
-                </select>
-              </div>
+      {/* Assign Confirmation Dialog */}
+      <Modal open={assignConfirmOpen} onClose={() => setAssignConfirmOpen(false)} title="Confirm Assignment" maxWidth="max-w-sm">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-xl border border-amber-200">
+            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800">
+                {assignTarget?.assigned_to_name ? 'Reassign this appointment?' : 'Assign this appointment?'}
+              </p>
+              <p className="text-sm text-amber-700 mt-1">
+                {assignTarget?.assigned_to_name
+                  ? `This will reassign appointment #${assignTarget?.id} from ${assignTarget?.assigned_to_name} to ${users.find(u => u.id === Number(assignUserId))?.full_name || 'the selected staff'}.`
+                  : `This will assign appointment #${assignTarget?.id} to ${users.find(u => u.id === Number(assignUserId))?.full_name || 'the selected staff'}.`
+                }
+              </p>
             </div>
           </div>
-
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => setAssignOpen(false)}
-              className="px-6 py-3 rounded-xl border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-colors"
+              onClick={() => setAssignConfirmOpen(false)}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition-colors"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleAssign}
-              disabled={assigning || assignUserId === ''}
-              className="flex items-center gap-2 px-8 py-3 bg-[#2b5c8f] text-white font-bold text-sm rounded-xl shadow-md shadow-[#2b5c8f]/20 hover:bg-[#1f456e] hover:-translate-y-0.5 transition-all disabled:opacity-70"
+              disabled={assigning}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#2b5c8f] text-white font-semibold text-sm hover:bg-[#1f456e] transition-colors disabled:opacity-60"
             >
               {assigning ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
-              {assigning ? 'Assigning...' : 'Assign Staff'}
+              {assigning ? 'Assigning...' : 'Confirm'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <RescheduleAppointmentModal
+        open={rescheduleOpen}
+        onClose={() => setRescheduleOpen(false)}
+        appointment={rescheduleTarget}
+        date={rescheduleDate}
+        time={rescheduleTime}
+        isSubmitting={rescheduling}
+        onDateChange={setRescheduleDate}
+        onTimeChange={setRescheduleTime}
+        onReschedule={handleRescheduleConfirm}
+      />
+
+      {/* Reschedule Confirmation Dialog */}
+      <Modal open={rescheduleConfirmOpen} onClose={() => setRescheduleConfirmOpen(false)} title="Confirm Reschedule" maxWidth="max-w-sm">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-xl border border-blue-200">
+            <AlertTriangle className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-blue-800">Reschedule this appointment?</p>
+              <p className="text-sm text-blue-700 mt-1">
+                Appointment #{rescheduleTarget?.id} will be rescheduled to{' '}
+                <strong>{rescheduleDate ? new Date(`${rescheduleDate}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}</strong>{' '}
+                at <strong>{rescheduleTime}</strong>.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setRescheduleConfirmOpen(false)}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleReschedule}
+              disabled={rescheduling}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#2F5D8F] text-white font-semibold text-sm hover:bg-[#2A5483] transition-colors disabled:opacity-60"
+            >
+              {rescheduling ? <Loader2 className="w-4 h-4 animate-spin" /> : <CalendarClock className="w-4 h-4" />}
+              {rescheduling ? 'Rescheduling...' : 'Confirm'}
             </button>
           </div>
         </div>

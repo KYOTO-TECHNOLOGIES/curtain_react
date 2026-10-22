@@ -73,6 +73,7 @@ export const InventorySuppliersTable: React.FC<InventorySuppliersTableProps> = (
       key: 'name',
       label: 'Supplier Company',
       sortable: true,
+      size: 'flex',
       className: 'inv-col-supplier',
       render: (s) => (
         <div className="flex items-center gap-3 py-1">
@@ -96,10 +97,10 @@ export const InventorySuppliersTable: React.FC<InventorySuppliersTableProps> = (
       key: 'contact_person',
       label: 'Contact Person',
       sortable: true,
-      width: '180px',
+      size: 'cap',
       render: (s) => (
         <div>
-          <span className="text-[13px] font-semibold text-slate-800">
+          <span className="text-[13px] font-semibold text-slate-800" title={s.contact_person || '—'}>
             {s.contact_person || '—'}
           </span>
         </div>
@@ -108,13 +109,14 @@ export const InventorySuppliersTable: React.FC<InventorySuppliersTableProps> = (
     {
       key: 'contact_methods',
       label: 'Contact Info',
-      width: '220px',
+      size: 'cap',
       render: (s) => (
         <div className="flex flex-col gap-1 text-xs">
           {s.email && (
             <a
               href={`mailto:${s.email}`}
               className="inline-flex items-center gap-1.5 text-slate-600 hover:text-[#2F5D8F] transition-colors truncate"
+              title={s.email}
               onClick={(e) => e.stopPropagation()}
             >
               <Mail className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
@@ -125,6 +127,7 @@ export const InventorySuppliersTable: React.FC<InventorySuppliersTableProps> = (
             <a
               href={`tel:${s.phone}`}
               className="inline-flex items-center gap-1.5 text-slate-600 hover:text-[#2F5D8F] transition-colors truncate"
+              title={s.phone}
               onClick={(e) => e.stopPropagation()}
             >
               <Phone className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
@@ -139,7 +142,7 @@ export const InventorySuppliersTable: React.FC<InventorySuppliersTableProps> = (
       key: 'items_count',
       label: 'Catalog Items',
       sortable: true,
-      width: '140px',
+      size: 'fit',
       render: (s) => (
         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold">
           <Package className="w-3.5 h-3.5 text-slate-500" />
@@ -150,7 +153,7 @@ export const InventorySuppliersTable: React.FC<InventorySuppliersTableProps> = (
     {
       key: 'actions',
       label: 'Actions',
-      width: '120px',
+      size: 'fit',
       align: 'right',
       render: (s) => (
         <div className="inv-action-group" onClick={(e) => e.stopPropagation()}>

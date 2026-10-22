@@ -645,19 +645,23 @@ select:focus-visible {
   transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
-.appointment-phone-field:focus-within,
-.appointment-phone-field:has(input:focus) {
+.appointment-phone-field:focus-within:not([data-invalid='true']) {
   border-color: var(--appointment-brand);
   box-shadow: 0 0 0 4px rgba(47, 93, 143, 0.14);
+}
+
+.appointment-phone-field[data-invalid='true'],
+.appointment-phone-field[data-invalid='true']:focus-within {
+  border-color: #EF4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
 }
 
 .appointment-phone-field__country {
   display: flex;
   align-items: center;
   height: 100%;
-  background: var(--appointment-slate-50);
+  background: transparent;
   min-width: 112px;
-  border-right: 1px solid rgba(148, 163, 184, 0.26);
 }
 
 .appointment-phone-field__country .cm-country-segment {
@@ -668,18 +672,27 @@ select:focus-visible {
   height: 100%;
   min-height: 46px;
   padding: 0 10px 0 12px;
-  background: transparent;
+  background: #F8FAFC;
   border: none;
-  border-radius: 0;
+  border-radius: 13px 0 0 13px;
   color: var(--appointment-slate-900);
+  overflow: hidden;
 }
 
-.appointment-phone-field__country .cm-country-segment:hover {
-  background: rgba(148, 163, 184, 0.04);
-}
-
+.appointment-phone-field__country .cm-country-segment:hover:not(:disabled),
 .appointment-phone-field__country .cm-country-segment.is-open {
-  background: rgba(47, 93, 143, 0.02);
+  background: #F1F5F9;
+}
+
+.appointment-phone-field .cm-country-segment:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+.appointment-phone-field .cm-country-segment:focus-visible {
+  outline: 2px solid transparent;
+  outline-offset: 0;
+  box-shadow: inset 0 0 0 2px var(--appointment-brand);
 }
 
 .appointment-phone-field__country .cm-country-code-text {
@@ -696,7 +709,11 @@ select:focus-visible {
 
 .appointment-phone-field__country .cm-country-segment-divider {
   opacity: 1;
-  background: rgba(148, 163, 184, 0.22);
+  background: var(--appointment-slate-200);
+}
+
+.appointment-phone-field:focus-within .cm-country-segment-divider {
+  background: #D6E2F0;
 }
 
 .appointment-phone-field__input {

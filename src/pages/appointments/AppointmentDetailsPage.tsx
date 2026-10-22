@@ -6,11 +6,9 @@ import {
   ArrowLeft,
   Building2,
   CalendarDays,
-  FileText,
   Loader2,
   MapPin,
   PencilLine,
-  Phone,
   Save,
   UserCheck,
   UserRound,
@@ -20,6 +18,7 @@ import { appointmentsApi } from '../../api/appointments';
 import { usersApi } from '../../api/users';
 import { useToast } from '../../components/ui/Toast';
 import { DatePicker } from '../../components/ui/DatePicker';
+import { StaffAssignmentPicker } from '../../components/appointments/StaffAssignmentPicker';
 import type { AppointmentDetail, User } from '../../types';
 
 type AppointmentFormState = {
@@ -48,6 +47,7 @@ const statusStyles: Record<string, string> = {
   scheduled: 'bg-[#2b5c8f] text-white',
   in_progress: 'bg-[#f97316] text-white',
   completed: 'bg-[#10b981] text-white',
+  quoted: 'bg-[#00897b] text-white',
   cancelled: 'bg-[#ef4444] text-white',
   rescheduled: 'bg-[#8b5cf6] text-white',
 };
@@ -66,12 +66,6 @@ const formatDate = (value: string | null | undefined) => {
     month: 'short',
     year: 'numeric',
   });
-};
-
-const formatTime = (value: string | null | undefined) => {
-  if (!value) return '—';
-  if (value.length <= 5) return value;
-  return value.slice(0, 5);
 };
 
 const buildFormState = (appointment: AppointmentDetail): AppointmentFormState => ({
@@ -103,30 +97,42 @@ function FormField({
   placeholder,
   options,
   textarea = false,
+  disabled = false,
 }: {
   label: string;
   value: string;
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
   type?: string;
   placeholder?: string;
   options?: Array<{ value: string; label: string }>;
   textarea?: boolean;
+  disabled?: boolean;
 }) {
+  const baseInputClass = `w-full rounded-xl border px-3.5 py-2.5 text-sm font-medium outline-none transition ${
+    disabled
+      ? 'bg-slate-50 border-slate-200 text-slate-800 cursor-default select-text'
+      : 'bg-white border-slate-200 text-slate-800 focus:border-[#2b5c8f] focus:ring-2 focus:ring-[#2b5c8f]/10'
+  }`;
+
   return (
     <label className="block text-sm">
       <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">{label}</span>
       {textarea ? (
         <textarea
           value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={placeholder}
-          className="min-h-25 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none transition focus:border-[#2b5c8f] focus:ring-2 focus:ring-[#2b5c8f]/10"
+          disabled={disabled}
+          readOnly={disabled}
+          onChange={(event) => onChange?.(event.target.value)}
+          placeholder={placeholder || (disabled ? '—' : '')}
+          rows={3}
+          className={`min-h-[88px] ${baseInputClass} resize-y`}
         />
       ) : options ? (
         <select
           value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none transition focus:border-[#2b5c8f] focus:ring-2 focus:ring-[#2b5c8f]/10"
+          disabled={disabled}
+          onChange={(event) => onChange?.(event.target.value)}
+          className={`${baseInputClass} ${disabled ? 'appearance-none' : ''}`}
         >
           {options.map((option) => (
             <option key={option.value} value={option.value}>
@@ -137,16 +143,21 @@ function FormField({
       ) : type === 'date' ? (
         <DatePicker
           value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={placeholder}
+          disabled={disabled}
+          readOnly={disabled}
+          onChange={(event) => onChange?.(event.target.value)}
+          placeholder={placeholder || (disabled ? '—' : '')}
+          className={baseInputClass}
         />
       ) : (
         <input
           type={type}
           value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={placeholder}
-          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none transition focus:border-[#2b5c8f] focus:ring-2 focus:ring-[#2b5c8f]/10"
+          disabled={disabled}
+          readOnly={disabled}
+          onChange={(event) => onChange?.(event.target.value)}
+          placeholder={placeholder || (disabled ? '—' : '')}
+          className={baseInputClass}
         />
       )}
     </label>
@@ -190,14 +201,6 @@ export default function AppointmentDetailsPage() {
       setFormState(buildFormState(appointment));
     }
   }, [appointment]);
-
-  const assigneeOptions = useMemo(
-    () => [
-      { value: '', label: 'Unassigned' },
-      ...(Array.isArray(users) ? users : []).map((user) => ({ value: String(user.id), label: user.full_name || user.email })),
-    ],
-    [users],
-  );
 
   const updateField = <K extends keyof AppointmentFormState>(field: K, value: AppointmentFormState[K]) => {
     setFormState((current) => (current ? { ...current, [field]: value } : current));
@@ -268,12 +271,6 @@ export default function AppointmentDetailsPage() {
       setIsSaving(false);
     }
   };
-
-  const customerName = formState
-    ? `${formState.customer_first_name} ${formState.customer_last_name}`.trim() || '—'
-    : appointment
-      ? `${appointment.customer?.first_name || ''} ${appointment.customer?.last_name || ''}`.trim() || '—'
-      : '—';
 
   if (isLoading) {
     return (
@@ -386,77 +383,67 @@ export default function AppointmentDetailsPage() {
             <h2 className="text-lg font-extrabold text-slate-800">Appointment Overview</h2>
           </div>
 
-          {isEditing ? (
-            <div className="space-y-4">
-              <FormField
-                label="Title"
-                value={formState.title}
-                onChange={(value) => updateField('title', value)}
-                placeholder="Appointment title"
-              />
+          <div className="space-y-4">
+            <FormField
+              label="Title"
+              value={formState.title}
+              disabled={!isEditing}
+              onChange={(value) => updateField('title', value)}
+              placeholder="Appointment title"
+            />
+            <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 label="Appointment Date"
                 value={formState.appointment_date}
                 type="date"
+                disabled={!isEditing}
                 onChange={(value) => updateField('appointment_date', value)}
-              />
-              <FormField
-                label="Start Time"
-                value={formState.appointment_time}
-                type="time"
-                onChange={(value) => updateField('appointment_time', value)}
-              />
-              <FormField
-                label="End Time"
-                value={formState.end_time}
-                type="time"
-                onChange={(value) => updateField('end_time', value)}
               />
               <FormField
                 label="Status"
                 value={formState.status}
+                disabled={!isEditing}
                 onChange={(value) => updateField('status', value)}
                 options={[
                   { value: 'pending', label: 'Pending' },
                   { value: 'scheduled', label: 'Scheduled' },
                   { value: 'in_progress', label: 'In Progress' },
                   { value: 'completed', label: 'Completed' },
+                  { value: 'quoted', label: 'Quoted' },
                   { value: 'cancelled', label: 'Cancelled' },
                   { value: 'rescheduled', label: 'Rescheduled' },
                 ]}
               />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
               <FormField
-                label="Service Type"
-                value={formState.job_type}
-                onChange={(value) => updateField('job_type', value)}
-                options={[
-                  { value: 'measurement', label: 'Measurement' },
-                  { value: 'installation', label: 'Installation' },
-                  { value: 'consultation', label: 'Consultation' },
-                  { value: 'repair', label: 'Repair' },
-                ]}
+                label="Start Time"
+                value={formState.appointment_time}
+                type="time"
+                disabled={!isEditing}
+                onChange={(value) => updateField('appointment_time', value)}
+              />
+              <FormField
+                label="End Time"
+                value={formState.end_time}
+                type="time"
+                disabled={!isEditing}
+                onChange={(value) => updateField('end_time', value)}
               />
             </div>
-          ) : (
-            <div className="space-y-4 text-sm">
-              <div className="flex items-start justify-between gap-3 rounded-xl bg-slate-50 p-3">
-                <span className="font-semibold text-slate-500">Date</span>
-                <span className="font-bold text-slate-800">{formatDate(appointment.appointment_date)}</span>
-              </div>
-              <div className="flex items-start justify-between gap-3 rounded-xl bg-slate-50 p-3">
-                <span className="font-semibold text-slate-500">Time</span>
-                <span className="font-bold text-slate-800">{formatTime(appointment.appointment_time)} - {formatTime(appointment.end_time)}</span>
-              </div>
-              <div className="flex items-start justify-between gap-3 rounded-xl bg-slate-50 p-3">
-                <span className="font-semibold text-slate-500">Job Type</span>
-                <span className="font-bold text-slate-800">{formatText(appointment.job_type)}</span>
-              </div>
-              <div className="flex items-start justify-between gap-3 rounded-xl bg-slate-50 p-3">
-                <span className="font-semibold text-slate-500">Created</span>
-                <span className="font-bold text-slate-800">{formatDate(appointment.created_at)}</span>
-              </div>
-            </div>
-          )}
+            <FormField
+              label="Service Type"
+              value={formState.job_type}
+              disabled={!isEditing}
+              onChange={(value) => updateField('job_type', value)}
+              options={[
+                { value: 'measurement', label: 'Measurement' },
+                { value: 'installation', label: 'Installation' },
+                { value: 'consultation', label: 'Consultation' },
+                { value: 'repair', label: 'Repair' },
+              ]}
+            />
+          </div>
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_4px_20px_rgb(0,0,0,0.03)]">
@@ -465,56 +452,44 @@ export default function AppointmentDetailsPage() {
             <h2 className="text-lg font-extrabold text-slate-800">Customer Information</h2>
           </div>
 
-          {isEditing ? (
-            <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  label="First Name"
-                  value={formState.customer_first_name}
-                  onChange={(value) => updateField('customer_first_name', value)}
-                />
-                <FormField
-                  label="Last Name"
-                  value={formState.customer_last_name}
-                  onChange={(value) => updateField('customer_last_name', value)}
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  label="Phone"
-                  value={formState.customer_phone}
-                  onChange={(value) => updateField('customer_phone', value)}
-                  type="tel"
-                />
-                <FormField
-                  label="Email"
-                  value={formState.customer_email}
-                  onChange={(value) => updateField('customer_email', value)}
-                  type="email"
-                />
-              </div>
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <FormField
-                label="Company"
-                value={formState.customer_company_name}
-                onChange={(value) => updateField('customer_company_name', value)}
+                label="First Name"
+                value={formState.customer_first_name}
+                disabled={!isEditing}
+                onChange={(value) => updateField('customer_first_name', value)}
+              />
+              <FormField
+                label="Last Name"
+                value={formState.customer_last_name}
+                disabled={!isEditing}
+                onChange={(value) => updateField('customer_last_name', value)}
               />
             </div>
-          ) : (
-            <div className="space-y-3 text-sm">
-              <div className="rounded-xl bg-slate-50 p-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Customer name</p>
-                <p className="mt-1 text-base font-extrabold text-slate-800">{customerName}</p>
-              </div>
-              <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-                <Phone className="h-4 w-4 text-slate-500" />
-                <span className="font-semibold text-slate-700">{appointment.customer?.phone || '—'}</span>
-              </div>
-              <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-                <FileText className="h-4 w-4 text-slate-500" />
-                <span className="font-semibold text-slate-700">{appointment.customer?.company_name || '—'}</span>
-              </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                label="Phone"
+                value={formState.customer_phone}
+                disabled={!isEditing}
+                onChange={(value) => updateField('customer_phone', value)}
+                type="tel"
+              />
+              <FormField
+                label="Email"
+                value={formState.customer_email}
+                disabled={!isEditing}
+                onChange={(value) => updateField('customer_email', value)}
+                type="email"
+              />
             </div>
-          )}
+            <FormField
+              label="Company Name"
+              value={formState.customer_company_name}
+              disabled={!isEditing}
+              onChange={(value) => updateField('customer_company_name', value)}
+            />
+          </div>
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] lg:col-span-2">
@@ -523,54 +498,37 @@ export default function AppointmentDetailsPage() {
             <h2 className="text-lg font-extrabold text-slate-800">Address Details</h2>
           </div>
 
-          {isEditing ? (
-            <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField
+              label="Building"
+              value={formState.location_building}
+              disabled={!isEditing}
+              onChange={(value) => updateField('location_building', value)}
+            />
+            <FormField
+              label="Unit"
+              value={formState.location_unit}
+              disabled={!isEditing}
+              onChange={(value) => updateField('location_unit', value)}
+            />
+            <div className="md:col-span-2">
               <FormField
-                label="Building"
-                value={formState.location_building}
-                onChange={(value) => updateField('location_building', value)}
+                label="Full Address"
+                value={formState.location_full_address}
+                disabled={!isEditing}
+                onChange={(value) => updateField('location_full_address', value)}
               />
+            </div>
+            <div className="md:col-span-2">
               <FormField
-                label="Unit"
-                value={formState.location_unit}
-                onChange={(value) => updateField('location_unit', value)}
+                label="Instructions"
+                value={formState.location_instructions}
+                disabled={!isEditing}
+                onChange={(value) => updateField('location_instructions', value)}
+                textarea
               />
-              <div className="md:col-span-2">
-                <FormField
-                  label="Full Address"
-                  value={formState.location_full_address}
-                  onChange={(value) => updateField('location_full_address', value)}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <FormField
-                  label="Instructions"
-                  value={formState.location_instructions}
-                  onChange={(value) => updateField('location_instructions', value)}
-                  textarea
-                />
-              </div>
             </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-xl bg-slate-50 p-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Building</p>
-                <p className="mt-1 text-base font-bold text-slate-800">{appointment.location?.building_name || '—'}</p>
-              </div>
-              <div className="rounded-xl bg-slate-50 p-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Unit</p>
-                <p className="mt-1 text-base font-bold text-slate-800">{appointment.location?.unit_number || '—'}</p>
-              </div>
-              <div className="rounded-xl bg-slate-50 p-3 md:col-span-2">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Full Address</p>
-                <p className="mt-1 text-base font-bold text-slate-800">{appointment.location?.full_address || '—'}</p>
-              </div>
-              <div className="rounded-xl bg-slate-50 p-3 md:col-span-2">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Instructions</p>
-                <p className="mt-1 text-base font-medium text-slate-700">{appointment.location?.additional_instructions || 'No special instructions provided.'}</p>
-              </div>
-            </div>
-          )}
+          </div>
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_4px_20px_rgb(0,0,0,0.03)]">
@@ -579,25 +537,20 @@ export default function AppointmentDetailsPage() {
             <h2 className="text-lg font-extrabold text-slate-800">Assignee</h2>
           </div>
 
-          {isEditing ? (
-            <FormField
-              label="Assigned To"
-              value={formState.assigned_to}
-              onChange={(value) => updateField('assigned_to', value)}
-              options={assigneeOptions}
-            />
-          ) : (
-            <div className="space-y-3 text-sm">
-              <div className="rounded-xl bg-slate-50 p-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Assigned to</p>
-                <p className="mt-1 text-base font-bold text-slate-800">{appointment.assignee_name || appointment.assigned_to_name || 'Unassigned'}</p>
-              </div>
-              <div className="rounded-xl bg-slate-50 p-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Email</p>
-                <p className="mt-1 text-base font-medium text-slate-700">{typeof appointment.assignee === 'object' && appointment.assignee !== null ? appointment.assignee.email || '—' : appointment.assigned_to_username || '—'}</p>
-              </div>
-            </div>
-          )}
+          <StaffAssignmentPicker
+            id="appointment-details-assignee"
+            label="Assigned To"
+            value={formState.assigned_to}
+            disabled={!isEditing}
+            options={(Array.isArray(users) ? users : []).map((user) => ({
+              value: String(user.id),
+              name: user.full_name,
+              email: user.email,
+              role: typeof user.role === 'object' ? user.role?.name : undefined,
+            }))}
+            onChange={(event) => updateField('assigned_to', event.target.value)}
+            allowUnassigned
+          />
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_4px_20px_rgb(0,0,0,0.03)]">
@@ -606,31 +559,27 @@ export default function AppointmentDetailsPage() {
             <h2 className="text-lg font-extrabold text-slate-800">Notes & Services</h2>
           </div>
 
-          {isEditing ? (
-            <div className="space-y-4">
-              <FormField
-                label="Service Type"
-                value={formState.job_type}
-                onChange={(value) => updateField('job_type', value)}
-                options={[
-                  { value: 'measurement', label: 'Measurement' },
-                  { value: 'installation', label: 'Installation' },
-                  { value: 'consultation', label: 'Consultation' },
-                  { value: 'repair', label: 'Repair' },
-                ]}
-              />
-              <FormField
-                label="Notes"
-                value={formState.description}
-                onChange={(value) => updateField('description', value)}
-                textarea
-              />
-            </div>
-          ) : (
-            <div className="rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">
-              {appointment.description || 'No additional notes were supplied for this appointment.'}
-            </div>
-          )}
+          <div className="space-y-4">
+            <FormField
+              label="Service Type"
+              value={formState.job_type}
+              disabled={!isEditing}
+              onChange={(value) => updateField('job_type', value)}
+              options={[
+                { value: 'measurement', label: 'Measurement' },
+                { value: 'installation', label: 'Installation' },
+                { value: 'consultation', label: 'Consultation' },
+                { value: 'repair', label: 'Repair' },
+              ]}
+            />
+            <FormField
+              label="Notes"
+              value={formState.description}
+              disabled={!isEditing}
+              onChange={(value) => updateField('description', value)}
+              textarea
+            />
+          </div>
         </section>
       </div>
     </div>

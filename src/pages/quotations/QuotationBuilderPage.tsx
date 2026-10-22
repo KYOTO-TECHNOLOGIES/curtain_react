@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   CalendarDays,
@@ -22,6 +22,8 @@ import {
 import { quotationsApi } from '../../api/quotations';
 import { useToast } from '../../components/ui/Toast';
 import { DatePicker } from '../../components/ui/DatePicker';
+import { AppointmentPicker } from '../../components/quotations/AppointmentPicker';
+import BuilderSurfaceCard from './components/BuilderSurfaceCard';
 import {
   CustomerSummary,
   QuotationTypeCards,
@@ -74,9 +76,19 @@ function getValidityMessage(value: string) {
 
 export default function QuotationBuilderPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { showToast } = useToast();
 
-  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string>('');
+  const appointmentParam = searchParams.get('appointment') || '';
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string>(appointmentParam);
+
+  useEffect(() => {
+    const param = searchParams.get('appointment');
+    if (param && param !== selectedAppointmentId) {
+      setSelectedAppointmentId(param);
+    }
+  }, [searchParams]);
+
   const [quotationSettings, setQuotationSettings] = useState({
     quote_type: 'b2c' as 'b2c' | 'b2b',
     work_type: 1,
@@ -102,10 +114,10 @@ export default function QuotationBuilderPage() {
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  // Fetch Data
+  // Fetch Data - load appointments so selected appointment is available in picker
   const { data: appointmentsRes, isLoading: appointmentsLoading } = useQuery({
     queryKey: ['appointments'],
-    queryFn: () => appointmentsApi.list({ status: 'completed' } as any),
+    queryFn: () => appointmentsApi.list(),
   });
 
   const { data: selectedAppointmentRes, isLoading: selectedAppointmentLoading } = useQuery({
@@ -142,22 +154,57 @@ export default function QuotationBuilderPage() {
     return [];
   };
 
-  const appointments: AppointmentListItem[] = toArray<AppointmentListItem>(appointmentsRes);
   const fabricTypes = toArray<FabricType>(fabricTypesRes);
   const models = toArray<CatalogModel>(modelsRes);
   const items = toArray<CatalogItem>(itemsRes);
   const motors = toArray<MotorType>(motorsRes);
 
+  const fetchedAppointments: AppointmentListItem[] = toArray<AppointmentListItem>(appointmentsRes);
+  const selectedAppointment: AppointmentDetail | null = selectedAppointmentRes?.data || null;
+
+  const appointments: AppointmentListItem[] = useMemo(() => {
+    if (!selectedAppointment) return fetchedAppointments;
+    const exists = fetchedAppointments.some((a) => String(a.id) === String(selectedAppointment.id));
+    if (exists) return fetchedAppointments;
+    const synthItem: AppointmentListItem = {
+      id: selectedAppointment.id,
+      customer: selectedAppointment.customer?.id ?? 0,
+      customer_name: selectedAppointment.customer?.full_name || `${selectedAppointment.customer?.first_name || ''} ${selectedAppointment.customer?.last_name || ''}`.trim(),
+      customer_phone: selectedAppointment.customer?.phone || '',
+      title: selectedAppointment.title,
+      description: selectedAppointment.description,
+      appointment_date: selectedAppointment.appointment_date,
+      appointment_time: selectedAppointment.appointment_time,
+      end_time: selectedAppointment.end_time,
+      job_type: selectedAppointment.job_type,
+      status: selectedAppointment.status,
+      assigned_to: selectedAppointment.assigned_to,
+      assigned_to_name: selectedAppointment.assignee_name || selectedAppointment.assigned_to_name,
+      assigned_to_username: selectedAppointment.assignee_username || selectedAppointment.assigned_to_username,
+      location_building: selectedAppointment.location?.building_name || '',
+      location_unit: selectedAppointment.location?.unit_number || '',
+      location_full_address: selectedAppointment.location?.full_address || '',
+      created_at: selectedAppointment.created_at,
+      updated_at: selectedAppointment.updated_at,
+    };
+    return [synthItem, ...fetchedAppointments];
+  }, [fetchedAppointments, selectedAppointment]);
+
   const selectedAppointmentSummary = appointments.find(
     (appointment) => String(appointment.id) === selectedAppointmentId
   );
-  const selectedAppointment: AppointmentDetail | null = selectedAppointmentRes?.data || null;
   const selectedCustomerId = selectedAppointment?.customer?.id ?? selectedAppointmentSummary?.customer;
   const selectedCustomerName =
     selectedAppointment?.customer?.full_name || selectedAppointmentSummary?.customer_name || '';
   const selectedCustomerEmail = selectedAppointment?.customer?.email || '';
   const selectedCustomerPhone =
     selectedAppointment?.customer?.phone || selectedAppointmentSummary?.customer_phone || '';
+  const selectedCustomerLocation =
+    selectedAppointment?.location?.full_address ||
+    selectedAppointmentSummary?.location_full_address ||
+    (selectedAppointment?.location?.building_name
+      ? `${selectedAppointment.location.building_name}${selectedAppointment.location.unit_number ? ` Unit ${selectedAppointment.location.unit_number}` : ''}`
+      : '');
   const validityMessage = getValidityMessage(quotationSettings.valid_until);
   const surfaceCount = areas.reduce((count, area) => count + area.surfaces.length, 0);
 
@@ -326,6 +373,17 @@ export default function QuotationBuilderPage() {
       };
 
       const res = await quotationsApi.create(payload);
+
+      if (selectedAppointmentId) {
+        try {
+          if (selectedAppointment?.status !== 'cancelled') {
+            await appointmentsApi.update(selectedAppointmentId, { status: 'quoted' as any });
+          }
+        } catch (statusErr) {
+          console.warn('Could not auto-update appointment status to quoted:', statusErr);
+        }
+      }
+
       showToast('Quotation created successfully', 'success');
       navigate(`/quotations/${res.data.id}`);
     } catch (err: any) {
@@ -335,10 +393,6 @@ export default function QuotationBuilderPage() {
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const calculateAreaM2 = (width: number, height: number) => {
-    return ((width * height) / 10000).toFixed(2);
   };
 
   const calculateSurfaceTotal = (spec: SurfaceSpec, widthCm: number, heightCm: number) => {
@@ -376,26 +430,18 @@ export default function QuotationBuilderPage() {
         <div className="qb-general-grid">
           <div className="qb-general-column">
             <div className="qb-field">
-              <label htmlFor="quotation-appointment" className="qb-field-label block text-[15px] font-bold text-slate-700 mb-2">Choose Appointment</label>
               <div className="relative">
                 {appointmentsLoading ? (
                   <div className="qb-appointment-loading flex items-center justify-center py-3 bg-slate-50 border border-slate-100 rounded-xl">
                     <Loader2 className="w-5 h-5 animate-spin text-[#5442f6]" />
                   </div>
                 ) : (
-                  <select
+                  <AppointmentPicker
                     id="quotation-appointment"
                     value={selectedAppointmentId}
+                    appointments={appointments}
                     onChange={(e) => setSelectedAppointmentId(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-[#5442f6] focus:ring-2 focus:ring-[#5442f6]/20 transition-all font-medium text-slate-700"
-                  >
-                    <option value="">-- Select Appointment --</option>
-                    {appointments.map((appt) => (
-                      <option key={appt.id} value={String(appt.id)}>
-                        #{appt.id} - {appt.customer_name || 'Unknown'}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 )}
               </div>
             </div>
@@ -405,6 +451,7 @@ export default function QuotationBuilderPage() {
                 customerName={selectedCustomerName}
                 customerEmail={selectedCustomerEmail}
                 customerPhone={selectedCustomerPhone}
+                customerLocation={selectedCustomerLocation}
                 isLoading={selectedAppointmentLoading}
               />
             )}
@@ -466,471 +513,141 @@ export default function QuotationBuilderPage() {
       {/* Step 2: Areas and Surfaces */}
       {selectedAppointmentId && (
         <>
-          <section className="qb-card qb-configuration-card">
-            <header className="qb-card-header qb-configuration-header">
-              <span className="qb-card-icon qb-card-icon--emerald"><Layers3 size={18} /></span>
-              <div className="qb-card-heading">
+          <section className="qb-card qb-configuration-card qbc-configuration">
+            <header className="qbc-configuration-header">
+              <span className="qbc-configuration-icon"><Layers3 size={18} aria-hidden="true" /></span>
+              <div className="qbc-configuration-heading">
                 <h2>Configuration</h2>
                 <p>Define the areas and surfaces for this quotation</p>
               </div>
-              <div className="qb-configuration-tools">
-                <span className="qb-count-chip">
+              <div className="qbc-configuration-tools">
+                <span className="qbc-count-chip">
                   {areas.length} {areas.length === 1 ? 'area' : 'areas'} · {surfaceCount} {surfaceCount === 1 ? 'surface' : 'surfaces'}
                 </span>
-              <button
-                type="button"
-                onClick={() => setShowAddAreaModal(true)}
-                className="qb-add-area-button"
-              >
-                <Plus size={17} aria-hidden="true" />
-                <span>Add New Area</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAddAreaModal(true)}
+                  className="qbc-add-area-button"
+                >
+                  <Plus size={17} aria-hidden="true" />
+                  <span>Add New Area</span>
+                </button>
               </div>
             </header>
 
             {areas.length === 0 ? (
-              <div className="qb-empty-areas">
-                <span className="qb-empty-icon"><Home size={19} /></span>
-                <span className="qb-empty-title">No areas added yet</span>
-                <span className="qb-empty-hint">Add an area to get started.</span>
+              <div className="qbc-empty-areas">
+                <span className="qbc-empty-icon"><Home size={19} aria-hidden="true" /></span>
+                <span className="qbc-empty-title">No areas added yet</span>
+                <span className="qbc-empty-hint">Add an area to get started.</span>
               </div>
             ) : (
-              <div className="qb-area-list">
-                {areas.map((area) => (
-                  <article key={area.tempId} className="qb-area-card">
-                    {/* Area Header */}
-                    <div className="qb-area-header">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExpandedAreaId(expandedAreaId === area.tempId ? null : area.tempId)
-                        }
-                        className="qb-area-toggle"
-                        aria-expanded={expandedAreaId === area.tempId}
-                        aria-controls={`area-panel-${area.tempId}`}
-                      >
-                        <span className="qb-area-icon"><Layers3 size={19} /></span>
-                        <span className="qb-area-title-wrap">
-                          <span className="qb-area-title" title={capitalizeDisplay(area.display_name)}>
-                            {capitalizeDisplay(area.display_name)}
-                          </span>
-                          <span className="qb-area-surface-count">
+              <div className="qbc-area-list">
+                {areas.map((area) => {
+                  const isAreaExpanded = expandedAreaId === area.tempId;
+                  const areaTitle = capitalizeDisplay(area.display_name);
+                  return (
+                    <article key={area.tempId} className="qbc-area-card">
+                      <header className="qbc-area-header">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedAreaId(isAreaExpanded ? null : area.tempId)}
+                          className="qbc-area-toggle"
+                          aria-expanded={isAreaExpanded}
+                          aria-controls={`area-panel-${area.tempId}`}
+                          aria-label={`${isAreaExpanded ? 'Collapse' : 'Expand'} ${areaTitle}`}
+                        >
+                          <span className="qbc-area-icon"><Layers3 size={19} aria-hidden="true" /></span>
+                          <span className="qbc-area-title" title={areaTitle}>{areaTitle}</span>
+                          <span className="qbc-area-surface-count">
                             {area.surfaces.length} {area.surfaces.length === 1 ? 'surface' : 'surfaces'}
                           </span>
-                        </span>
-                          <ChevronRight
-                            className={`qb-area-chevron ${expandedAreaId === area.tempId ? 'is-open' : ''}`}
-                          />
-                      </button>
-                      <div className="qb-area-actions">
-                        <div className="qb-area-type-field">
-                          <Home size={16} aria-hidden="true" />
-                          <select
-                            value={area.area_type}
-                            onChange={(e) => {
-                              const newAreas = [...areas];
-                              const idx = newAreas.findIndex(a => a.tempId === area.tempId);
-                              if (idx !== -1) newAreas[idx].area_type = e.target.value;
-                              setAreas(newAreas);
-                            }}
-                            className="appearance-none bg-white border border-slate-200 text-slate-700 text-[15px] font-medium rounded-xl pl-4 pr-10 py-2.5 outline-none focus:border-[#5442f6] min-w-[180px]"
-                            aria-label={`Area type for ${capitalizeDisplay(area.display_name)}`}
+                          <ChevronRight className={`qbc-area-chevron${isAreaExpanded ? ' is-open' : ''}`} aria-hidden="true" />
+                        </button>
+                        <div className="qbc-area-actions">
+                          <div className="qbc-area-type-field">
+                            <Home size={16} aria-hidden="true" />
+                            <select
+                              value={area.area_type}
+                              onChange={(event) => {
+                                const newAreas = [...areas];
+                                const index = newAreas.findIndex((item) => item.tempId === area.tempId);
+                                if (index !== -1) newAreas[index].area_type = event.target.value;
+                                setAreas(newAreas);
+                              }}
+                              aria-label={`Area type for ${areaTitle}`}
+                            >
+                              <option value={area.area_type}>{area.area_type}</option>
+                            </select>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteArea(area.tempId)}
+                            className="qbc-delete-button qbc-delete-button--area"
+                            aria-label={`Remove area ${areaTitle}`}
+                            title="Remove area"
                           >
-                            <option value={area.area_type}>{area.area_type}</option>
-                          </select>
+                            <Trash2 size={17} aria-hidden="true" />
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteArea(area.tempId)}
-                          className="qb-delete-area"
-                          aria-label={`Remove area ${capitalizeDisplay(area.display_name)}`}
-                          title="Remove area"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Expanded Area Content */}
-                    <div
-                      id={`area-panel-${area.tempId}`}
-                      className={`qb-area-panel ${expandedAreaId === area.tempId ? 'is-expanded' : ''}`}
-                      aria-hidden={expandedAreaId !== area.tempId}
-                      inert={expandedAreaId !== area.tempId}
-                    >
-                      <div className="qb-area-panel-inner">
-                        {/* Surfaces */}
-                        {area.surfaces.length === 0 ? (
-                          <div className="qb-empty-surfaces">
-                            <span className="qb-empty-icon"><Layers3 size={18} /></span>
-                            <span className="qb-empty-title">No surfaces yet</span>
-                            <span className="qb-empty-hint">Add a surface to configure this area.</span>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {area.surfaces.map((surface) => (
-                              <div
-                                key={surface.tempId}
-                                className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3"
+                      </header>
+                      <div
+                        id={`area-panel-${area.tempId}`}
+                        className={`qbc-area-panel${isAreaExpanded ? ' is-expanded' : ''}`}
+                        aria-hidden={!isAreaExpanded}
+                        inert={!isAreaExpanded}
+                      >
+                        <div className="qbc-area-panel-inner">
+                          {area.surfaces.length === 0 ? (
+                            <div className="qbc-empty-surfaces">
+                              <span className="qbc-empty-icon"><Layers3 size={18} aria-hidden="true" /></span>
+                              <span className="qbc-empty-title">No surfaces yet</span>
+                              <span className="qbc-empty-hint">Add a surface to configure this area.</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedAreaForSurface(area.tempId);
+                                  setShowAddSurfaceModal(true);
+                                }}
+                                className="qbc-add-surface-button"
                               >
-                                {/* Surface Dimensions */}
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <p className="font-medium text-slate-900">
-                                      {surface.surface_name}
-                                    </p>
-                                    <p className="text-xs text-slate-500">
-                                      {surface.width_cm}cm × {surface.height_cm}cm (
-                                      {calculateAreaM2(surface.width_cm, surface.height_cm)}m²)
-                                    </p>
-                                  </div>
-                                  <button
-                                    onClick={() =>
-                                      handleDeleteSurface(area.tempId, surface.tempId)
-                                    }
-                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-
-                                {/* Surface Spec Configuration */}
-                                {surface.spec && (
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-3 rounded border border-slate-100">
-                                    {/* Fabric */}
-                                    <div>
-                                      <label className="block text-xs font-medium text-slate-600 mb-1">
-                                        Fabric Type
-                                      </label>
-                                      <select
-                                        value={surface.spec.fabric_type}
-                                        onChange={(e) =>
-                                          handleUpdateSurfaceSpec(area.tempId, surface.tempId, {
-                                            fabric_type: Number(e.target.value),
-                                          })
-                                        }
-                                        className="w-full px-2 py-1.5 rounded text-sm border border-slate-200"
-                                      >
-                                        {fabricTypes.map((ft: any) => (
-                                          <option key={ft.id} value={ft.id}>
-                                            {ft.name}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </div>
-
-                                    <div>
-                                      <label className="block text-xs font-medium text-slate-600 mb-1">
-                                        Model
-                                      </label>
-                                      <select
-                                        value={surface.spec.model}
-                                        onChange={(e) =>
-                                          handleUpdateSurfaceSpec(area.tempId, surface.tempId, {
-                                            model: Number(e.target.value),
-                                          })
-                                        }
-                                        className="w-full px-2 py-1.5 rounded text-sm border border-slate-200"
-                                      >
-                                        {models.map((m: any) => (
-                                          <option key={m.id} value={m.id}>
-                                            {m.name}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </div>
-
-                                    <div>
-                                      <label className="block text-xs font-medium text-slate-600 mb-1">
-                                        Item
-                                      </label>
-                                      <select
-                                        value={surface.spec.catalog_item}
-                                        onChange={(e) => {
-                                          const selectedItemId = Number(e.target.value);
-                                          const selectedItem = items.find((i: any) => i.id === selectedItemId) as any;
-                                          handleUpdateSurfaceSpec(area.tempId, surface.tempId, {
-                                            catalog_item: selectedItemId,
-                                            unit_price_per_m2: selectedItem?.price_per_unit || surface.spec.unit_price_per_m2,
-                                          });
-                                        }}
-                                        className="w-full px-2 py-1.5 rounded text-sm border border-slate-200"
-                                      >
-                                        {items.map((item: any) => (
-                                          <option key={item.id} value={item.id}>
-                                            {item.name}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </div>
-
-                                    <div>
-                                      <label className="block text-xs font-medium text-slate-600 mb-1">
-                                        Surface Price (AED)
-                                      </label>
-                                      <input
-                                        type="number"
-                                        step="0.01"
-                                        value={(() => {
-                                          const areaM2 = (Number(surface.width_cm) * Number(surface.height_cm)) / 10000;
-                                          const unitPrice = parseFloat(String(surface.spec.unit_price_per_m2)) || 0;
-                                          return areaM2 > 0 ? (areaM2 * unitPrice).toFixed(2) : '0.00';
-                                        })()}
-                                        onChange={(e) => {
-                                          const areaM2 = (Number(surface.width_cm) * Number(surface.height_cm)) / 10000;
-                                          const newSurfacePrice = parseFloat(e.target.value) || 0;
-                                          const newUnitPrice = areaM2 > 0 ? (newSurfacePrice / areaM2).toFixed(4) : '0';
-                                          handleUpdateSurfaceSpec(area.tempId, surface.tempId, {
-                                            unit_price_per_m2: newUnitPrice,
-                                          });
-                                        }}
-                                        className="w-full px-2 py-1.5 rounded text-sm border border-slate-200"
-                                      />
-                                    </div>
-
-                                    {/* Motor */}
-                                    <div>
-                                      <label className="block text-xs font-medium text-slate-600 mb-1">
-                                        Control
-                                      </label>
-                                      <select
-                                        value={surface.spec.motor_control_type}
-                                        onChange={(e) =>
-                                          handleUpdateSurfaceSpec(area.tempId, surface.tempId, {
-                                            motor_control_type: e.target.value as 'manual' | 'motorized',
-                                          })
-                                        }
-                                        className="w-full px-2 py-1.5 rounded text-sm border border-slate-200"
-                                      >
-                                        <option value="manual">Manual</option>
-                                        <option value="motorized">Motorized</option>
-                                      </select>
-                                    </div>
-
-                                    {surface.spec.motor_control_type === 'motorized' && (
-                                      <div>
-                                        <label className="block text-xs font-medium text-slate-600 mb-1">
-                                          Motor Type
-                                        </label>
-                                        <select
-                                          value={surface.spec.motor_type || ''}
-                                          onChange={(e) => {
-                                            const selectedMotorId = e.target.value ? Number(e.target.value) : null;
-                                            const selectedMotor = selectedMotorId ? motors.find((m: any) => m.id === selectedMotorId) as any : null;
-                                            handleUpdateSurfaceSpec(area.tempId, surface.tempId, {
-                                              motor_type: selectedMotorId,
-                                              motor_price_per_unit: selectedMotor?.price_per_m2 || '0',
-                                            });
-                                          }}
-                                          className="w-full px-2 py-1.5 rounded text-sm border border-slate-200"
-                                        >
-                                          <option value="">Select</option>
-                                          {motors.map((m: any) => (
-                                            <option key={m.id} value={m.id}>
-                                              {m.name}
-                                            </option>
-                                          ))}
-                                        </select>
-                                      </div>
-                                    )}
-
-                                    <div>
-                                      <label className="block text-xs font-medium text-slate-600 mb-1">
-                                        Motor Price (AED)
-                                      </label>
-                                      <input
-                                        type="number"
-                                        step="0.01"
-                                        value={surface.spec.motor_price_per_unit}
-                                        onChange={(e) =>
-                                          handleUpdateSurfaceSpec(area.tempId, surface.tempId, {
-                                            motor_price_per_unit: e.target.value,
-                                          })
-                                        }
-                                        className="w-full px-2 py-1.5 rounded text-sm border border-slate-200"
-                                      />
-                                    </div>
-
-                                    {/* Smart Integration */}
-                                    <div className="col-span-1 sm:col-span-2">
-                                      <label className="flex items-center gap-2 cursor-pointer">
-                                        <input
-                                          type="checkbox"
-                                          checked={surface.spec.smart_integration}
-                                          onChange={(e) =>
-                                            handleUpdateSurfaceSpec(area.tempId, surface.tempId, {
-                                              smart_integration: e.target.checked,
-                                            })
-                                          }
-                                          className="rounded"
-                                        />
-                                        <span className="text-xs font-medium text-slate-600">
-                                          Smart Integration (Alexa)
-                                        </span>
-                                      </label>
-                                    </div>
-
-                                    {surface.spec.smart_integration && (
-                                      <>
-                                        <div>
-                                          <label className="block text-xs font-medium text-slate-600 mb-1">
-                                            Qty
-                                          </label>
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            value={surface.spec.alexa_quantity}
-                                            onChange={(e) =>
-                                              handleUpdateSurfaceSpec(area.tempId, surface.tempId, {
-                                                alexa_quantity: Number(e.target.value),
-                                              })
-                                            }
-                                            className="w-full px-2 py-1.5 rounded text-sm border border-slate-200"
-                                          />
-                                        </div>
-                                        <div>
-                                          <label className="block text-xs font-medium text-slate-600 mb-1">
-                                            Unit Price (AED)
-                                          </label>
-                                          <input
-                                            type="number"
-                                            step="0.01"
-                                            value={surface.spec.alexa_unit_price}
-                                            onChange={(e) =>
-                                              handleUpdateSurfaceSpec(area.tempId, surface.tempId, {
-                                                alexa_unit_price: e.target.value,
-                                              })
-                                            }
-                                            className="w-full px-2 py-1.5 rounded text-sm border border-slate-200"
-                                          />
-                                        </div>
-                                      </>
-                                    )}
-
-                                    {/* Pelmet */}
-                                    <div className="col-span-1 sm:col-span-2">
-                                      <label className="flex items-center gap-2 cursor-pointer">
-                                        <input
-                                          type="checkbox"
-                                          checked={surface.spec.pelmet_enabled}
-                                          onChange={(e) =>
-                                            handleUpdateSurfaceSpec(area.tempId, surface.tempId, {
-                                              pelmet_enabled: e.target.checked,
-                                            })
-                                          }
-                                          className="rounded"
-                                        />
-                                        <span className="text-xs font-medium text-slate-600">
-                                          Add Pelmet
-                                        </span>
-                                      </label>
-                                    </div>
-
-                                    {surface.spec.pelmet_enabled && (
-                                      <>
-                                        <div>
-                                          <label className="block text-xs font-medium text-slate-600 mb-1">
-                                            Width (cm)
-                                          </label>
-                                          <input
-                                            type="number"
-                                            step="0.01"
-                                            value={surface.spec.pelmet_width_cm}
-                                            onChange={(e) =>
-                                              handleUpdateSurfaceSpec(area.tempId, surface.tempId, {
-                                                pelmet_width_cm: e.target.value,
-                                              })
-                                            }
-                                            className="w-full px-2 py-1.5 rounded text-sm border border-slate-200"
-                                          />
-                                        </div>
-                                        <div>
-                                          <label className="block text-xs font-medium text-slate-600 mb-1">
-                                            Price/m (AED)
-                                          </label>
-                                          <input
-                                            type="number"
-                                            step="0.01"
-                                            value={surface.spec.pelmet_price_per_metre}
-                                            onChange={(e) =>
-                                              handleUpdateSurfaceSpec(area.tempId, surface.tempId, {
-                                                pelmet_price_per_metre: e.target.value,
-                                              })
-                                            }
-                                            className="w-full px-2 py-1.5 rounded text-sm border border-slate-200"
-                                          />
-                                        </div>
-                                      </>
-                                    )}
-
-                                    {/* Addon */}
-                                    <div>
-                                      <label className="block text-xs font-medium text-slate-600 mb-1">
-                                        Addon Label
-                                      </label>
-                                      <input
-                                        type="text"
-                                        value={surface.spec.addon_label || ''}
-                                        onChange={(e) =>
-                                          handleUpdateSurfaceSpec(area.tempId, surface.tempId, {
-                                            addon_label: e.target.value,
-                                          })
-                                        }
-                                        placeholder="e.g., Install"
-                                        className="w-full px-2 py-1.5 rounded text-sm border border-slate-200"
-                                      />
-                                    </div>
-
-                                    <div>
-                                      <label className="block text-xs font-medium text-slate-600 mb-1">
-                                        Addon Amount (AED)
-                                      </label>
-                                      <input
-                                        type="number"
-                                        step="0.01"
-                                        value={surface.spec.addon_amount}
-                                        onChange={(e) =>
-                                          handleUpdateSurfaceSpec(area.tempId, surface.tempId, {
-                                            addon_amount: e.target.value,
-                                          })
-                                        }
-                                        className="w-full px-2 py-1.5 rounded text-sm border border-slate-200"
-                                      />
-                                    </div>
-
-                                    {/* Total */}
-                                    <div className="col-span-1 sm:col-span-2 bg-blue-50 p-2 rounded border border-blue-200">
-                                      <p className="text-xs font-medium text-blue-700">
-                                        Line Total: AED{' '}
-                                        {calculateSurfaceTotal(
-                                          surface.spec,
-                                          surface.width_cm,
-                                          surface.height_cm
-                                        )}
-                                      </p>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Add Surface Button */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedAreaForSurface(area.tempId);
-                            setShowAddSurfaceModal(true);
-                          }}
-                          className="qb-add-surface-button"
-                        >
-                          <Plus size={16} /> Add Surface
-                        </button>
+                                <Plus size={16} aria-hidden="true" /> Add Surface
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="qbc-surface-list">
+                              {area.surfaces.map((surface) => (
+                                <BuilderSurfaceCard
+                                  key={surface.tempId}
+                                  surface={surface}
+                                  fabricTypes={fabricTypes}
+                                  models={models}
+                                  items={items}
+                                  motors={motors}
+                                  onDelete={() => handleDeleteSurface(area.tempId, surface.tempId)}
+                                  onUpdateSpec={(updates) => handleUpdateSurfaceSpec(area.tempId, surface.tempId, updates)}
+                                  calculateTotal={calculateSurfaceTotal}
+                                />
+                              ))}
+                            </div>
+                          )}
+                          {area.surfaces.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedAreaForSurface(area.tempId);
+                                setShowAddSurfaceModal(true);
+                              }}
+                              className="qbc-add-surface-button"
+                            >
+                              <Plus size={16} aria-hidden="true" /> Add Surface
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </article>
-                ))}
+                    </article>
+                  );
+                })}
               </div>
             )}
           </section>

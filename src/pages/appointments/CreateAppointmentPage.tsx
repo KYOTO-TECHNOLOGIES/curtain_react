@@ -26,6 +26,7 @@ import { useToast } from '../../components/ui/Toast';
 import { useQuery } from '@tanstack/react-query';
 import type { Customer } from '../../types';
 import { CountrySelect } from '../../components/appointments/CountrySelect';
+import { StaffAssignmentPicker } from '../../components/appointments/StaffAssignmentPicker';
 import { DatePicker } from '../../components/ui/DatePicker';
 import { COUNTRIES, DEFAULT_COUNTRY } from '../../components/appointments/countryData';
 import './CreateAppointmentPage.css';
@@ -217,7 +218,7 @@ function PhoneField({
         </label>
       </div>
 
-      <div className="appointment-phone-field" data-invalid={Boolean(error)}>
+      <div className="appointment-phone-field phone-field" data-invalid={Boolean(error)}>
         <div className="appointment-phone-field__country">
           <CountrySelect selectedCountry={selectedCountry} onSelectCountry={onSelectCountry} />
         </div>
@@ -410,6 +411,7 @@ export default function CreateAppointmentPage() {
   const selectedSource = watch('source');
   const selectedTime = watch('time');
   const phoneInputProps = register('phone');
+  const assignedToRegistration = register('assignedTo');
 
   useEffect(() => {
     if (editAppointment) {
@@ -689,16 +691,22 @@ export default function CreateAppointmentPage() {
                     </div>
                   </div>
 
-                  <Field label="Assign To" htmlFor="assignedTo">
-                    <select id="assignedTo" className="appointment-input appointment-select" {...register('assignedTo')}>
-                      <option value="">— Unassigned —</option>
-                      {(Array.isArray(users) ? users : []).map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.full_name} ({user.email})
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
+                  <StaffAssignmentPicker
+                    id="assignedTo"
+                    label="Assign To"
+                    name={assignedToRegistration.name}
+                    value={watch('assignedTo') || ''}
+                    options={(Array.isArray(users) ? users : []).map((user) => ({
+                      value: String(user.id),
+                      name: user.full_name,
+                      email: user.email,
+                      role: typeof user.role === 'object' ? user.role?.name : undefined,
+                    }))}
+                    inputRef={assignedToRegistration.ref}
+                    onChange={assignedToRegistration.onChange}
+                    onBlur={assignedToRegistration.onBlur}
+                    allowUnassigned
+                  />
 
                   <div className="appointment-highlight-box">
                     <div className="appointment-highlight-box__row">

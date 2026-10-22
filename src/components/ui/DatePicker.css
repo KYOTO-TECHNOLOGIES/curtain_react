@@ -153,7 +153,7 @@
 
 .date-picker-popover {
   position: fixed;
-  z-index: 10050;
+  z-index: var(--z-modal-popover, 1100);
   box-sizing: border-box;
   width: 300px;
   min-width: 280px;
@@ -593,7 +593,7 @@
 
 .date-picker-backdrop {
   position: fixed;
-  z-index: 10049;
+  z-index: var(--z-modal-popover, 1100);
   inset: 0;
   border: 0;
   background: rgba(15, 23, 42, 0.45);

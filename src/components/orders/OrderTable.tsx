@@ -101,7 +101,7 @@ export const OrderTable: React.FC<OrderTableProps> = ({
       key: 'id',
       label: 'Order ID',
       sortable: true,
-      width: '115px',
+      size: 'fit',
       className: 'ord-col-id',
       render: (o) => (
         <span className="order-id-chip" title={`Order #${o.id}`}>
@@ -114,6 +114,7 @@ export const OrderTable: React.FC<OrderTableProps> = ({
       key: 'customer',
       label: 'Customer',
       sortable: true,
+      size: 'flex',
       className: 'ord-col-customer',
       render: (o) => (
         <CustomerCell
@@ -127,7 +128,7 @@ export const OrderTable: React.FC<OrderTableProps> = ({
       key: 'quote',
       label: 'Quote #',
       sortable: true,
-      width: '130px',
+      size: 'fit',
       className: 'ord-col-quote',
       render: (o) => (
         <span className="order-quote-chip" title={`Quote ${o.quotation_id || o.quotation}`}>
@@ -140,7 +141,7 @@ export const OrderTable: React.FC<OrderTableProps> = ({
       key: 'production',
       label: 'Est. Production',
       sortable: true,
-      width: '140px',
+      size: 'fit',
       className: 'ord-col-prod',
       render: (o) => (
         <div className="order-prod-cell">
@@ -155,7 +156,7 @@ export const OrderTable: React.FC<OrderTableProps> = ({
       key: 'status',
       label: 'Status',
       sortable: false,
-      width: '168px',
+      size: 'fit',
       className: 'ord-col-status',
       headerAddonOnly: true,
       headerAddon: (
@@ -173,7 +174,7 @@ export const OrderTable: React.FC<OrderTableProps> = ({
       key: 'invoice',
       label: 'Invoice',
       sortable: false,
-      width: '135px',
+      size: 'fit',
       className: 'ord-col-invoice',
       render: (o) =>
         o.invoice_id ? (
@@ -190,7 +191,7 @@ export const OrderTable: React.FC<OrderTableProps> = ({
       label: 'Actions',
       align: 'right',
       sortable: false,
-      width: '195px',
+      size: 'fit',
       className: 'ord-col-actions',
       render: (o) => (
         <div className="order-actions-cell" onClick={(e) => e.stopPropagation()}>
@@ -224,10 +225,10 @@ export const OrderTable: React.FC<OrderTableProps> = ({
 
   const renderSkeletonRow = (idx: number) => (
     <tr key={`ord-skeleton-${idx}`} className="apt-table-row">
-      <td className="ord-col-id">
+      <td className="ord-col-id dt-col-fit">
         <div className="apt-skeleton-block" style={{ width: '80px', height: '26px', borderRadius: '8px' }} />
       </td>
-      <td className="ord-col-customer">
+      <td className="ord-col-customer dt-col-flex">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div className="apt-skeleton-block" style={{ width: '36px', height: '36px', borderRadius: '12px', flexShrink: 0 }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -236,19 +237,19 @@ export const OrderTable: React.FC<OrderTableProps> = ({
           </div>
         </div>
       </td>
-      <td className="ord-col-quote">
+      <td className="ord-col-quote dt-col-fit">
         <div className="apt-skeleton-block" style={{ width: '85px', height: '22px', borderRadius: '6px' }} />
       </td>
-      <td className="ord-col-prod">
+      <td className="ord-col-prod dt-col-fit">
         <div className="apt-skeleton-block" style={{ width: '75px', height: '15px' }} />
       </td>
-      <td className="ord-col-status">
+      <td className="ord-col-status dt-col-fit">
         <div className="apt-skeleton-block" style={{ width: '90px', height: '24px', borderRadius: '999px' }} />
       </td>
-      <td className="ord-col-invoice">
+      <td className="ord-col-invoice dt-col-fit">
         <div className="apt-skeleton-block" style={{ width: '70px', height: '22px', borderRadius: '6px' }} />
       </td>
-      <td className="ord-col-actions text-right">
+      <td className="ord-col-actions dt-col-fit dt-col-actions text-right">
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
           <div className="apt-skeleton-block" style={{ width: '65px', height: '34px', borderRadius: '10px' }} />
           <div className="apt-skeleton-block" style={{ width: '55px', height: '34px', borderRadius: '10px' }} />

@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { Layers3, PanelTop, WalletCards, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { CalendarClock, Layers3, PanelTop, UserCheck, UserPlus, WalletCards, X } from 'lucide-react';
 import './Modal.css';
 
 interface ModalProps {
@@ -8,14 +9,20 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   maxWidth?: string;
-  variant?: 'default' | 'payment' | 'area' | 'surface';
+  variant?: 'default' | 'payment' | 'area' | 'surface' | 'assign' | 'reschedule' | 'supplier' | 'catalog-item' | 'user' | 'customer';
   subtitle?: string;
   context?: string;
   isBusy?: boolean;
   footer?: React.ReactNode;
+  headerBadgeContent?: React.ReactNode;
+  headerMeta?: React.ReactNode;
 }
 
-export default function Modal({
+let openModalCount = 0;
+let previousBodyOverflow = '';
+let previousBodyPaddingRight = '';
+
+function ModalContent({
   open,
   onClose,
   title,
@@ -26,6 +33,8 @@ export default function Modal({
   context,
   isBusy = false,
   footer,
+  headerBadgeContent,
+  headerMeta,
 }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -40,36 +49,37 @@ export default function Modal({
   const [staggerFields, setStaggerFields] = useState(false);
 
   useEffect(() => {
-    if (variant === 'payment' || variant === 'area' || variant === 'surface') {
-      if (!open) return;
-      const previousOverflow = document.body.style.overflow;
-      const previousPaddingRight = document.body.style.paddingRight;
+    if (!isMounted) return;
+    if (openModalCount === 0) {
+      previousBodyOverflow = document.body.style.overflow;
+      previousBodyPaddingRight = document.body.style.paddingRight;
       const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
       document.body.style.overflow = 'hidden';
-      if (scrollbarWidth > 0) {
-        document.body.style.paddingRight = `${scrollbarWidth}px`;
-      }
-      return () => {
-        document.body.style.overflow = previousOverflow;
-        document.body.style.paddingRight = previousPaddingRight;
-      };
+      if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
     }
-    if (open) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = '';
-    return () => { document.body.style.overflow = ''; };
-  }, [open, variant]);
+    openModalCount += 1;
+    document.body.dataset.modalOpen = 'true';
+    return () => {
+      openModalCount = Math.max(0, openModalCount - 1);
+      if (openModalCount === 0) {
+        document.body.style.overflow = previousBodyOverflow;
+        document.body.style.paddingRight = previousBodyPaddingRight;
+        delete document.body.dataset.modalOpen;
+      }
+    };
+  }, [isMounted]);
 
   useEffect(() => {
     if (open) {
       if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
       setIsMounted(true);
       setIsClosing(false);
-      if ((variant === 'payment' || variant === 'area' || variant === 'surface') && !hasOpenedRef.current) {
+      if ((variant === 'payment' || variant === 'area' || variant === 'surface' || variant === 'assign' || variant === 'reschedule' || variant === 'supplier' || variant === 'catalog-item' || variant === 'user' || variant === 'customer') && !hasOpenedRef.current) {
         hasOpenedRef.current = true;
         setStaggerFields(true);
         staggerTimerRef.current = setTimeout(() => setStaggerFields(false), 500);
       }
-    } else if ((variant === 'payment' || variant === 'area' || variant === 'surface') && isMounted) {
+    } else if ((variant === 'payment' || variant === 'area' || variant === 'surface' || variant === 'assign' || variant === 'reschedule' || variant === 'supplier' || variant === 'catalog-item' || variant === 'user' || variant === 'customer') && isMounted) {
       setIsClosing(true);
       closeTimerRef.current = setTimeout(() => {
         setIsMounted(false);
@@ -86,18 +96,75 @@ export default function Modal({
   }, []);
 
   useEffect(() => {
-    if (variant !== 'payment' && variant !== 'area' && variant !== 'surface') return;
+    if ((variant !== 'supplier' && variant !== 'catalog-item' && variant !== 'user' && variant !== 'customer') || !open || !isMounted) return;
+    const body = cardRef.current?.querySelector<HTMLElement>(
+      variant === 'catalog-item'
+        ? '.catalog-item-modal-body'
+        : variant === 'user'
+          ? '.user-form-modal-body'
+          : variant === 'customer'
+            ? '.customer-modal-body'
+            : '.supplier-modal-body'
+    );
+    if (!body) return;
+    const syncScrollEdges = () => {
+      const card = body.closest(
+        variant === 'catalog-item'
+          ? '.catalog-item-modal-card'
+          : variant === 'user'
+            ? '.user-form-modal-card'
+            : variant === 'customer'
+              ? '.customer-modal-card'
+              : '.supplier-modal-card'
+      );
+      card?.classList.toggle('has-top-scroll', body.scrollTop > 0);
+      card?.classList.toggle(
+        'has-bottom-scroll',
+        body.scrollHeight - body.clientHeight - body.scrollTop > 1
+      );
+    };
+    const frame = requestAnimationFrame(syncScrollEdges);
+    body.addEventListener('scroll', syncScrollEdges, { passive: true });
+    window.addEventListener('resize', syncScrollEdges);
+    return () => {
+      cancelAnimationFrame(frame);
+      body.removeEventListener('scroll', syncScrollEdges);
+      window.removeEventListener('resize', syncScrollEdges);
+    };
+  }, [variant, open, isMounted]);
+
+  useEffect(() => {
+    if (variant !== 'payment' && variant !== 'area' && variant !== 'surface' && variant !== 'assign' && variant !== 'reschedule' && variant !== 'supplier' && variant !== 'catalog-item' && variant !== 'user' && variant !== 'customer') return;
     if (open && isMounted) {
       returnFocusRef.current = document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
       cardRef.current?.querySelector<HTMLElement>(
-        variant === 'area'
+        variant === 'reschedule'
+          ? '.reschedule-date-picker .date-picker-trigger'
+          : variant === 'assign'
+          ? '.staff-picker__trigger'
+          : variant === 'area'
           ? '[data-area-autofocus]'
           : variant === 'surface'
             ? '[data-surface-autofocus]'
-            : '[data-payment-autofocus]'
+              : variant === 'supplier'
+                ? '[data-supplier-autofocus]'
+                : variant === 'catalog-item'
+                  ? '[data-catalog-autofocus], .catalog-modal-fields-grid input, .catalog-modal-fields-grid select'
+                  : variant === 'user'
+                    ? '[data-user-autofocus]'
+                    : variant === 'customer'
+                      ? '[data-customer-autofocus]'
+                      : '[data-payment-autofocus]'
       )?.focus();
+      if (variant === 'customer') {
+        const autofocus = cardRef.current?.querySelector<HTMLInputElement>('[data-customer-autofocus]');
+        if (autofocus && autofocus.type !== 'password') {
+          const end = autofocus.value.length;
+          autofocus.setSelectionRange(end, end);
+        }
+      }
     } else if (!open) {
       returnFocusRef.current?.focus();
     }
@@ -107,14 +174,45 @@ export default function Modal({
     const handleEsc = (e: KeyboardEvent) => {
       if (
         e.key === 'Escape' &&
-        (variant === 'default' || ((variant === 'area' || variant === 'surface') && !isBusy))
+        !isBusy &&
+        (variant === 'default' || variant === 'customer' || variant === 'area' || variant === 'surface' || variant === 'assign' || variant === 'reschedule' || variant === 'supplier' || variant === 'catalog-item' || variant === 'user')
       ) {
+        if ((variant === 'catalog-item' || variant === 'user') && e.defaultPrevented) return;
         onClose();
       }
     };
     if (open) window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, [open, onClose, variant, isBusy]);
+
+  useEffect(() => {
+    if ((variant !== 'user' && variant !== 'customer') || !open || !isMounted) return;
+    const handleUserTab = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+      const target = event.target;
+      const targetNode = target instanceof Node ? target : null;
+      const focusable = Array.from(cardRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ) || []);
+      if (!focusable.length) return;
+      if (targetNode && document.querySelector('.user-role-menu')?.contains(targetNode)) {
+        event.preventDefault();
+        cardRef.current?.querySelector<HTMLElement>('.user-role-select .select-menu-trigger')?.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (target === first || !cardRef.current?.contains(targetNode))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (target === last || !cardRef.current?.contains(targetNode))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener('keydown', handleUserTab, true);
+    return () => window.removeEventListener('keydown', handleUserTab, true);
+  }, [variant, open, isMounted]);
 
   const handlePaymentKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') {
@@ -141,6 +239,58 @@ export default function Modal({
 
   if (!isMounted) return null;
 
+  if (variant === 'customer') {
+    return (
+      <div
+        ref={overlayRef}
+        className={`customer-modal-overlay ${isClosing ? 'is-closing' : ''}`}
+        onClick={(event) => {
+          if (!isBusy && event.target === overlayRef.current) onClose();
+        }}
+        role="presentation"
+      >
+        <div
+          ref={cardRef}
+          className={`customer-modal-card ${isClosing ? 'is-closing' : ''}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={subtitleId}
+          aria-busy={isBusy}
+          onKeyDown={handlePaymentKeyDown}
+        >
+          <span className="customer-modal-drag-handle" aria-hidden="true" />
+          <header className="customer-modal-header">
+            <span className="customer-modal-header__badge" aria-hidden="true">
+              {headerBadgeContent}
+            </span>
+            <div className="customer-modal-header__copy">
+              <h2 id={titleId}>{title}</h2>
+              <div className="customer-modal-header__subtitle-row">
+                <p id={subtitleId}>{subtitle}</p>
+                {context && <span className="customer-modal-context">{context}</span>}
+                {headerMeta}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="customer-modal-close"
+              onClick={onClose}
+              disabled={isBusy}
+              aria-label="Close customer dialog"
+            >
+              <X aria-hidden="true" />
+            </button>
+          </header>
+          <div className={`customer-modal-body ${staggerFields ? 'is-first-open' : ''}`}>
+            {children}
+          </div>
+          {footer && <footer className={`customer-modal-footer ${staggerFields ? 'is-first-open' : ''}`}>{footer}</footer>}
+        </div>
+      </div>
+    );
+  }
+
   if (variant === 'payment') {
     return (
       <div
@@ -164,7 +314,7 @@ export default function Modal({
           <div className="payment-modal-drag-handle" aria-hidden="true" />
           <header className="payment-modal-header">
             <span className="payment-modal-icon-badge" aria-hidden="true">
-              <WalletCards />
+              {headerBadgeContent || <WalletCards />}
             </span>
             <div className="payment-modal-heading">
               <h2 id={titleId}>{title}</h2>
@@ -186,6 +336,110 @@ export default function Modal({
           <div className={`payment-modal-content ${staggerFields ? 'is-first-open' : ''}`}>
             {children}
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === 'assign') {
+    return (
+      <div
+        ref={overlayRef}
+        className={`assign-modal-overlay ${isClosing ? 'is-closing' : ''}`}
+        onClick={(event) => {
+          if (!isBusy && event.target === overlayRef.current) onClose();
+        }}
+        role="presentation"
+      >
+        <div
+          ref={cardRef}
+          className={`assign-modal-card ${isClosing ? 'is-closing' : ''}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={subtitleId}
+          aria-busy={isBusy}
+          onKeyDown={handlePaymentKeyDown}
+        >
+          <div className="assign-modal-drag-handle" aria-hidden="true" />
+          <header className="assign-modal-header">
+            <span className="assign-modal-icon-badge" aria-hidden="true">
+              <UserCheck />
+            </span>
+            <div className="assign-modal-heading">
+              <h2 id={titleId}>{title}</h2>
+              <p id={subtitleId}>{subtitle}</p>
+            </div>
+            <button
+              type="button"
+              className="assign-modal-close"
+              onClick={onClose}
+              disabled={isBusy}
+              aria-label={`Close ${title.toLowerCase()} dialog`}
+            >
+              <X aria-hidden="true" />
+            </button>
+          </header>
+          <div className={`assign-modal-body ${staggerFields ? 'is-first-open' : ''}`}>
+            {children}
+          </div>
+          {footer && (
+            <footer className={`assign-modal-footer ${staggerFields ? 'is-first-open' : ''}`}>
+              {footer}
+            </footer>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === 'reschedule') {
+    return (
+      <div
+        ref={overlayRef}
+        className={`reschedule-modal-overlay ${isClosing ? 'is-closing' : ''}`}
+        onClick={(event) => {
+          if (!isBusy && event.target === overlayRef.current) onClose();
+        }}
+        role="presentation"
+      >
+        <div
+          ref={cardRef}
+          className={`reschedule-modal-card ${isClosing ? 'is-closing' : ''}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={subtitleId}
+          aria-busy={isBusy}
+          onKeyDown={handlePaymentKeyDown}
+        >
+          <div className="reschedule-modal-drag-handle" aria-hidden="true" />
+          <header className="reschedule-modal-header">
+            <span className="reschedule-modal-icon-badge" aria-hidden="true">
+              <CalendarClock />
+            </span>
+            <div className="reschedule-modal-heading">
+              <h2 id={titleId}>{title}</h2>
+              <p id={subtitleId}>{subtitle}</p>
+            </div>
+            <button
+              type="button"
+              className="reschedule-modal-close"
+              onClick={onClose}
+              disabled={isBusy}
+              aria-label={`Close ${title.toLowerCase()} dialog`}
+            >
+              <X aria-hidden="true" />
+            </button>
+          </header>
+          <div className={`reschedule-modal-body ${staggerFields ? 'is-first-open' : ''}`}>
+            {children}
+          </div>
+          {footer && (
+            <footer className={`reschedule-modal-footer ${staggerFields ? 'is-first-open' : ''}`}>
+              {footer}
+            </footer>
+          )}
         </div>
       </div>
     );
@@ -244,14 +498,209 @@ export default function Modal({
     );
   }
 
+  if (variant === 'supplier') {
+    return (
+      <div
+        ref={overlayRef}
+        className={`supplier-modal-overlay ${isClosing ? 'is-closing' : ''}`}
+        onClick={(event) => {
+          if (!isBusy && event.target === overlayRef.current) onClose();
+        }}
+        role="presentation"
+      >
+        <div
+          ref={cardRef}
+          className={`supplier-modal-card ${isClosing ? 'is-closing' : ''}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={subtitleId}
+          aria-busy={isBusy}
+          onKeyDown={handlePaymentKeyDown}
+        >
+          <span className="supplier-modal-drag-handle" aria-hidden="true" />
+          <header className="supplier-modal-header">
+            <span className="supplier-modal-icon-badge" aria-hidden="true">
+              {headerBadgeContent}
+            </span>
+            <div className="supplier-modal-heading">
+              <h2 id={titleId}>{title}</h2>
+              <p id={subtitleId}>{subtitle}</p>
+            </div>
+            <button
+              type="button"
+              className="supplier-modal-close"
+              onClick={onClose}
+              disabled={isBusy}
+              aria-label={`Close ${title.toLowerCase()} dialog`}
+            >
+              <X aria-hidden="true" />
+            </button>
+          </header>
+          <div
+            className={`supplier-modal-body ${staggerFields ? 'is-first-open' : ''}`}
+            onScroll={(event) => {
+              const element = event.currentTarget;
+              const card = element.closest('.supplier-modal-card');
+              card?.classList.toggle('has-top-scroll', element.scrollTop > 0);
+              card?.classList.toggle(
+                'has-bottom-scroll',
+                element.scrollHeight - element.clientHeight - element.scrollTop > 1
+              );
+            }}
+          >
+            {children}
+          </div>
+          {footer && (
+            <footer className={`supplier-modal-footer ${staggerFields ? 'is-first-open' : ''}`}>
+              {footer}
+            </footer>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === 'catalog-item') {
+    return (
+      <div
+        ref={overlayRef}
+        className={`catalog-item-modal-overlay ${isClosing ? 'is-closing' : ''}`}
+        onClick={(event) => {
+          if (!isBusy && event.target === overlayRef.current) onClose();
+        }}
+        role="presentation"
+      >
+        <div
+          ref={cardRef}
+          className={`catalog-item-modal-card ${isClosing ? 'is-closing' : ''}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={subtitleId}
+          aria-busy={isBusy}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape' && event.defaultPrevented) return;
+            handlePaymentKeyDown(event);
+          }}
+        >
+          <div className="catalog-item-modal-drag-handle" aria-hidden="true" />
+          <header className="catalog-item-modal-header">
+            <span className="catalog-item-modal-icon-badge" aria-hidden="true">
+              {headerBadgeContent}
+            </span>
+            <div className="catalog-item-modal-heading">
+              <h2 id={titleId}>{title}</h2>
+              <p id={subtitleId}>{subtitle}</p>
+            </div>
+            <button
+              type="button"
+              className="catalog-item-modal-close"
+              onClick={onClose}
+              disabled={isBusy}
+              aria-label={`Close ${title.toLowerCase()} dialog`}
+            >
+              <X aria-hidden="true" />
+            </button>
+          </header>
+          <div
+            className={`catalog-item-modal-body ${staggerFields ? 'is-first-open' : ''}`}
+            onScroll={(event) => {
+              const element = event.currentTarget;
+              const card = element.closest('.catalog-item-modal-card');
+              card?.classList.toggle('has-top-scroll', element.scrollTop > 0);
+              card?.classList.toggle(
+                'has-bottom-scroll',
+                element.scrollHeight - element.clientHeight - element.scrollTop > 1
+              );
+            }}
+          >
+            {children}
+          </div>
+          {footer && (
+            <footer className={`catalog-item-modal-footer ${staggerFields ? 'is-first-open' : ''}`}>
+              {footer}
+            </footer>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === 'user') {
+    return (
+      <div
+        ref={overlayRef}
+        className={`user-form-modal-overlay ${isClosing ? 'is-closing' : ''}`}
+        onClick={(event) => {
+          if (!isBusy && event.target === overlayRef.current) onClose();
+        }}
+        role="presentation"
+      >
+        <div
+          ref={cardRef}
+          className={`user-form-modal-card ${isClosing ? 'is-closing' : ''}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={subtitleId}
+          aria-busy={isBusy}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape' && event.defaultPrevented) return;
+            handlePaymentKeyDown(event);
+          }}
+        >
+          <span className="user-form-modal-drag-handle" aria-hidden="true" />
+          <header className="user-form-modal-header">
+            <span className="user-form-modal-icon-badge" aria-hidden="true">
+              {headerBadgeContent || <UserPlus />}
+            </span>
+            <div className="user-form-modal-heading">
+              <h2 id={titleId}>{title}</h2>
+              <p id={subtitleId}>{subtitle}</p>
+            </div>
+            <button
+              type="button"
+              className="user-form-modal-close"
+              onClick={onClose}
+              disabled={isBusy}
+              aria-label={`Close ${title.toLowerCase()} dialog`}
+            >
+              <X aria-hidden="true" />
+            </button>
+          </header>
+          <div
+            className={`user-form-modal-body ${staggerFields ? 'is-first-open' : ''}`}
+            onScroll={(event) => {
+              const element = event.currentTarget;
+              const card = element.closest('.user-form-modal-card');
+              card?.classList.toggle('has-top-scroll', element.scrollTop > 0);
+              card?.classList.toggle(
+                'has-bottom-scroll',
+                element.scrollHeight - element.clientHeight - element.scrollTop > 1
+              );
+            }}
+          >
+            {children}
+          </div>
+          {footer && (
+            <footer className={`user-form-modal-footer ${staggerFields ? 'is-first-open' : ''}`}>
+              {footer}
+            </footer>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
-      onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
+      className="default-modal-overlay fixed inset-0 flex items-center justify-center p-4 animate-fade-in"
+      onClick={(e) => { if (!isBusy && e.target === overlayRef.current) onClose(); }}
     >
       <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" />
-      <div className={`relative w-full ${maxWidth} bg-white rounded-2xl shadow-2xl animate-modal-in`}>
+      <div className={`default-modal-card relative w-full ${maxWidth} bg-white rounded-2xl shadow-2xl animate-modal-in`}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h2 className="text-lg font-semibold text-slate-800">{title}</h2>
@@ -269,6 +718,13 @@ export default function Modal({
       </div>
     </div>
   );
+}
+
+export default function Modal(props: ModalProps) {
+  if (typeof document === 'undefined') {
+    return <ModalContent {...props} />;
+  }
+  return createPortal(<ModalContent {...props} />, document.body);
 }
 
 // ── Confirm variant ─────────────────────────────────────

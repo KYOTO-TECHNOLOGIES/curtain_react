@@ -18,6 +18,7 @@ export interface AppointmentTableProps {
   onSelectAppointment: (appointment: AppointmentListItem) => void;
   onAssign: (appointment: AppointmentListItem) => void;
   onQuote: (appointment: AppointmentListItem) => void;
+  onReschedule: (appointment: AppointmentListItem) => void;
   onClearFilters?: () => void;
   onCopyPhone?: (phone: string) => void;
   totalCount?: number;
@@ -43,6 +44,7 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
   onSelectAppointment,
   onAssign,
   onQuote,
+  onReschedule,
   onClearFilters,
   onCopyPhone,
   totalCount,
@@ -103,6 +105,7 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
     scheduled: stats?.by_status?.scheduled ?? 0,
     in_progress: stats?.by_status?.in_progress ?? 0,
     completed: stats?.by_status?.completed ?? 0,
+    quoted: stats?.by_status?.quoted ?? 0,
     cancelled: stats?.by_status?.cancelled ?? 0,
   };
 
@@ -112,7 +115,7 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
       key: 'id',
       label: 'ID',
       sortable: true,
-      width: '95px',
+      size: 'fit',
       className: 'apt-col-id',
       render: (a) => (
         <span className="apt-id-chip" title={`Appointment #${a.id}`}>
@@ -124,6 +127,7 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
       key: 'customer',
       label: 'Customer Name',
       sortable: true,
+      size: 'flex',
       className: 'apt-col-customer',
       render: (a) => (
         <CustomerCell
@@ -137,7 +141,7 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
       key: 'booking',
       label: 'Booking Date & Time',
       sortable: true,
-      width: '155px',
+      size: 'fit',
       className: 'apt-col-booking',
       render: (a) => (
         <BookingCell
@@ -150,7 +154,7 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
       key: 'assignee',
       label: 'Assignee',
       sortable: false,
-      width: '165px',
+      size: 'cap',
       className: 'apt-col-assignee',
       render: (a) => <AssigneeCell assigneeName={a.assigned_to_name} />,
     },
@@ -158,7 +162,7 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
       key: 'status',
       label: 'Status',
       sortable: false,
-      width: '150px',
+      size: 'fit',
       className: 'apt-col-status',
       headerAddonOnly: true,
       headerAddon: (
@@ -170,21 +174,29 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
           counts={statusCounts}
         />
       ),
-      render: (a) => <StatusBadge status={a.status} />,
+      render: (a) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <StatusBadge status={a.status} />
+          {a.has_quotation && a.status !== 'quoted' && (
+            <StatusBadge status="quoted" />
+          )}
+        </div>
+      ),
     },
     {
       key: 'actions',
       label: 'Actions',
-      align: 'right',
       sortable: false,
-      width: '195px',
+      size: 'fit',
       className: 'apt-col-actions',
       render: (a) => (
         <RowActions
           appointmentId={a.id}
           isAssigned={Boolean(a.assigned_to_name || a.assigned_to)}
+          hasQuotation={Boolean(a.has_quotation)}
           onAssign={() => onAssign(a)}
           onQuote={() => onQuote(a)}
+          onReschedule={() => onReschedule(a)}
         />
       ),
     },
@@ -193,10 +205,10 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
   // Skeleton rows matching real layout
   const renderSkeletonRow = (idx: number) => (
     <tr key={`apt-skeleton-${idx}`} className="apt-table-row">
-      <td className="apt-col-id">
+      <td className="apt-col-id dt-col-fit">
         <div className="apt-skeleton-block" style={{ width: '64px', height: '26px', borderRadius: '8px' }} />
       </td>
-      <td className="apt-col-customer">
+      <td className="apt-col-customer dt-col-flex">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div className="apt-skeleton-block" style={{ width: '36px', height: '36px', borderRadius: '12px', flexShrink: 0 }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -205,22 +217,22 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
           </div>
         </div>
       </td>
-      <td className="apt-col-booking">
+      <td className="apt-col-booking dt-col-fit">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <div className="apt-skeleton-block" style={{ width: '95px', height: '14px' }} />
           <div className="apt-skeleton-block" style={{ width: '60px', height: '11px' }} />
         </div>
       </td>
-      <td className="apt-col-assignee">
+      <td className="apt-col-assignee dt-col-cap">
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div className="apt-skeleton-block" style={{ width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0 }} />
           <div className="apt-skeleton-block" style={{ width: '80px', height: '14px' }} />
         </div>
       </td>
-      <td className="apt-col-status">
+      <td className="apt-col-status dt-col-fit">
         <div className="apt-skeleton-block" style={{ width: '84px', height: '24px', borderRadius: '999px' }} />
       </td>
-      <td className="apt-col-actions text-right">
+      <td className="apt-col-actions dt-col-fit dt-col-actions text-right">
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
           <div className="apt-skeleton-block" style={{ width: '74px', height: '34px', borderRadius: '10px' }} />
           <div className="apt-skeleton-block" style={{ width: '70px', height: '34px', borderRadius: '10px' }} />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Plus,
   Trash2,
@@ -11,6 +11,11 @@ import {
   Grid3X3,
   FileText,
   CheckCircle2,
+  Tags,
+  Search,
+  SearchX,
+  X,
+  Tag,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -25,8 +30,35 @@ import {
 import { useToast } from '../../components/ui/Toast';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import { FormInput } from '../../components/ui/FormInput';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { SelectMenu } from '../../components/ui/SelectMenu';
+import './CatalogPage.css';
 
 type TabType = 'work-types' | 'fabric-types' | 'models' | 'items' | 'motors' | 'charges';
+const catalogTabs: TabType[] = ['work-types', 'fabric-types', 'models', 'items', 'motors', 'charges'];
+const nameColors = ['#2F5D8F', '#10B981', '#F97316', '#8B5CF6', '#F59E0B', '#14B8A6', '#6366F1', '#EC4899'];
+
+const stableNameColor = (value: string) => {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) | 0;
+  }
+  return nameColors[Math.abs(hash) % nameColors.length];
+};
+
+const formatMoney = (value: unknown) => {
+  const raw = String(value ?? '');
+  const numericValue = Number(raw);
+  if (!Number.isFinite(numericValue)) return raw || '—';
+  const decimals = raw.includes('.') ? raw.split('.')[1].length : 0;
+  return new Intl.NumberFormat('en-AE', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(numericValue);
+};
+
+const formatColumnLabel = (column: string) =>
+  column.split('_').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 
 export default function CatalogPage() {
   const { showToast } = useToast();
@@ -38,6 +70,16 @@ export default function CatalogPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [formData, setFormData] = useState<any>({});
+  const initialValuesRef = useRef<Record<string, unknown> | null>(null);
+  const [previewAnnouncement, setPreviewAnnouncement] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const tabListRef = useRef<HTMLDivElement>(null);
+  const tabButtonRefs = useRef<Partial<Record<TabType, HTMLButtonElement>>>({});
+  const [tabThumb, setTabThumb] = useState({ left: 0, width: 0 });
+  const [tabDirection, setTabDirection] = useState(1);
+  const [tabEdges, setTabEdges] = useState({ left: false, right: false });
+  const [announcedCount, setAnnouncedCount] = useState('');
+  const [focusedTab, setFocusedTab] = useState<TabType>('items');
 
   // Debounce search
   useEffect(() => {
@@ -48,17 +90,17 @@ export default function CatalogPage() {
   }, [searchQuery]);
 
   // Fetch all data
-  const { data: workTypesRes, refetch: refetchWorkTypes } = useQuery({
+  const { data: workTypesRes, refetch: refetchWorkTypes, isLoading: workTypesLoading } = useQuery({
     queryKey: ['work-types', debouncedSearch],
     queryFn: () => catalogApi.workTypes(),
   });
 
-  const { data: fabricTypesRes, refetch: refetchFabricTypes } = useQuery({
+  const { data: fabricTypesRes, refetch: refetchFabricTypes, isLoading: fabricTypesLoading } = useQuery({
     queryKey: ['fabric-types', debouncedSearch],
     queryFn: () => catalogApi.fabricTypes(),
   });
 
-  const { data: modelsRes, refetch: refetchModels } = useQuery({
+  const { data: modelsRes, refetch: refetchModels, isLoading: modelsLoading } = useQuery({
     queryKey: ['models', debouncedSearch],
     queryFn: () => catalogApi.models(),
   });
@@ -68,12 +110,12 @@ export default function CatalogPage() {
     queryFn: () => catalogApi.items(),
   });
 
-  const { data: motorsRes, refetch: refetchMotors } = useQuery({
+  const { data: motorsRes, refetch: refetchMotors, isLoading: motorsLoading } = useQuery({
     queryKey: ['motors', debouncedSearch],
     queryFn: () => catalogApi.motors(),
   });
 
-  const { data: chargesRes, refetch: refetchCharges } = useQuery({
+  const { data: chargesRes, refetch: refetchCharges, isLoading: chargesLoading } = useQuery({
     queryKey: ['charges', debouncedSearch],
     queryFn: () => catalogApi.charges(),
   });
@@ -92,6 +134,167 @@ export default function CatalogPage() {
   const items = toArray<CatalogItem>(itemsRes);
   const motors = toArray<MotorType>(motorsRes);
   const charges = toArray<ChargeTemplate>(chargesRes);
+  const tabData: Record<TabType, any[]> = {
+    'work-types': workTypes,
+    'fabric-types': fabricTypes,
+    models,
+    items,
+    motors,
+    charges,
+  };
+  const tabColumns: Record<TabType, string[]> = {
+    'work-types': ['id', 'name', 'pricing_unit'],
+    'fabric-types': ['id', 'work_type_name', 'name'],
+    models: ['id', 'fabric_type_name', 'name'],
+    items: ['id', 'model_name', 'name', 'price_per_unit'],
+    motors: ['id', 'name', 'price_per_m2'],
+    charges: ['id', 'name', 'price', 'unit'],
+  };
+  const tabLoading: Record<TabType, boolean> = {
+    'work-types': workTypesLoading,
+    'fabric-types': fabricTypesLoading,
+    models: modelsLoading,
+    items: itemsLoading,
+    motors: motorsLoading,
+    charges: chargesLoading,
+  };
+  const tabCounts: Partial<Record<TabType, number>> = {
+    'work-types': workTypesRes == null ? undefined : workTypes.length,
+    'fabric-types': fabricTypesRes == null ? undefined : fabricTypes.length,
+    models: modelsRes == null ? undefined : models.length,
+    items: itemsRes == null ? undefined : items.length,
+    motors: motorsRes == null ? undefined : motors.length,
+    charges: chargesRes == null ? undefined : charges.length,
+  };
+  const dataArray = tabData[activeTab];
+  const columns = tabColumns[activeTab];
+  const primaryColumn = activeTab === 'items' ? 'model_name' : 'name';
+  const modelOptions = useMemo(() => models.map((model) => ({
+    value: String(model.id),
+    label: model.name,
+    suffix: `#${model.id}`,
+    icon: <Grid3X3 aria-hidden="true" />,
+  })), [models]);
+  const workTypeOptions = useMemo(() => workTypes.map((workType) => ({
+    value: String(workType.id),
+    label: workType.name,
+    suffix: `#${workType.id}`,
+    icon: <Layers aria-hidden="true" />,
+  })), [workTypes]);
+  const fabricTypeOptions = useMemo(() => fabricTypes.map((fabricType) => ({
+    value: String(fabricType.id),
+    label: fabricType.name,
+    suffix: `#${fabricType.id}`,
+    icon: <Package aria-hidden="true" />,
+  })), [fabricTypes]);
+  const unitOptions = useMemo(() => [
+    { value: 'flat', label: 'Flat', icon: <DollarSign aria-hidden="true" /> },
+    { value: 'per_m2', label: 'Per m2', icon: <FileText aria-hidden="true" /> },
+  ], []);
+  const previewModel = models.find((model) => String(model.id) === String(formData.model ?? ''));
+  const previewName = String(formData.name ?? '');
+  const previewPrice = String(formData.price_per_unit ?? '');
+  const previewPriceText = previewPrice ? formatMoney(previewPrice) : '0.00';
+  const previewSummary = `${previewModel?.name || 'Model'}, ${previewName || 'Name'}, AED ${previewPriceText}`;
+  const visibleCountLabel = searchQuery.trim()
+    ? `Showing ${dataArray.length} of ${dataArray.length}`
+    : `${dataArray.length} ${dataArray.length === 1 ? 'item' : 'items'}`;
+
+  useEffect(() => {
+    const timer = setTimeout(() => setAnnouncedCount(visibleCountLabel), 400);
+    return () => clearTimeout(timer);
+  }, [visibleCountLabel]);
+
+  useEffect(() => {
+    if (!formOpen || activeTab !== 'items') return;
+    const timer = setTimeout(() => setPreviewAnnouncement(previewSummary), 400);
+    return () => clearTimeout(timer);
+  }, [formOpen, activeTab, previewSummary]);
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (
+        event.key === '/' &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !target?.matches('input, textarea, select, [contenteditable="true"]')
+      ) {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handleShortcut);
+    return () => document.removeEventListener('keydown', handleShortcut);
+  }, []);
+
+  useEffect(() => {
+    const updateThumb = () => {
+      const tabElement = tabButtonRefs.current[activeTab];
+      const tabList = tabListRef.current;
+      if (!tabElement || !tabList) return;
+      setTabThumb({ left: tabElement.offsetLeft, width: tabElement.offsetWidth });
+      setTabEdges({
+        left: tabList.scrollLeft > 0,
+        right: tabList.scrollLeft + tabList.clientWidth < tabList.scrollWidth - 1,
+      });
+      tabElement.scrollIntoView({
+        block: 'nearest',
+        inline: 'nearest',
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      });
+    };
+    updateThumb();
+    const observer = new ResizeObserver(updateThumb);
+    if (tabListRef.current) observer.observe(tabListRef.current);
+    Object.values(tabButtonRefs.current).forEach((element) => {
+      if (element) observer.observe(element);
+    });
+    return () => observer.disconnect();
+  }, [activeTab]);
+
+  const handleTabScroll = () => {
+    const tabList = tabListRef.current;
+    if (!tabList) return;
+    setTabEdges({
+      left: tabList.scrollLeft > 0,
+      right: tabList.scrollLeft + tabList.clientWidth < tabList.scrollWidth - 1,
+    });
+  };
+
+  const activateTab = (tab: TabType) => {
+    setTabDirection(catalogTabs.indexOf(tab) >= catalogTabs.indexOf(activeTab) ? 1 : -1);
+    setFocusedTab(tab);
+    setActiveTab(tab);
+  };
+
+  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, tab: TabType) => {
+    const currentIndex = catalogTabs.indexOf(tab);
+    let nextIndex = currentIndex;
+    if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % catalogTabs.length;
+    else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + catalogTabs.length) % catalogTabs.length;
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = catalogTabs.length - 1;
+    else return;
+    event.preventDefault();
+    const nextTab = catalogTabs[nextIndex];
+    setFocusedTab(nextTab);
+    tabButtonRefs.current[nextTab]?.focus();
+    tabButtonRefs.current[nextTab]?.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    });
+  };
+
+  const isFieldEdited = (field: string, value: unknown) => {
+    if (!editingItem || !initialValuesRef.current) return false;
+    const initialValue = initialValuesRef.current[field];
+    return field === 'model'
+      ? String(value ?? '') !== String(initialValue ?? '')
+      : value !== initialValue;
+  };
 
   const openCreate = () => {
     if (activeTab === 'items' && models.length === 0) {
@@ -107,12 +310,18 @@ export default function CatalogPage() {
       return;
     }
     setEditingItem(null);
+    initialValuesRef.current = null;
     setFormData({});
     setFormOpen(true);
   };
 
   const openEdit = (item: any) => {
     setEditingItem(item);
+    initialValuesRef.current = {
+      model: item.model,
+      name: item.name,
+      price_per_unit: item.price_per_unit,
+    };
     setFormData({ ...item });
     setFormOpen(true);
   };
@@ -271,172 +480,428 @@ export default function CatalogPage() {
   };
 
   const renderContent = () => {
-    let dataArray: any[] = [];
-    let columns: string[] = [];
-
-    if (activeTab === 'work-types') {
-      dataArray = workTypes;
-      columns = ['id', 'name', 'pricing_unit'];
-    } else if (activeTab === 'fabric-types') {
-      dataArray = fabricTypes;
-      columns = ['id', 'work_type_name', 'name'];
-    } else if (activeTab === 'models') {
-      dataArray = models;
-      columns = ['id', 'fabric_type_name', 'name'];
-    } else if (activeTab === 'items') {
-      dataArray = items;
-      columns = ['id', 'model_name', 'name', 'price_per_unit'];
-    } else if (activeTab === 'motors') {
-      dataArray = motors;
-      columns = ['id', 'name', 'price_per_m2'];
-    } else if (activeTab === 'charges') {
-      dataArray = charges;
-      columns = ['id', 'name', 'price', 'unit'];
-    }
-
     return (
-      <div className="bg-white rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] overflow-hidden border border-slate-100">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[800px]">
-            <thead>
-              <tr className="border-b border-slate-100 bg-white">
-                {columns.map((col) => (
-                  <th
-                    key={col}
-                    className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider"
-                  >
-                    {col.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                  </th>
-                ))}
-                <th className="px-6 py-5 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {dataArray.length === 0 ? (
+      <div className={`catalog__table-transition catalog__table-transition--${tabDirection}`} key={activeTab}>
+        {tabLoading[activeTab] ? (
+          <div
+            className="catalog__scroll"
+            onScroll={(event) => {
+              event.currentTarget.dataset.scrolled = String(event.currentTarget.scrollLeft > 0);
+            }}
+          >
+            <table className="catalog__table" aria-label={`${getTabLabel(activeTab)} loading`}>
+              <thead>
                 <tr>
-                  <td colSpan={columns.length + 1} className="px-6 py-16 text-center text-slate-500 font-medium">
-                    No {getTabLabel(activeTab).toLowerCase()} found.
-                  </td>
+                  {columns.map((column) => <th key={column} scope="col">{formatColumnLabel(column)}</th>)}
+                  <th scope="col" className="catalog__actions-heading">Actions</th>
                 </tr>
-              ) : (
-                dataArray.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                    {columns.map((col) => (
-                      <td key={col} className="px-6 py-5 align-middle">
-                        <span className="text-sm font-medium text-slate-700">
-                          {item[col] || '—'}
-                        </span>
+              </thead>
+              <tbody>
+                {Array.from({ length: 5 }, (_, index) => (
+                  <tr className="catalog__skeleton-row" key={`skeleton-${activeTab}-${index}`} aria-hidden="true">
+                    {columns.map((column) => (
+                      <td key={column} className={column === primaryColumn ? 'catalog__cell--primary' : ''}>
+                        <span className="catalog__skeleton-block" />
                       </td>
                     ))}
-                    <td className="px-6 py-5 align-middle text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEdit(item)}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold text-[12px] rounded-lg transition-colors"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteTarget(item)}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 hover:bg-red-100 font-bold text-[12px] rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
+                    <td><span className="catalog__skeleton-actions"><i /><i /></span></td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <>
+            {dataArray.length === 0 ? (
+              <div className="catalog__empty" role="status">
+                <span className="catalog__empty-icon" aria-hidden="true">
+                  {searchQuery.trim() ? <SearchX /> : getTabIcon(activeTab)}
+                </span>
+                <strong>{searchQuery.trim() ? 'No results found' : `No ${getTabLabel(activeTab).toLowerCase()} yet`}</strong>
+                <span>{searchQuery.trim() ? 'Try a different search' : `Add your first ${getTabLabel(activeTab).toLowerCase()} to get started`}</span>
+                {searchQuery.trim() ? (
+                  <button type="button" onClick={() => setSearchQuery('')}>Clear search</button>
+                ) : (
+                  <button type="button" onClick={openCreate}>Add {getTabLabel(activeTab)}</button>
+                )}
+              </div>
+            ) : (
+              <div className="catalog__scroll">
+                <table className="catalog__table" aria-label={getTabLabel(activeTab)}>
+                  <thead>
+                    <tr>
+                      {columns.map((column) => (
+                        <th
+                          key={column}
+                          scope="col"
+                          className={[
+                            /price|rate|amount|charge|cost/i.test(column) ? 'catalog__heading--money' : '',
+                            column === primaryColumn ? 'catalog__heading--primary' : '',
+                          ].filter(Boolean).join(' ')}
+                        >
+                          {formatColumnLabel(column)}
+                        </th>
+                      ))}
+                      <th scope="col" className="catalog__actions-heading">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dataArray.map((item, rowIndex) => (
+                      <tr
+                        key={`${activeTab}-${item.id}`}
+                        className="catalog__row"
+                        style={{ '--row-index': Math.min(rowIndex, 11) } as React.CSSProperties}
+                      >
+                        {columns.map((column) => {
+                          const value = item[column];
+                          const text = value == null || value === '' ? '—' : String(value);
+                          const isMoney = /price|rate|amount|charge|cost/i.test(column);
+                          const isPrimary = column === primaryColumn;
+                          const isCategory = column === 'name' && activeTab === 'items';
+                          const isRelation = column === 'work_type_name' || column === 'fabric_type_name';
+                          const cellClasses = [
+                            column === 'id' ? 'catalog__cell--id' : '',
+                            isPrimary ? 'catalog__cell--primary' : '',
+                            isMoney ? 'catalog__cell--money' : '',
+                            column === 'unit' || column === 'pricing_unit' ? 'catalog__cell--unit' : '',
+                          ].filter(Boolean).join(' ');
+                          return (
+                            <td key={column} className={cellClasses} data-label={column.replaceAll('_', ' ')}>
+                              <span className="catalog__cell-label">{column.replaceAll('_', ' ')}</span>
+                              {column === 'id' ? (
+                                <span className="catalog__id-chip">{text}</span>
+                              ) : isPrimary ? (
+                                <span className="catalog__primary-cell" title={text}>
+                                  <span className="catalog__row-icon" aria-hidden="true">{getTabIcon(activeTab)}</span>
+                                  <span className="catalog__truncate">{text}</span>
+                                </span>
+                              ) : isMoney ? (
+                                <span className="catalog__money"><span className="catalog__currency">AED</span><strong>{formatMoney(value)}</strong></span>
+                              ) : isCategory || isRelation ? (
+                                <span
+                                  className="catalog__value-pill"
+                                  style={{
+                                    color: stableNameColor(text),
+                                    backgroundColor: `${stableNameColor(text)}14`,
+                                    borderColor: `${stableNameColor(text)}33`,
+                                  }}
+                                  title={text}
+                                >
+                                  {text}
+                                </span>
+                              ) : typeof value === 'boolean' ? (
+                                <StatusBadge
+                                  status={value ? 'active' : 'inactive'}
+                                  label={value ? 'Active' : 'Inactive'}
+                                  className={value ? 'catalog__status--active' : 'catalog__status--inactive'}
+                                />
+                              ) : column === 'unit' || column === 'pricing_unit' ? (
+                                <span className="catalog__unit-value">{text}</span>
+                              ) : (
+                                <span className="catalog__plain-value catalog__truncate" title={text}>{text}</span>
+                              )}
+                            </td>
+                          );
+                        })}
+                        <td className="catalog__actions-cell" data-label="Actions" onClick={(event) => event.stopPropagation()}>
+                          <span className="catalog__cell-label">Actions</span>
+                          <div className="catalog__actions">
+                            <button
+                              type="button"
+                              onClick={() => openEdit(item)}
+                              className="catalog__action catalog__action--edit"
+                              title="Edit"
+                              aria-label={`Edit ${item.name ?? getTabLabel(activeTab)}`}
+                            >
+                              <Edit2 aria-hidden="true" /><span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteTarget(item)}
+                              className="catalog__action catalog__action--delete"
+                              title="Delete"
+                              aria-label={`Delete ${item.name ?? getTabLabel(activeTab)}`}
+                            >
+                              <Trash2 aria-hidden="true" /><span>Delete</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+        <footer className="catalog__footer">
+          <span>
+            Showing <strong>{dataArray.length ? '1' : '0'}{dataArray.length > 1 ? `-${dataArray.length}` : ''}</strong> of <strong>{dataArray.length}</strong>
+          </span>
+        </footer>
       </div>
     );
   };
 
   return (
-    <div className="space-y-6 animate-page-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Catalog & Pricing</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Manage catalog items, work types, and pricing</p>
+    <div className="catalog-page">
+      <header className="catalog__header">
+        <div className="catalog__heading">
+          <span className="catalog__heading-icon" aria-hidden="true"><Tags /></span>
+          <div>
+            <h1>Catalog &amp; Pricing</h1>
+            <p>Manage catalog items, work types, and pricing</p>
+          </div>
         </div>
         <button
+          type="button"
           onClick={openCreate}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2b5c8f] text-white text-sm font-medium rounded-xl hover:bg-[#1f456e] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+          className="catalog__add-button"
         >
-          <Plus className="w-4 h-4" /> Add {getTabLabel(activeTab)}
+          <Plus aria-hidden="true" /> <span>Add {getTabLabel(activeTab)}</span>
         </button>
-      </div>
+      </header>
 
-      {/* Tabs */}
-      <div className="bg-white rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100">
-        <div className="flex overflow-x-auto border-b border-slate-100">
-          {(['work-types', 'fabric-types', 'models', 'items', 'motors', 'charges'] as TabType[]).map(
-            (tab) => (
+      <div className={`catalog__tab-frame${tabEdges.left ? ' catalog__tab-frame--left' : ''}${tabEdges.right ? ' catalog__tab-frame--right' : ''}`}>
+        <div
+          className="catalog__tablist"
+          ref={tabListRef}
+          role="tablist"
+          aria-label="Catalog categories"
+          onScroll={handleTabScroll}
+        >
+          <span
+            className="catalog__tab-thumb"
+            aria-hidden="true"
+            style={{ width: tabThumb.width, transform: `translateX(${tabThumb.left}px)` }}
+          />
+          {catalogTabs.map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${
-                  activeTab === tab
-                    ? 'border-[#2b5c8f] text-[#2b5c8f]'
-                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}
+                ref={(element) => {
+                  if (element) tabButtonRefs.current[tab] = element;
+                }}
+                id={`catalog-tab-${tab}`}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab}
+                aria-controls="catalog-tabpanel"
+                tabIndex={focusedTab === tab ? 0 : -1}
+                className={`catalog__tab${activeTab === tab ? ' catalog__tab--active' : ''}`}
+                onClick={() => activateTab(tab)}
+                onFocus={() => setFocusedTab(tab)}
+                onKeyDown={(event) => handleTabKeyDown(event, tab)}
               >
-                {getTabIcon(tab)}
-                {getTabLabel(tab)}
+                <span className="catalog__tab-icon">{getTabIcon(tab)}</span>
+                <span>{getTabLabel(tab)}</span>
+                {tabCounts[tab] !== undefined && <span className="catalog__tab-count">{tabCounts[tab]}</span>}
               </button>
-            )
-          )}
-        </div>
-
-        {/* Search Bar */}
-        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/60">
-          <input
-            type="text"
-            placeholder={`Search ${getTabLabel(activeTab).toLowerCase()}...`}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm text-slate-700 placeholder-slate-400 outline-none focus:ring-2 focus:ring-[#2b5c8f]/20 focus:border-[#2b5c8f]/40 transition-all"
-          />
-        </div>
-
-        {/* Content */}
-        <div className="p-6">
-          {itemsLoading && activeTab === 'items' ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-8 h-8 animate-spin text-[#2b5c8f]" />
-            </div>
-          ) : (
-            renderContent()
-          )}
+          ))}
         </div>
       </div>
+
+      <section className="catalog__card" id="catalog-tabpanel" role="tabpanel" aria-labelledby={`catalog-tab-${activeTab}`}>
+        <div className="catalog__toolbar">
+          <div className="catalog__search-wrap">
+            <Search className="catalog__search-icon" aria-hidden="true" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder={`Search ${getTabLabel(activeTab).toLowerCase()}...`}
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="catalog__search"
+              aria-label={`Search ${getTabLabel(activeTab).toLowerCase()}`}
+            />
+            <kbd className="catalog__shortcut" aria-hidden="true">/</kbd>
+            <button
+              type="button"
+              className={`catalog__clear-search${searchQuery ? ' catalog__clear-search--visible' : ''}`}
+              onClick={() => setSearchQuery('')}
+              aria-label="Clear search"
+              tabIndex={searchQuery ? 0 : -1}
+              aria-hidden={!searchQuery}
+            >
+              <X aria-hidden="true" />
+            </button>
+          </div>
+          <div className={`catalog__result-count${searchQuery.trim() ? ' catalog__result-count--searching' : ''}`}>
+            {searchQuery.trim() && <i aria-hidden="true" />}
+            <span>{visibleCountLabel}</span>
+          </div>
+          <span className="catalog__live-count" aria-live="polite" aria-atomic="true">{announcedCount}</span>
+        </div>
+        <div className="catalog__content" key={`content-${activeTab}`}>
+          {renderContent()}
+        </div>
+      </section>
 
       <Modal
         open={formOpen}
         onClose={() => setFormOpen(false)}
         title={editingItem ? `Edit ${getTabLabel(activeTab)}` : `Create ${getTabLabel(activeTab)}`}
         maxWidth="max-w-2xl"
+        variant="catalog-item"
+        subtitle={activeTab === 'items'
+          ? `${editingItem ? 'Update' : 'Add'} the model, name and price`
+          : `${editingItem ? 'Update' : 'Add'} ${getTabLabel(activeTab).toLowerCase()} details`}
+        isBusy={saving}
+        headerBadgeContent={getTabIcon(activeTab)}
+        footer={
+          <div className="catalog-item-form-footer">
+            <button
+              type="button"
+              onClick={() => setFormOpen(false)}
+              disabled={saving}
+              className="catalog-item-cancel"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form={activeTab === 'items' ? 'catalog-item-form' : 'catalog-general-form'}
+              disabled={saving}
+              aria-busy={saving}
+              className="catalog-item-submit"
+            >
+              {saving ? <Loader2 className="catalog-item-submit-spinner" aria-hidden="true" /> : <CheckCircle2 aria-hidden="true" />}
+              <span>{saving ? 'Saving…' : editingItem ? 'Update' : 'Create'}</span>
+            </button>
+            {activeTab === 'items' && (
+              <span className="catalog-item-submit-hint"><kbd>↵</kbd> Enter to {editingItem ? 'update' : 'create'}</span>
+            )}
+          </div>
+        }
       >
+        {activeTab === 'items' ? (
+          <form
+            id="catalog-item-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleSave();
+            }}
+            className="catalog-item-form"
+          >
+            <div className="catalog-item-field catalog-item-model-field">
+              <div className="catalog-item-label-row">
+                <label id="catalog-model-label">Model<span className="catalog-item-required" aria-hidden="true">*</span></label>
+                {isFieldEdited('model', formData.model) && <span className="catalog-item-edited"><i />Edited</span>}
+              </div>
+              <SelectMenu
+                id="catalog-model-select"
+                value={String(formData.model ?? '')}
+                options={modelOptions}
+                onChange={(value) => setFormData({ ...formData, model: value })}
+                placeholder="Select model"
+                ariaLabel="Model"
+                ariaLabelledBy="catalog-model-label"
+                searchable={models.length > 6}
+                searchPlaceholder="Search models"
+                showOptionSuffix
+                showSearchClear
+                showPlaceholderOnEmpty
+                required
+                emptyMessage={models.length === 0 ? 'No models available' : 'No matching models'}
+                mobileTitle="Model"
+                className="catalog-model-select"
+                menuClassName="catalog-model-menu catalog-select-menu"
+                autoFocus
+                portalZIndex={1300}
+                maxListHeight={320}
+                preventScrollFocus
+                preserveScrollLock
+                positionBeforePaint
+                keepMountedOnClose
+                outsidePointerDown
+                stopEscapePropagation
+                selectionCloseDelayMs={120}
+                showTriggerTitle
+              />
+            </div>
+
+            <div className="catalog-item-fields-grid">
+              <div className="catalog-item-field">
+                <div className="catalog-item-label-row">
+                  <label htmlFor="catalog-item-name">Name<span className="catalog-item-required" aria-hidden="true">*</span></label>
+                  {isFieldEdited('name', formData.name) && <span className="catalog-item-edited"><i />Edited</span>}
+                </div>
+                <div className="catalog-item-control">
+                  <Tag className="catalog-item-control-icon" aria-hidden="true" />
+                  <input
+                    id="catalog-item-name"
+                    type="text"
+                    value={formData.name || ''}
+                    onChange={(event) => setFormData({ ...formData, name: event.target.value })}
+                    placeholder="e.g. Premium Shade"
+                    autoComplete="off"
+                    autoCapitalize="words"
+                    spellCheck={false}
+                    readOnly={saving}
+                  />
+                </div>
+              </div>
+
+              <div className="catalog-item-field">
+                <div className="catalog-item-label-row">
+                  <label htmlFor="catalog-item-price">Price Per Unit<span className="catalog-item-required" aria-hidden="true">*</span></label>
+                  {isFieldEdited('price_per_unit', formData.price_per_unit) && <span className="catalog-item-edited"><i />Edited</span>}
+                </div>
+                <div className="catalog-item-price-control">
+                  <span className="catalog-item-currency-prefix">AED</span>
+                  <input
+                    id="catalog-item-price"
+                    type="number"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={formData.price_per_unit || ''}
+                    onChange={(event) => setFormData({ ...formData, price_per_unit: event.target.value })}
+                    placeholder="e.g. 150.00"
+                    autoComplete="off"
+                    readOnly={saving}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="catalog-item-preview" aria-live="polite" aria-atomic="true">
+              <span className="catalog-item-preview-label">Preview</span>
+              <div className="catalog-item-preview-row" aria-hidden="true">
+                <span className="catalog-item-preview-model">
+                  <span className="catalog-item-preview-model-icon"><Grid3X3 /></span>
+                  <span className={previewModel ? '' : 'is-placeholder'} title={previewModel?.name || 'Model'}>
+                    {previewModel?.name || 'Model'}
+                  </span>
+                </span>
+                {previewName ? (
+                  <span
+                    className="catalog-item-preview-pill"
+                    style={{
+                      color: stableNameColor(previewName),
+                      backgroundColor: `${stableNameColor(previewName)}14`,
+                      borderColor: `${stableNameColor(previewName)}33`,
+                    }}
+                  >
+                    {previewName}
+                  </span>
+                ) : <span className="catalog-item-preview-placeholder">Name</span>}
+                <span className="catalog-item-preview-price">
+                  <span>AED</span>
+                  <strong className={previewPrice ? '' : 'is-placeholder'}>{previewPriceText}</strong>
+                </span>
+              </div>
+              <span className="catalog-item-preview-announcement">{previewAnnouncement}</span>
+            </div>
+          </form>
+        ) : (
         <form
+          id="catalog-general-form"
           onSubmit={(e) => {
             e.preventDefault();
             handleSave();
           }}
-          className="space-y-6"
+          className="catalog-general-form"
         >
-          <div className="bg-slate-50/50 rounded-2xl border border-slate-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3 bg-white">
-              <div className="w-8 h-8 rounded-lg bg-[#eef2ff] flex items-center justify-center text-[#2b5c8f]">
-                {getTabIcon(activeTab)}
-              </div>
-              <h3 className="text-[15px] font-bold text-[#1e293b]">{getTabLabel(activeTab)} Details</h3>
-            </div>
-            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="catalog-modal-fields-grid">
               {activeTab === 'work-types' && (
                 <>
                   <div className="sm:col-span-2">
@@ -451,17 +916,35 @@ export default function CatalogPage() {
               {activeTab === 'fabric-types' && (
                 <>
                   <div className="sm:col-span-2">
-                    <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Work Type <span className="text-red-500">*</span></label>
-                    <select
-                      value={formData.work_type || ''}
-                      onChange={(e) => setFormData({ ...formData, work_type: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 focus:border-[#2b5c8f] rounded-xl text-[14px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#2b5c8f]/10 transition-all"
-                    >
-                      <option value="">Select work type</option>
-                      {workTypes.map((wt) => (
-                        <option key={wt.id} value={wt.id}>{wt.name}</option>
-                      ))}
-                    </select>
+                    <div className="catalog-select-field">
+                      <label id="catalog-work-type-label">Work Type<span className="catalog-select-required" aria-hidden="true">*</span></label>
+                      <SelectMenu
+                        id="catalog-work-type"
+                        value={String(formData.work_type || '')}
+                        options={workTypeOptions}
+                        onChange={(value) => setFormData({ ...formData, work_type: value })}
+                        placeholder="Select work type"
+                        ariaLabel="Work Type"
+                        ariaLabelledBy="catalog-work-type-label"
+                        required
+                        searchable={workTypeOptions.length > 6}
+                        showPlaceholderOnEmpty
+                        emptyMessage={workTypeOptions.length ? 'No matching options' : 'No options available'}
+                        mobileTitle="Work Type"
+                        className="catalog-model-select"
+                        menuClassName="catalog-model-menu catalog-select-menu"
+                        portalZIndex={1300}
+                        maxListHeight={320}
+                        preventScrollFocus
+                        preserveScrollLock
+                        positionBeforePaint
+                        keepMountedOnClose
+                        outsidePointerDown
+                        stopEscapePropagation
+                        selectionCloseDelayMs={120}
+                        showTriggerTitle
+                      />
+                    </div>
                   </div>
                   <div className="sm:col-span-2">
                     <FormInput label="Name" required value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Blackout" />
@@ -472,44 +955,38 @@ export default function CatalogPage() {
               {activeTab === 'models' && (
                 <>
                   <div className="sm:col-span-2">
-                    <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Fabric Type <span className="text-red-500">*</span></label>
-                    <select
-                      value={formData.fabric_type || ''}
-                      onChange={(e) => setFormData({ ...formData, fabric_type: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 focus:border-[#2b5c8f] rounded-xl text-[14px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#2b5c8f]/10 transition-all"
-                    >
-                      <option value="">Select fabric type</option>
-                      {fabricTypes.map((ft) => (
-                        <option key={ft.id} value={ft.id}>{ft.name}</option>
-                      ))}
-                    </select>
+                    <div className="catalog-select-field">
+                      <label id="catalog-fabric-type-label">Fabric Type<span className="catalog-select-required" aria-hidden="true">*</span></label>
+                      <SelectMenu
+                        id="catalog-fabric-type"
+                        value={String(formData.fabric_type || '')}
+                        options={fabricTypeOptions}
+                        onChange={(value) => setFormData({ ...formData, fabric_type: value })}
+                        placeholder="Select fabric type"
+                        ariaLabel="Fabric Type"
+                        ariaLabelledBy="catalog-fabric-type-label"
+                        required
+                        searchable={fabricTypeOptions.length > 6}
+                        showPlaceholderOnEmpty
+                        emptyMessage={fabricTypeOptions.length ? 'No matching options' : 'No options available'}
+                        mobileTitle="Fabric Type"
+                        className="catalog-model-select"
+                        menuClassName="catalog-model-menu catalog-select-menu"
+                        portalZIndex={1300}
+                        maxListHeight={320}
+                        preventScrollFocus
+                        preserveScrollLock
+                        positionBeforePaint
+                        keepMountedOnClose
+                        outsidePointerDown
+                        stopEscapePropagation
+                        selectionCloseDelayMs={120}
+                        showTriggerTitle
+                      />
+                    </div>
                   </div>
                   <div className="sm:col-span-2">
                     <FormInput label="Name" required value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Classic" />
-                  </div>
-                </>
-              )}
-
-              {activeTab === 'items' && (
-                <>
-                  <div className="sm:col-span-2">
-                    <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Model <span className="text-red-500">*</span></label>
-                    <select
-                      value={formData.model || ''}
-                      onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 focus:border-[#2b5c8f] rounded-xl text-[14px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#2b5c8f]/10 transition-all"
-                    >
-                      <option value="">Select model</option>
-                      {models.map((m) => (
-                        <option key={m.id} value={m.id}>{m.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <FormInput label="Name" required value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Premium Shade" />
-                  </div>
-                  <div>
-                    <FormInput type="number" step="0.01" label="Price Per Unit" required value={formData.price_per_unit || ''} onChange={(e) => setFormData({ ...formData, price_per_unit: e.target.value })} placeholder="e.g. 150.00" />
                   </div>
                 </>
               )}
@@ -534,39 +1011,37 @@ export default function CatalogPage() {
                     <FormInput type="number" step="0.01" label="Price" value={formData.price || ''} onChange={(e) => setFormData({ ...formData, price: e.target.value })} placeholder="e.g. 50.00" />
                   </div>
                   <div>
-                    <label className="block text-[13px] font-bold text-slate-700 mb-1.5">Unit</label>
-                    <select
-                      value={formData.unit || 'flat'}
-                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 focus:border-[#2b5c8f] rounded-xl text-[14px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#2b5c8f]/10 transition-all"
-                    >
-                      <option value="flat">Flat</option>
-                      <option value="per_m2">Per m2</option>
-                    </select>
+                    <div className="catalog-select-field">
+                      <label id="catalog-charge-unit-label">Unit</label>
+                      <SelectMenu
+                        id="catalog-charge-unit"
+                        value={String(formData.unit || 'flat')}
+                        options={unitOptions}
+                        onChange={(value) => setFormData({ ...formData, unit: value })}
+                        placeholder="Unit"
+                        ariaLabel="Unit"
+                        ariaLabelledBy="catalog-charge-unit-label"
+                        mobileTitle="Unit"
+                        className="catalog-model-select"
+                        menuClassName="catalog-model-menu catalog-select-menu"
+                        portalZIndex={1300}
+                        maxListHeight={320}
+                        preventScrollFocus
+                        preserveScrollLock
+                        positionBeforePaint
+                        keepMountedOnClose
+                        outsidePointerDown
+                        stopEscapePropagation
+                        selectionCloseDelayMs={120}
+                        showTriggerTitle
+                      />
+                    </div>
                   </div>
                 </>
               )}
             </div>
-          </div>
-
-          <div className="flex items-center justify-between mt-6 pt-6 border-t border-slate-200">
-            <button
-              type="button"
-              onClick={() => setFormOpen(false)}
-              className="px-6 py-3 rounded-xl border border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex items-center gap-2 px-8 py-3 bg-[#2b5c8f] text-white font-bold text-sm rounded-xl shadow-md shadow-[#2b5c8f]/20 hover:bg-[#1f456e] hover:-translate-y-0.5 transition-all disabled:opacity-70"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              {saving ? 'Saving…' : editingItem ? 'Update' : 'Create'}
-            </button>
-          </div>
         </form>
+        )}
       </Modal>
 
       {/* Delete Confirmation Modal */}

@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef, useId, useCallback } from 'react';
 import {
   Search,
   X,
-  Phone,
-  Mail,
   Info,
   Clock,
   CheckCircle2,
@@ -37,21 +35,13 @@ export const CustomerLookupModal: React.FC<CustomerLookupModalProps> = ({
   onClose,
   lookupQuery: controlledQuery,
   setLookupQuery: controlledSetQuery,
-  lookupType: controlledType,
-  setLookupType: controlledSetType,
   isLookingUp = false,
   lookupError = null,
   setLookupError,
   onSearch,
   onCreateNewCustomer,
 }) => {
-  // Mode state: 'phone' | 'email'
-  const [mode, setMode] = useState<'phone' | 'email'>(controlledType || 'phone');
-  const [slideDir, setSlideDir] = useState<'8px' | '-8px'>('8px');
-
-  // Input states per mode
   const [phoneDigits, setPhoneDigits] = useState('');
-  const [emailValue, setEmailValue] = useState('');
   const [selectedCountry, setSelectedCountry] = useState<Country>(DEFAULT_COUNTRY);
 
   // Focus and typing interaction states
@@ -65,20 +55,12 @@ export const CustomerLookupModal: React.FC<CustomerLookupModalProps> = ({
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const modalCardRef = useRef<HTMLDivElement | null>(null);
   const phoneInputRef = useRef<HTMLInputElement | null>(null);
-  const emailInputRef = useRef<HTMLInputElement | null>(null);
   const lastActiveElementRef = useRef<HTMLElement | null>(null);
 
   const titleId = useId();
   const subtitleId = useId();
   const hintId = useId();
   const inputId = useId();
-
-  // Sync mode with parent if controlled
-  useEffect(() => {
-    if (controlledType && controlledType !== mode) {
-      setMode(controlledType);
-    }
-  }, [controlledType]);
 
   // Sync initial controlledQuery on open
   useEffect(() => {
@@ -87,16 +69,11 @@ export const CustomerLookupModal: React.FC<CustomerLookupModalProps> = ({
       lastActiveElementRef.current = document.activeElement as HTMLElement | null;
 
       if (controlledQuery) {
-        if (mode === 'email') {
-          setEmailValue(controlledQuery);
-        } else {
-          const { country, digits } = parsePastedPhone(controlledQuery);
-          if (country) setSelectedCountry(country);
-          setPhoneDigits(digits);
-        }
+        const { country, digits } = parsePastedPhone(controlledQuery);
+        if (country) setSelectedCountry(country);
+        setPhoneDigits(digits);
       } else {
         setPhoneDigits('');
-        setEmailValue('');
       }
 
       setHasInteracted(false);
@@ -113,11 +90,7 @@ export const CustomerLookupModal: React.FC<CustomerLookupModalProps> = ({
 
       // Initial focus
       setTimeout(() => {
-        if (mode === 'phone') {
-          phoneInputRef.current?.focus();
-        } else {
-          emailInputRef.current?.focus();
-        }
+        phoneInputRef.current?.focus();
       }, 60);
     } else {
       document.body.style.overflow = '';
@@ -144,18 +117,13 @@ export const CustomerLookupModal: React.FC<CustomerLookupModalProps> = ({
 
   // Validation calculations
   const isPhoneValid = phoneDigits.length === selectedCountry.digits;
-  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue.trim());
-  const isValid = mode === 'phone' ? isPhoneValid : isEmailValid;
+  const isValid = isPhoneValid;
 
   // Sync formatted values with parent's controlled query
   useEffect(() => {
-    if (mode === 'phone') {
-      const fullPhone = phoneDigits ? `${selectedCountry.dialCode}${phoneDigits}` : '';
-      controlledSetQuery?.(fullPhone || phoneDigits);
-    } else {
-      controlledSetQuery?.(emailValue.trim());
-    }
-  }, [phoneDigits, emailValue, mode, selectedCountry]);
+    const fullPhone = phoneDigits ? `${selectedCountry.dialCode}${phoneDigits}` : '';
+    controlledSetQuery?.(fullPhone || phoneDigits);
+  }, [phoneDigits, selectedCountry]);
 
   // Sheen animation trigger when transitioning from disabled -> enabled
   useEffect(() => {
@@ -168,35 +136,6 @@ export const CustomerLookupModal: React.FC<CustomerLookupModalProps> = ({
       setWasEnabled(false);
     }
   }, [isValid, wasEnabled]);
-
-  // Switch mode handler
-  const handleSwitchMode = (newMode: 'phone' | 'email') => {
-    if (newMode === mode || isLookingUp) return;
-    setSlideDir(newMode === 'email' ? '8px' : '-8px');
-    setMode(newMode);
-    controlledSetType?.(newMode);
-    setIsInvalidState(false);
-    setLookupError?.(null);
-
-    setTimeout(() => {
-      if (newMode === 'phone') {
-        phoneInputRef.current?.focus();
-      } else {
-        emailInputRef.current?.focus();
-      }
-    }, 50);
-  };
-
-  // Keyboard navigation for tablist
-  const handleModeKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-      e.preventDefault();
-      handleSwitchMode('email');
-    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      handleSwitchMode('phone');
-    }
-  };
 
   // Phone input changes
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -229,15 +168,6 @@ export const CustomerLookupModal: React.FC<CustomerLookupModalProps> = ({
     }
   };
 
-  // Email input changes
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleTypingActivity();
-    setHasInteracted(true);
-    setIsInvalidState(false);
-    setLookupError?.(null);
-    setEmailValue(e.target.value);
-  };
-
   // Submit search handler
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -257,11 +187,11 @@ export const CustomerLookupModal: React.FC<CustomerLookupModalProps> = ({
     }
 
     setIsInvalidState(false);
-    const query = mode === 'phone' ? `${selectedCountry.dialCode}${phoneDigits}` : emailValue.trim().toLowerCase();
-    const fullPhone = mode === 'phone' ? `${selectedCountry.dialCode}${phoneDigits}` : undefined;
+    const query = `${selectedCountry.dialCode}${phoneDigits}`;
+    const fullPhone = query;
 
     if (onSearch) {
-      onSearch(e, { type: mode, query, fullPhone });
+      onSearch(e, { type: 'phone', query, fullPhone });
     }
   };
 
@@ -302,53 +232,11 @@ export const CustomerLookupModal: React.FC<CustomerLookupModalProps> = ({
       return null; // Handled by the dedicated result note below
     }
 
-    if (mode === 'phone') {
-      if (!hasInteracted || !phoneDigits) {
-        return (
-          <div className="cl-hint-row is-idle">
-            <Info className="cl-hint-icon" aria-hidden="true" />
-            <span>We'll look up existing customers by phone number.</span>
-          </div>
-        );
-      }
-
-      if (isInvalidState) {
-        return (
-          <div id={hintId} className="cl-hint-row is-error">
-            <AlertCircle className="cl-hint-icon" aria-hidden="true" />
-            <span>
-              Please enter a complete {selectedCountry.name} number ({selectedCountry.digits} digits).
-            </span>
-          </div>
-        );
-      }
-
-      if (isPhoneValid) {
-        return (
-          <div className="cl-hint-row is-valid">
-            <CheckCircle2 className="cl-hint-icon" aria-hidden="true" />
-            <span>Looks good. Press Enter to search.</span>
-          </div>
-        );
-      }
-
-      const remaining = selectedCountry.digits - phoneDigits.length;
-      return (
-        <div className="cl-hint-row is-incomplete">
-          <Clock className="cl-hint-icon" aria-hidden="true" />
-          <span>
-            {selectedCountry.name} numbers have {selectedCountry.digits} digits. {remaining} more to go.
-          </span>
-        </div>
-      );
-    }
-
-    // Email Mode
-    if (!hasInteracted || !emailValue) {
+    if (!hasInteracted || !phoneDigits) {
       return (
         <div className="cl-hint-row is-idle">
           <Info className="cl-hint-icon" aria-hidden="true" />
-          <span>We'll look up existing customers by email address.</span>
+          <span>We'll look up existing customers by phone number.</span>
         </div>
       );
     }
@@ -357,12 +245,14 @@ export const CustomerLookupModal: React.FC<CustomerLookupModalProps> = ({
       return (
         <div id={hintId} className="cl-hint-row is-error">
           <AlertCircle className="cl-hint-icon" aria-hidden="true" />
-          <span>Please enter a valid email address (e.g. name@company.com).</span>
+          <span>
+            Please enter a complete {selectedCountry.name} number ({selectedCountry.digits} digits).
+          </span>
         </div>
       );
     }
 
-    if (isEmailValid) {
+    if (isPhoneValid) {
       return (
         <div className="cl-hint-row is-valid">
           <CheckCircle2 className="cl-hint-icon" aria-hidden="true" />
@@ -371,10 +261,13 @@ export const CustomerLookupModal: React.FC<CustomerLookupModalProps> = ({
       );
     }
 
+    const remaining = selectedCountry.digits - phoneDigits.length;
     return (
       <div className="cl-hint-row is-incomplete">
         <Clock className="cl-hint-icon" aria-hidden="true" />
-        <span>Enter a valid email address.</span>
+        <span>
+          {selectedCountry.name} numbers have {selectedCountry.digits} digits. {remaining} more to go.
+        </span>
       </div>
     );
   };
@@ -399,7 +292,6 @@ export const CustomerLookupModal: React.FC<CustomerLookupModalProps> = ({
         aria-describedby={subtitleId}
         onKeyDown={handleModalKeyDown}
         className="cl-modal-card"
-        style={{ '--cl-slide-dir': slideDir } as React.CSSProperties}
       >
         {/* Mobile Drag Handle */}
         <div className="cl-drag-handle" aria-hidden="true" />
@@ -430,57 +322,17 @@ export const CustomerLookupModal: React.FC<CustomerLookupModalProps> = ({
             Customer Lookup
           </h2>
           <p id={subtitleId} className="cl-subtitle cl-stagger-3">
-            {mode === 'phone' ? 'Search by phone number to continue' : 'Search by email address to continue'}
+            Search by phone number to continue
           </p>
         </div>
 
-        {/* Mode Toggle (Segmented Control) */}
-        <div
-          role="tablist"
-          aria-label="Customer search mode"
-          onKeyDown={handleModeKeyDown}
-          className="cl-mode-toggle cl-stagger-4"
-        >
-          <div className={`cl-mode-thumb ${mode === 'email' ? 'is-email' : ''}`} aria-hidden="true" />
-
-          <button
-            type="button"
-            role="tab"
-            id="tab-phone"
-            aria-selected={mode === 'phone'}
-            aria-controls="panel-lookup-input"
-            tabIndex={mode === 'phone' ? 0 : -1}
-            disabled={isLookingUp}
-            onClick={() => handleSwitchMode('phone')}
-            className={`cl-mode-tab ${mode === 'phone' ? 'is-active' : ''}`}
-          >
-            <Phone className="cl-mode-icon" aria-hidden="true" />
-            <span>Phone</span>
-          </button>
-
-          <button
-            type="button"
-            role="tab"
-            id="tab-email"
-            aria-selected={mode === 'email'}
-            aria-controls="panel-lookup-input"
-            tabIndex={mode === 'email' ? 0 : -1}
-            disabled={isLookingUp}
-            onClick={() => handleSwitchMode('email')}
-            className={`cl-mode-tab ${mode === 'email' ? 'is-active' : ''}`}
-          >
-            <Mail className="cl-mode-icon" aria-hidden="true" />
-            <span>Email</span>
-          </button>
-        </div>
-
         {/* Search Form */}
-        <form onSubmit={handleSubmit} noValidate className="cl-stagger-5">
-          <div className="cl-field-wrap" id="panel-lookup-input" role="tabpanel" aria-labelledby={`tab-${mode}`}>
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="cl-field-wrap cl-stagger-4">
             {/* Label */}
             <div className="cl-field-label-row">
               <label htmlFor={inputId} className={`cl-field-label ${isFocused ? 'is-focused' : ''}`}>
-                <span>{mode === 'phone' ? 'Phone Number' : 'Email Address'}</span>
+                <span>Phone Number</span>
                 <span className="cl-field-required" aria-hidden="true">
                   *
                 </span>
@@ -489,77 +341,46 @@ export const CustomerLookupModal: React.FC<CustomerLookupModalProps> = ({
 
             {/* Input Control Container */}
             <div
-              className={`cl-control-group ${isFocused ? 'is-focused' : ''} ${isInvalidState ? 'is-invalid' : ''}`}
+              className={`cl-control-group phone-field ${isFocused ? 'is-focused' : ''} ${isInvalidState ? 'is-invalid' : ''}`}
             >
-              {mode === 'phone' ? (
-                <div key="phone-mode" className="cl-mode-anim-wrap flex items-center w-full h-full">
-                  <CountrySelect
-                    selectedCountry={selectedCountry}
-                    onSelectCountry={(country) => {
-                      setSelectedCountry(country);
-                      // Adjust phone digits length if target country is shorter
-                      setPhoneDigits((prev) => prev.slice(0, country.digits));
-                      phoneInputRef.current?.focus();
-                    }}
-                    disabled={isLookingUp}
-                    isGroupFocused={isFocused}
-                  />
+              <div className="flex items-center w-full h-full">
+                <CountrySelect
+                  selectedCountry={selectedCountry}
+                  onSelectCountry={(country) => {
+                    setSelectedCountry(country);
+                    // Adjust phone digits length if target country is shorter
+                    setPhoneDigits((prev) => prev.slice(0, country.digits));
+                    phoneInputRef.current?.focus();
+                  }}
+                  disabled={isLookingUp}
+                  isGroupFocused={isFocused}
+                />
 
-                  <input
-                    ref={phoneInputRef}
-                    id={inputId}
-                    type="tel"
-                    inputMode="tel"
-                    autoComplete="tel-national"
-                    disabled={isLookingUp}
-                    readOnly={isLookingUp}
-                    value={selectedCountry.format(phoneDigits)}
-                    onChange={handlePhoneChange}
-                    onPaste={handlePhonePaste}
-                    onFocus={() => setIsFocused(true)}
-                    onBlur={() => {
-                      setIsFocused(false);
-                      if (phoneDigits && !isPhoneValid) {
-                        setIsInvalidState(true);
-                      }
-                    }}
-                    placeholder={selectedCountry.placeholder}
-                    aria-required="true"
-                    aria-invalid={isInvalidState}
-                    aria-describedby={isInvalidState ? hintId : undefined}
-                    className="cl-input cl-input-phone"
-                  />
-                </div>
-              ) : (
-                <div key="email-mode" className="cl-mode-anim-wrap cl-input-email-wrap">
-                  <Mail className="cl-input-email-icon" aria-hidden="true" />
-                  <input
-                    ref={emailInputRef}
-                    id={inputId}
-                    type="email"
-                    inputMode="email"
-                    autoComplete="email"
-                    autoCapitalize="off"
-                    spellCheck="false"
-                    disabled={isLookingUp}
-                    readOnly={isLookingUp}
-                    value={emailValue}
-                    onChange={handleEmailChange}
-                    onFocus={() => setIsFocused(true)}
-                    onBlur={() => {
-                      setIsFocused(false);
-                      if (emailValue && !isEmailValid) {
-                        setIsInvalidState(true);
-                      }
-                    }}
-                    placeholder="name@company.com"
-                    aria-required="true"
-                    aria-invalid={isInvalidState}
-                    aria-describedby={isInvalidState ? hintId : undefined}
-                    className="cl-input"
-                  />
-                </div>
-              )}
+                <input
+                  ref={phoneInputRef}
+                  id={inputId}
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel-national"
+                  disabled={isLookingUp}
+                  readOnly={isLookingUp}
+                  value={selectedCountry.format(phoneDigits)}
+                  onChange={handlePhoneChange}
+                  onPaste={handlePhonePaste}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => {
+                    setIsFocused(false);
+                    if (phoneDigits && !isPhoneValid) {
+                      setIsInvalidState(true);
+                    }
+                  }}
+                  placeholder={selectedCountry.placeholder}
+                  aria-required="true"
+                  aria-invalid={isInvalidState}
+                  aria-describedby={isInvalidState ? hintId : undefined}
+                  className="cl-input cl-input-phone"
+                />
+              </div>
 
               {/* Right-Side Validity Indicator */}
               {isValid && !isLookingUp && (
@@ -573,7 +394,7 @@ export const CustomerLookupModal: React.FC<CustomerLookupModalProps> = ({
           </div>
 
           {/* Live Helper Hint Row */}
-          <div aria-live="polite" aria-atomic="true">
+          <div className="cl-stagger-5" aria-live="polite" aria-atomic="true">
             {renderHint()}
           </div>
 
@@ -585,7 +406,7 @@ export const CustomerLookupModal: React.FC<CustomerLookupModalProps> = ({
                 <div className="flex-1">
                   <p className="font-bold text-amber-900 leading-tight">Customer not found</p>
                   <p className="text-xs text-amber-700 mt-0.5">
-                    No customer matches this {mode === 'phone' ? 'phone number' : 'email'}. You can create a new profile.
+                    No customer matches this phone number. You can create a new profile.
                   </p>
                 </div>
               </div>
@@ -604,7 +425,7 @@ export const CustomerLookupModal: React.FC<CustomerLookupModalProps> = ({
           )}
 
           {/* Primary Action Button */}
-          <div className="mt-4 cl-stagger-6">
+          <div className="cl-stagger-6">
             <button
               type="submit"
               disabled={!isValid || isLookingUp}

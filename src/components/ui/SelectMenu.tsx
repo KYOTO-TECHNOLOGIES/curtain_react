@@ -1,11 +1,14 @@
-import React, { useState, useRef, useEffect, useId, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useId, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Search, X } from 'lucide-react';
 import './SelectMenu.css';
 
+let activeCatalogDropdownClose: (() => void) | null = null;
+
 export interface SelectOption {
   value: string;
   label: string;
+  icon?: React.ReactNode;
   suffix?: string;
   dotColor?: string;
   textColor?: string;
@@ -25,6 +28,7 @@ export interface SelectMenuProps {
   placeholder?: string;
   ariaLabel?: string;
   className?: string;
+  menuClassName?: string;
   disabled?: boolean;
   size?: 'default' | 'sm' | 'header';
   placement?: 'auto' | 'top-start';
@@ -33,6 +37,26 @@ export interface SelectMenuProps {
   headerMaxPillWidth?: number;
   searchable?: boolean;
   searchPlaceholder?: string;
+  showOptionSuffix?: boolean;
+  showPlaceholderOnEmpty?: boolean;
+  required?: boolean;
+  emptyMessage?: string;
+  mobileTitle?: string;
+  showSearchClear?: boolean;
+  autoFocus?: boolean;
+  ariaLabelledBy?: string;
+  ariaInvalid?: boolean;
+  ariaDescribedBy?: string;
+  portalZIndex?: number;
+  maxListHeight?: number;
+  preventScrollFocus?: boolean;
+  preserveScrollLock?: boolean;
+  positionBeforePaint?: boolean;
+  keepMountedOnClose?: boolean;
+  outsidePointerDown?: boolean;
+  stopEscapePropagation?: boolean;
+  selectionCloseDelayMs?: number;
+  showTriggerTitle?: boolean;
 }
 
 export const SelectMenu: React.FC<SelectMenuProps> = ({
@@ -43,6 +67,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
   placeholder = 'Select option...',
   ariaLabel,
   className = '',
+  menuClassName = '',
   disabled = false,
   size = 'default',
   placement: preferredPlacement = 'auto',
@@ -51,6 +76,26 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
   headerMaxPillWidth,
   searchable,
   searchPlaceholder = 'Search...',
+  showOptionSuffix = false,
+  showPlaceholderOnEmpty = false,
+  required = false,
+  emptyMessage = 'No options found',
+  mobileTitle,
+  showSearchClear = false,
+  autoFocus = false,
+  ariaLabelledBy,
+  ariaInvalid,
+  ariaDescribedBy,
+  portalZIndex,
+  maxListHeight,
+  preventScrollFocus = false,
+  preserveScrollLock = false,
+  positionBeforePaint = false,
+  keepMountedOnClose = false,
+  outsidePointerDown = false,
+  stopEscapePropagation = false,
+  selectionCloseDelayMs = 0,
+  showTriggerTitle = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isRendered, setIsRendered] = useState(false);
@@ -60,6 +105,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties>({});
   const [placement, setPlacement] = useState<'bottom' | 'top'>('bottom');
+  const [isPositioned, setIsPositioned] = useState(!positionBeforePaint);
   const generatedId = useId();
   const selectId = id || generatedId;
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -69,9 +115,16 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typeaheadRef = useRef('');
   const typeaheadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const selectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeMenuRef = useRef<(() => void) | null>(null);
+  const activeCloseRef = useRef<() => void>(() => closeMenuRef.current?.());
 
   const openMenu = () => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
+    if (preserveScrollLock && activeCatalogDropdownClose) activeCatalogDropdownClose();
+    if (preserveScrollLock) activeCatalogDropdownClose = activeCloseRef.current;
+    setIsPositioned(!positionBeforePaint || isMobile && size !== 'sm');
     setIsRendered(true);
     setIsClosing(false);
     setIsOpen(true);
@@ -79,7 +132,16 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
 
   const closeMenu = (returnFocus = false) => {
     setIsOpen(false);
-    if ((size === 'sm' || size === 'header') && isRendered) {
+    if (preserveScrollLock && activeCatalogDropdownClose === activeCloseRef.current) {
+      activeCatalogDropdownClose = null;
+    }
+    if (keepMountedOnClose && isRendered) {
+      setIsClosing(true);
+      closeTimerRef.current = setTimeout(() => {
+        setIsRendered(false);
+        setIsClosing(false);
+      }, 110);
+    } else if ((size === 'sm' || size === 'header') && isRendered) {
       setIsClosing(true);
       closeTimerRef.current = setTimeout(() => {
         setIsRendered(false);
@@ -88,12 +150,15 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
     } else {
       setIsRendered(false);
     }
-    if (returnFocus) triggerRef.current?.focus();
+    if (returnFocus) triggerRef.current?.focus(preventScrollFocus ? { preventScroll: true } : undefined);
   };
+  closeMenuRef.current = () => closeMenu();
 
   useEffect(() => () => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
     if (typeaheadTimerRef.current) clearTimeout(typeaheadTimerRef.current);
+    if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
+    if (activeCatalogDropdownClose === activeCloseRef.current) activeCatalogDropdownClose = null;
   }, []);
 
   // Detect mobile viewport (<640px)
@@ -106,9 +171,22 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
     return () => window.removeEventListener('resize', checkMobile);
   }, [size]);
 
+  useEffect(() => {
+    if (!preserveScrollLock || !isOpen || !isMobile || size === 'sm') return;
+    const previousOverflow = document.body.style.overflow;
+    const previousPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = 'hidden';
+    if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPaddingRight;
+    };
+  }, [preserveScrollLock, isOpen, isMobile, size]);
+
   const selectedOption = useMemo(() => {
-    return options.find((opt) => opt.value === value) || options[0];
-  }, [options, value]);
+    return options.find((opt) => opt.value === value) || (showPlaceholderOnEmpty && !value ? undefined : options[0]);
+  }, [options, value, showPlaceholderOnEmpty]);
 
   const isNonDefaultSelected = useMemo(() => {
     return Boolean(value && value !== '' && value !== 'all');
@@ -127,11 +205,15 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
   const updatePosition = () => {
     if (!triggerRef.current || (isMobile && size === 'default')) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    const minWidth = size === 'sm'
+    const minWidth = positionBeforePaint
+      ? Math.min(Math.max(rect.width, 240), window.innerWidth - 16)
+      : size === 'sm'
       ? Math.min(Math.max(rect.width, 140), window.innerWidth - 16)
       : Math.min(Math.max(rect.width, 220), window.innerWidth - 16);
 
-    const maxPopoverHeight = size === 'sm' || (size === 'header' && isSearchable) ? 280 : 320;
+    const maxPopoverHeight = positionBeforePaint
+      ? Math.min(maxListHeight ?? 320, window.innerHeight * 0.5)
+      : size === 'sm' || (size === 'header' && isSearchable) ? 280 : 320;
     const estimatedHeight = Math.min(
       filteredOptions.length * 40 + (isSearchable ? 50 : 0) + (size === 'sm' ? 12 : 16),
       maxPopoverHeight
@@ -158,9 +240,21 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
       top: `${topPos}px`,
       left: `${leftPos}px`,
       width: `${minWidth}px`,
-      maxHeight: `${popoverHeight}px`,
+      maxHeight: `${Math.min(popoverHeight, maxListHeight ?? Number.POSITIVE_INFINITY)}px`,
+      ...(portalZIndex ? { zIndex: portalZIndex } : {}),
     });
+    setIsPositioned(true);
   };
+
+  useLayoutEffect(() => {
+    if (!positionBeforePaint || !isOpen) return;
+    if (isMobile && size !== 'sm') {
+      setIsPositioned(true);
+      return;
+    }
+    setIsPositioned(false);
+    updatePosition();
+  }, [positionBeforePaint, isOpen, isMobile, size, filteredOptions.length, isSearchable, maxListHeight]);
 
   useEffect(() => {
     if (isOpen) {
@@ -187,7 +281,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
 
       if (isSearchable) {
         setTimeout(() => {
-          searchInputRef.current?.focus();
+          searchInputRef.current?.focus(preventScrollFocus ? { preventScroll: true } : undefined);
         }, 50);
       }
     } else {
@@ -198,7 +292,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
   // Close on outside click
   useEffect(() => {
     if (!isOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent | PointerEvent) => {
       const target = e.target as Node;
       if (
         triggerRef.current?.contains(target) ||
@@ -209,9 +303,13 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
       closeMenu();
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
+    if (outsidePointerDown) {
+      document.addEventListener('pointerdown', handleClickOutside as (event: PointerEvent) => void);
+      return () => document.removeEventListener('pointerdown', handleClickOutside as (event: PointerEvent) => void);
+    }
+    document.addEventListener('mousedown', handleClickOutside as (event: MouseEvent) => void);
+    return () => document.removeEventListener('mousedown', handleClickOutside as (event: MouseEvent) => void);
+  }, [isOpen, outsidePointerDown]);
 
   // Keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -274,6 +372,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
       }
       case 'Escape': {
         e.preventDefault();
+        if (stopEscapePropagation) e.stopPropagation();
         closeMenu(true);
         break;
       }
@@ -311,7 +410,15 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
     if (isOpen && highlightedIndex >= 0 && optionsListRef.current) {
       const activeEl = optionsListRef.current.children[highlightedIndex] as HTMLElement;
       if (activeEl) {
-        activeEl.scrollIntoView({ block: 'nearest' });
+        if (preventScrollFocus) {
+          const list = optionsListRef.current;
+          const listRect = list.getBoundingClientRect();
+          const activeRect = activeEl.getBoundingClientRect();
+          if (activeRect.bottom > listRect.bottom) list.scrollTop += activeRect.bottom - listRect.bottom;
+          else if (activeRect.top < listRect.top) list.scrollTop -= listRect.top - activeRect.top;
+        } else {
+          activeEl.scrollIntoView({ block: 'nearest' });
+        }
       }
     }
   }, [highlightedIndex, isOpen]);
@@ -338,6 +445,14 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
   };
 
   const renderIndicator = (option: SelectOption) => {
+    if (option.icon) {
+      return (
+        <span className="select-menu-option-icon" aria-hidden="true">
+          {option.icon}
+        </span>
+      );
+    }
+
     if (option.isDotCluster) {
       return (
         <span className="dot-cluster" aria-hidden="true">
@@ -375,8 +490,9 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
     <div
       ref={popoverRef}
       id={`${selectId}-popover`}
-      className={`select-menu-popover ${size === 'sm' ? 'select-menu-popover--compact' : ''} ${size === 'header' ? 'select-menu-popover--header' : ''} placement-${placement} ${isClosing ? 'is-closing' : ''}`}
-      style={popoverStyle}
+      className={`select-menu-popover ${size === 'sm' ? 'select-menu-popover--compact' : ''} ${size === 'header' ? 'select-menu-popover--header' : ''} ${menuClassName} placement-${placement} ${isClosing ? 'is-closing' : ''}`}
+      data-positioned={isPositioned}
+      style={{ ...popoverStyle, ...(portalZIndex ? { zIndex: portalZIndex } : {}) }}
       role="listbox"
       aria-label={ariaLabel || placeholder}
       aria-activedescendant={highlightedIndex >= 0 ? `${selectId}-opt-${highlightedIndex}` : undefined}
@@ -394,12 +510,25 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyDown={handleKeyDown}
           />
+          {showSearchClear && searchTerm && (
+            <button
+              type="button"
+              className="select-menu-search-clear"
+              onClick={() => {
+                setSearchTerm('');
+                searchInputRef.current?.focus();
+              }}
+              aria-label="Clear model search"
+            >
+              <X aria-hidden="true" />
+            </button>
+          )}
         </div>
       )}
 
       <ul ref={optionsListRef} className="select-menu-options-list">
         {filteredOptions.length === 0 ? (
-          <li className="px-3 py-2 text-xs text-slate-400 text-center">No options found</li>
+          <li className="px-3 py-2 text-xs text-slate-400 text-center select-menu-empty">{emptyMessage}</li>
         ) : (
           filteredOptions.map((opt, idx) => {
             const isSelected = opt.value === value;
@@ -425,12 +554,16 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
                 style={
                   {
                     '--opt-idx': Math.min(idx, 10),
+                    '--option-delay': `${Math.min(idx, 10) * 15}ms`,
                     backgroundColor: size === 'sm' || size === 'header' ? undefined : selectedBg,
                   } as React.CSSProperties
                 }
                 onClick={() => {
                   onChange(opt.value);
-                  closeMenu(true);
+                  if (selectionCloseDelayMs > 0) {
+                    if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
+                    selectionTimerRef.current = setTimeout(() => closeMenu(true), selectionCloseDelayMs);
+                  } else closeMenu(true);
                 }}
                 onMouseEnter={() => setHighlightedIndex(idx)}
                 onKeyDown={handleKeyDown}
@@ -441,7 +574,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
 
                 <span className={`truncate flex-1 ${opt.wrapLabel ? 'select-menu-option-label--wrap' : ''}`} title={opt.wrapLabel ? opt.label : undefined}>
                   {opt.label}
-                  {size === 'sm' && opt.suffix && (
+                  {(size === 'sm' || showOptionSuffix) && opt.suffix && (
                     <span className="select-menu-option-suffix"> {opt.suffix}</span>
                   )}
                 </span>
@@ -490,7 +623,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
       <div
         ref={popoverRef}
         id={`${selectId}-dialog`}
-        className={`select-menu-bottom-sheet ${size === 'header' ? 'select-menu-bottom-sheet--header' : ''} ${isClosing ? 'is-closing' : ''}`}
+        className={`select-menu-bottom-sheet ${size === 'header' ? 'select-menu-bottom-sheet--header' : ''} ${menuClassName} ${isClosing ? 'is-closing' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel || placeholder}
@@ -499,7 +632,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
         <div className="select-menu-drag-handle" />
         <div className="flex items-center justify-between pb-3 mb-2 border-b border-slate-100">
           <span className="text-sm font-bold text-slate-800">
-            {ariaLabel || placeholder}
+            {mobileTitle || ariaLabel || placeholder}
           </span>
           <button
             type="button"
@@ -522,6 +655,19 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={handleKeyDown}
             />
+            {showSearchClear && searchTerm && (
+              <button
+                type="button"
+                className="select-menu-search-clear"
+                onClick={() => {
+                  setSearchTerm('');
+                  searchInputRef.current?.focus();
+                }}
+                aria-label="Clear model search"
+              >
+                <X aria-hidden="true" />
+              </button>
+            )}
           </div>
         )}
 
@@ -532,7 +678,9 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
           aria-label={ariaLabel || placeholder}
           aria-activedescendant={highlightedIndex >= 0 ? `${selectId}-opt-${highlightedIndex}` : undefined}
         >
-          {filteredOptions.map((opt, idx) => {
+          {filteredOptions.length === 0 ? (
+            <li className="px-3 py-2 text-xs text-slate-400 text-center select-menu-empty">{emptyMessage}</li>
+          ) : filteredOptions.map((opt, idx) => {
             const isSelected = opt.value === value;
             return (
               <li
@@ -543,21 +691,29 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
                 tabIndex={isSearchable && idx === highlightedIndex ? 0 : -1}
                 className={`select-menu-option ${size === 'header' ? 'select-menu-option--header' : ''} ${opt.wrapLabel ? 'select-menu-option--wrap' : ''} ${isSelected ? 'is-selected' : ''} ${idx === highlightedIndex ? 'is-highlighted' : ''}`}
                 style={{
+                  '--opt-idx': Math.min(idx, 10),
+                  '--option-delay': `${Math.min(idx, 10) * 15}ms`,
                   backgroundColor: isSelected && size !== 'header'
                     ? opt.dotColor
                       ? `${opt.dotColor}14`
                       : 'rgba(47, 93, 143, 0.08)'
                     : undefined,
-                }}
+                } as React.CSSProperties}
                 onMouseEnter={() => setHighlightedIndex(idx)}
                 onKeyDown={handleKeyDown}
                 onClick={() => {
                   onChange(opt.value);
-                  closeMenu(true);
+                  if (selectionCloseDelayMs > 0) {
+                    if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
+                    selectionTimerRef.current = setTimeout(() => closeMenu(true), selectionCloseDelayMs);
+                  } else closeMenu(true);
                 }}
               >
                 {renderIndicator(opt)}
-                <span className={`truncate flex-1 ${opt.wrapLabel ? 'select-menu-option-label--wrap' : ''}`} title={opt.wrapLabel ? opt.label : undefined}>{opt.label}</span>
+                <span className={`truncate flex-1 ${opt.wrapLabel ? 'select-menu-option-label--wrap' : ''}`} title={opt.wrapLabel ? opt.label : undefined}>
+                  {opt.label}
+                  {showOptionSuffix && opt.suffix && <span className="select-menu-option-suffix"> {opt.suffix}</span>}
+                </span>
                 {opt.count !== undefined && (
                   <span className="select-menu-count-badge">{opt.count}</span>
                 )}
@@ -609,6 +765,11 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
             aria-expanded={isOpen}
             aria-controls={`${selectId}-popover`}
             aria-label={ariaLabel}
+            aria-labelledby={ariaLabelledBy}
+            aria-invalid={ariaInvalid || undefined}
+            aria-describedby={ariaDescribedBy}
+            aria-required={required || undefined}
+            data-catalog-autofocus={autoFocus || undefined}
             aria-activedescendant={highlightedIndex >= 0 ? `${selectId}-opt-${highlightedIndex}` : undefined}
             className="select-menu-header-trigger"
             onClick={() => isOpen ? closeMenu() : openMenu()}
@@ -653,8 +814,13 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
           aria-expanded={isOpen}
           aria-controls={`${selectId}-popover`}
           aria-label={ariaLabel}
+          aria-labelledby={ariaLabelledBy}
+          aria-invalid={ariaInvalid || undefined}
+          aria-describedby={ariaDescribedBy}
+          aria-required={required || undefined}
+          data-catalog-autofocus={autoFocus || undefined}
           aria-activedescendant={highlightedIndex >= 0 ? `${selectId}-opt-${highlightedIndex}` : undefined}
-          className={`select-menu-trigger ${size === 'sm' ? 'select-menu-trigger--compact' : ''} ${isOpen ? 'is-open' : ''}`}
+          className={`select-menu-trigger ${size === 'sm' ? 'select-menu-trigger--compact' : ''} ${isOpen ? 'is-open' : ''} ${showPlaceholderOnEmpty && !selectedOption ? 'is-placeholder' : ''}`}
           style={getTriggerTintStyle()}
           onClick={() => isOpen ? closeMenu() : openMenu()}
           onKeyDown={handleKeyDown}
@@ -666,7 +832,11 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
         ) : (
           <span className="flex items-center gap-2.5 truncate">
             {selectedOption && renderIndicator(selectedOption)}
-            <span className="truncate">
+            <span
+              key={selectedOption?.value || 'empty'}
+              className="select-menu-trigger-value truncate"
+              title={showTriggerTitle ? selectedOption?.label : undefined}
+            >
               {selectedOption ? selectedOption.label : placeholder}
             </span>
           </span>

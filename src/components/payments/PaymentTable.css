@@ -1,12 +1,12 @@
 /* ── Payment Table Custom Styles ───────────────────────────────── */
 
-/* ── Column Widths ─────────────────────────────────────────────── */
-.pay-col-id { width: 125px; }
-.pay-col-invoice { width: 165px; }
-.pay-col-amount { width: 155px; }
-.pay-col-method { width: 180px; }
-.pay-col-details { width: auto; min-width: 200px; }
-.pay-col-actions { width: 160px; }
+/* ── Content-based column minimums ─────────────────────────────── */
+.pay-col-id { min-width: 104px; }
+.pay-col-invoice { min-width: 112px; }
+.pay-col-amount { min-width: 124px; }
+.pay-col-method { min-width: 118px; }
+.pay-col-details { min-width: 200px; }
+.pay-col-actions { min-width: 118px; }
 
 /* ── Payment ID Chip ───────────────────────────────────────────── */
 .pay-id-chip {

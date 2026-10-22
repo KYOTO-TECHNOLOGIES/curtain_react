@@ -2,6 +2,14 @@
 @import "tailwindcss";
 
 :root {
+  --z-sidebar: 30;
+  --z-sidebar-drawer: 50;
+  --z-topbar: 35;
+  --z-modal-overlay: 1000;
+  --z-modal-card: 1010;
+  --z-modal-popover: 1100;
+  --z-tooltip: 1200;
+  --z-toast: 1300;
   --ink:           #0B1B33;
   --ink-soft:      #1E293B;
   --muted:         #64748B;

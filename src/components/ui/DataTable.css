@@ -26,6 +26,7 @@
 .apt-table-scroll {
   overflow-x: auto;
   overflow-y: visible;
+  overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
@@ -51,10 +52,12 @@
 /* ── Sticky Header ─────────────────────────────────────────────── */
 .apt-table {
   width: 100%;
-  border-collapse: collapse;
+  min-width: 0;
+  border-collapse: separate;
+  border-spacing: 0;
   text-align: left;
-  table-layout: fixed;
-  min-width: 860px;
+  table-layout: auto;
+  font-variant-numeric: tabular-nums;
 }
 
 .apt-table thead {
@@ -71,7 +74,7 @@
 }
 
 .apt-table th {
-  padding: 0 var(--dt-cell-px, 16px);
+  padding: 0 16px;
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -80,16 +83,6 @@
   white-space: nowrap;
   vertical-align: middle;
   user-select: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.apt-table th.apt-col-status,
-.apt-table th.qt-col-status,
-.apt-table th.ord-col-status,
-.apt-table th.inv-col-status {
-  padding-right: 8px;
-  padding-left: 8px;
   overflow: visible;
 }
 
@@ -161,10 +154,125 @@
 }
 
 .apt-table td {
-  padding: 0 var(--dt-cell-px, 16px);
+  padding: 12px 16px;
   vertical-align: middle;
-  height: var(--dt-row-height, 68px);
+  height: auto;
+  overflow: visible;
+}
+
+.apt-table th:first-child,
+.apt-table td:first-child {
+  padding-left: 24px;
+}
+
+.apt-table th:last-child,
+.apt-table td:last-child {
+  padding-right: 24px;
+}
+
+.apt-table .dt-col-fit {
+  white-space: nowrap;
+}
+
+.apt-table .dt-col-flex {
+  white-space: nowrap;
+}
+
+.apt-table .dt-col-cap {
+  white-space: nowrap;
+  max-width: 240px;
+}
+
+.apt-table .dt-col-flex .cell-truncate,
+.apt-table .dt-col-cap .cell-truncate,
+.apt-table .dt-col-cap .truncate {
+  display: block;
+  max-width: 280px;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apt-table .dt-col-flex .apt-customer-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  max-width: 320px;
+}
+
+.apt-table .dt-col-cap .truncate {
+  max-width: 240px;
+}
+
+.apt-table .dt-col-actions {
+  text-align: right;
+}
+
+.apt-table .dt-col-actions > * {
+  white-space: nowrap;
+}
+
+.apt-table-scroll.is-scrolled .apt-table th:first-child,
+.apt-table-scroll.is-scrolled .apt-table td:first-child {
+  box-shadow: 8px 0 12px -12px rgba(15, 23, 42, 0.5);
+}
+
+.apt-table-scroll:not(.is-at-end) .apt-table th.dt-col-actions,
+.apt-table-scroll:not(.is-at-end) .apt-table td.dt-col-actions {
+  box-shadow: -8px 0 12px -12px rgba(15, 23, 42, 0.5);
+}
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  .apt-table {
+    min-width: max-content;
+  }
+
+  .apt-table th,
+  .apt-table td {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .apt-table th:first-child,
+  .apt-table td:first-child {
+    padding-left: 12px;
+  }
+
+  .apt-table th:last-child,
+  .apt-table td:last-child {
+    padding-right: 12px;
+  }
+
+  .apt-table th:first-child,
+  .apt-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: #FFFFFF;
+  }
+
+  .apt-table th:first-child {
+    z-index: 3;
+  }
+
+  .apt-table th.dt-col-actions,
+  .apt-table td.dt-col-actions {
+    position: sticky;
+    right: 0;
+    z-index: 1;
+    background: #FFFFFF;
+  }
+
+  .apt-table th.dt-col-actions {
+    z-index: 3;
+  }
+}
+
+@media (max-width: 767px) {
+  .apt-table {
+    min-width: 860px;
+  }
 }
 
 /* ── Left Status Accent Bar (Inside first td to preserve table column layout) ────────────────────────────────────── */
@@ -205,6 +313,24 @@
 
 .apt-row-enter {
   animation: dtRowEnter 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes dtRowDataChange {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+
+.apt-row-data-change {
+  animation: dtRowDataChange 160ms ease both;
+}
+
+@keyframes dtRowExit {
+  to { opacity: 0; }
+}
+
+.apt-row-exit {
+  animation: dtRowExit 120ms ease both;
+  pointer-events: none;
 }
 
 /* ── Row Flash on Update ───────────────────────────────────────── */
@@ -308,6 +434,11 @@
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
+  }
+  .apt-row-data-change,
+  .apt-row-exit {
+    animation: none !important;
+    opacity: 1 !important;
   }
   .apt-row-flash {
     animation: none !important;

@@ -1,0 +1,633 @@
+:root {
+  --appointment-picker-brand: #2F5D8F;
+  --appointment-picker-tint: #EEF4FA;
+  --appointment-picker-border: #E2E8F0;
+  --appointment-picker-border-hover: #CBD5E1;
+  --appointment-picker-slate-50: #F8FAFC;
+  --appointment-picker-slate-400: #94A3B8;
+  --appointment-picker-slate-500: #64748B;
+  --appointment-picker-slate-700: #334155;
+  --appointment-picker-slate-900: #0F172A;
+  --appointment-picker-focus-ring: rgba(47, 93, 143, 0.14);
+  --appointment-picker-danger: #EF4444;
+  --appointment-picker-danger-ring: rgba(239, 68, 68, 0.12);
+  --appointment-picker-radius-control: 12px;
+  --appointment-picker-radius-popover: 14px;
+  --appointment-picker-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.06);
+  --appointment-picker-duration-fast: 150ms;
+  --appointment-picker-duration-enter: 160ms;
+  --appointment-picker-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.appointment-picker {
+  min-width: 0;
+}
+
+.appointment-picker__label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--appointment-picker-slate-700);
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: color var(--appointment-picker-duration-fast) ease;
+}
+
+.appointment-picker:focus-within .appointment-picker__label,
+.appointment-picker.is-open .appointment-picker__label {
+  color: var(--appointment-picker-brand);
+}
+
+.appointment-picker__required {
+  color: #F43F5E;
+}
+
+.appointment-picker__control {
+  position: relative;
+}
+
+.appointment-picker__trigger {
+  display: flex;
+  width: 100%;
+  height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 14px 0 12px;
+  border: 1px solid var(--appointment-picker-border);
+  border-radius: var(--appointment-picker-radius-control);
+  background: #FFFFFF;
+  color: var(--appointment-picker-slate-900);
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--appointment-picker-duration-fast) ease, box-shadow var(--appointment-picker-duration-fast) ease, background-color var(--appointment-picker-duration-fast) ease;
+}
+
+.appointment-picker__trigger:hover:not(:disabled) {
+  border-color: var(--appointment-picker-border-hover);
+}
+
+.appointment-picker__trigger:focus-visible,
+.appointment-picker.is-open .appointment-picker__trigger {
+  border-color: var(--appointment-picker-brand);
+  box-shadow: 0 0 0 4px var(--appointment-picker-focus-ring);
+  outline: none;
+}
+
+.appointment-picker__selected {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  animation: appointmentPickerValueIn 140ms var(--appointment-picker-ease) both;
+}
+
+.appointment-picker__avatar {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--appointment-picker-tint);
+  color: var(--appointment-picker-brand);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.appointment-picker__selected-id {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 8px;
+  background: var(--appointment-picker-slate-50);
+  color: var(--appointment-picker-slate-700);
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.appointment-picker__selected-name {
+  overflow: hidden;
+  color: var(--appointment-picker-slate-900);
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appointment-picker__placeholder {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  color: var(--appointment-picker-slate-400);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.appointment-picker__placeholder-icon {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--appointment-picker-border-hover);
+  border-radius: 50%;
+  color: var(--appointment-picker-slate-400);
+}
+
+.appointment-picker__placeholder-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.appointment-picker__chevron {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  color: var(--appointment-picker-slate-400);
+  transition: transform 200ms var(--appointment-picker-ease);
+}
+
+.appointment-picker.is-open .appointment-picker__chevron {
+  transform: rotate(180deg);
+}
+
+.appointment-picker__clear {
+  position: absolute;
+  top: 50%;
+  right: 38px;
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--appointment-picker-slate-400);
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: color var(--appointment-picker-duration-fast) ease, background-color var(--appointment-picker-duration-fast) ease;
+}
+
+.appointment-picker__clear:hover {
+  background: var(--appointment-picker-slate-50);
+  color: var(--appointment-picker-slate-700);
+}
+
+.appointment-picker__clear svg {
+  width: 14px;
+  height: 14px;
+}
+
+.appointment-picker__control:has(.appointment-picker__clear) .appointment-picker__trigger {
+  padding-right: 64px;
+}
+
+.appointment-picker__control:has(.appointment-picker__clear) .appointment-picker__selected-name {
+  padding-right: 0;
+}
+
+.appointment-picker.is-disabled .appointment-picker__trigger {
+  border-color: var(--appointment-picker-border);
+  background: var(--appointment-picker-slate-50);
+  color: var(--appointment-picker-slate-400);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.appointment-picker.is-disabled .appointment-picker__selected-name,
+.appointment-picker.is-disabled .appointment-picker__selected-id,
+.appointment-picker.is-disabled .appointment-picker__placeholder {
+  color: var(--appointment-picker-slate-400);
+}
+
+.appointment-picker.is-invalid .appointment-picker__trigger,
+.appointment-picker.is-invalid .appointment-picker__trigger:focus-visible {
+  border-color: var(--appointment-picker-danger);
+  box-shadow: 0 0 0 4px var(--appointment-picker-danger-ring);
+  animation: appointmentPickerShake 240ms ease both;
+}
+
+.appointment-picker__error {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  color: #E11D48;
+  font-size: 12.5px;
+}
+
+.appointment-picker__error svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+}
+
+.appointment-picker__portal {
+  position: fixed;
+  z-index: var(--z-modal-popover, 1100);
+  inset: 0;
+}
+
+.appointment-picker__backdrop {
+  display: none;
+}
+
+.appointment-picker__popover {
+  position: fixed;
+  z-index: 1;
+  overflow: hidden auto;
+  min-width: 280px;
+  max-height: 320px;
+  padding: 6px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: var(--appointment-picker-radius-popover);
+  background: #FFFFFF;
+  box-shadow: var(--appointment-picker-shadow);
+  scrollbar-color: #CBD5E1 transparent;
+  scrollbar-width: thin;
+  transform-origin: top center;
+  animation: appointmentPickerOpen var(--appointment-picker-duration-enter) var(--appointment-picker-ease) both;
+}
+
+.appointment-picker__popover::-webkit-scrollbar {
+  width: 6px;
+}
+
+.appointment-picker__popover::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #CBD5E1;
+}
+
+.appointment-picker__popover::-webkit-scrollbar-button {
+  display: none;
+}
+
+.appointment-picker__popover.is-closing {
+  animation: appointmentPickerClose 110ms ease both;
+}
+
+.appointment-picker__mobile-heading {
+  display: none;
+}
+
+.appointment-picker__search-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  height: 40px;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: var(--appointment-picker-slate-50);
+}
+
+.appointment-picker__search-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  color: var(--appointment-picker-slate-400);
+}
+
+.appointment-picker__search {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--appointment-picker-slate-900);
+  font: inherit;
+  font-size: 13px;
+}
+
+.appointment-picker__search::placeholder {
+  color: var(--appointment-picker-slate-400);
+}
+
+.appointment-picker__search-clear {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--appointment-picker-slate-500);
+  cursor: pointer;
+}
+
+.appointment-picker__search-clear svg {
+  width: 14px;
+  height: 14px;
+}
+
+.appointment-picker__options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  outline: none;
+}
+
+.appointment-picker__option {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  animation: appointmentPickerRowIn 180ms var(--appointment-picker-ease) both;
+  animation-delay: calc(min(var(--option-index, 0), 9) * 15ms);
+  transition: background-color var(--appointment-picker-duration-fast) ease;
+}
+
+.appointment-picker__option:hover,
+.appointment-picker__option.is-highlighted {
+  background: var(--appointment-picker-slate-50);
+}
+
+.appointment-picker__option.is-selected {
+  background: var(--appointment-picker-tint);
+}
+
+.appointment-picker__option-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.appointment-picker__customer {
+  overflow: hidden;
+  color: var(--appointment-picker-slate-900);
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appointment-picker__option.is-selected .appointment-picker__customer {
+  font-weight: 700;
+}
+
+.appointment-picker__avatar--row {
+  width: 32px;
+  height: 32px;
+  flex-basis: 32px;
+  font-size: 12px;
+  transition: transform 150ms var(--appointment-picker-ease);
+}
+
+.appointment-picker__option:hover .appointment-picker__avatar,
+.appointment-picker__option.is-highlighted .appointment-picker__avatar {
+  transform: scale(1.05);
+}
+
+.appointment-picker__metadata {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  color: var(--appointment-picker-slate-500);
+  font-size: 12.5px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.appointment-picker__id {
+  font-variant-numeric: tabular-nums;
+}
+
+.appointment-picker__separator {
+  width: 3px;
+  height: 3px;
+  flex: 0 0 3px;
+  border-radius: 50%;
+  background: #CBD5E1;
+}
+
+.appointment-picker__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.appointment-picker__status-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+}
+
+.appointment-picker__check {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  color: var(--appointment-picker-brand);
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: appointmentPickerCheck 250ms ease forwards;
+}
+
+.appointment-picker__match {
+  border-radius: 3px;
+  background: var(--appointment-picker-tint);
+  color: inherit;
+}
+
+.appointment-picker__empty {
+  display: flex;
+  min-height: 160px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 18px;
+  color: var(--appointment-picker-slate-500);
+  text-align: center;
+}
+
+.appointment-picker__empty strong {
+  color: var(--appointment-picker-slate-700);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.appointment-picker__empty > span:last-child {
+  font-size: 12px;
+}
+
+.appointment-picker__empty--search {
+  min-height: 128px;
+}
+
+.appointment-picker__empty-icon {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--appointment-picker-tint);
+  color: var(--appointment-picker-brand);
+}
+
+.appointment-picker__empty-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+@keyframes appointmentPickerOpen {
+  from { opacity: 0; transform: translateY(4px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes appointmentPickerClose {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(2px) scale(0.98); }
+}
+
+@keyframes appointmentPickerRowIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes appointmentPickerValueIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes appointmentPickerCheck {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes appointmentPickerShake {
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+@media (max-width: 639px) {
+  .appointment-picker__trigger {
+    font-size: 16px;
+  }
+
+  .appointment-picker__portal {
+    z-index: var(--z-modal-popover, 1100);
+  }
+
+  .appointment-picker__backdrop {
+    position: fixed;
+    display: block;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.32);
+    animation: appointmentPickerBackdropIn 160ms ease both;
+  }
+
+  .appointment-picker__popover {
+    top: auto !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    min-width: 0;
+    max-height: min(75dvh, 560px) !important;
+    padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
+    border-radius: 20px 20px 0 0;
+    transform-origin: bottom center;
+    animation-name: appointmentPickerSheetIn;
+  }
+
+  .appointment-picker__popover.is-closing {
+    animation-name: appointmentPickerSheetOut;
+  }
+
+  .appointment-picker__mobile-heading {
+    position: sticky;
+    top: -10px;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    margin: -10px -12px 8px;
+    padding: 8px 12px 12px;
+    background: #FFFFFF;
+    color: var(--appointment-picker-slate-900);
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .appointment-picker__drag-handle {
+    width: 36px;
+    height: 4px;
+    border-radius: 999px;
+    background: #CBD5E1;
+  }
+
+  .appointment-picker__search {
+    font-size: 16px;
+  }
+
+  .appointment-picker__option {
+    min-height: 56px;
+  }
+}
+
+@keyframes appointmentPickerBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes appointmentPickerSheetIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes appointmentPickerSheetOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(12px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .appointment-picker__popover,
+  .appointment-picker__popover.is-closing,
+  .appointment-picker__backdrop {
+    animation: appointmentPickerFade 1ms ease both !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+
+  .appointment-picker__option,
+  .appointment-picker__avatar,
+  .appointment-picker__check {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .appointment-picker__selected {
+    animation: appointmentPickerFade 1ms ease both !important;
+    transform: none !important;
+  }
+}
+
+@keyframes appointmentPickerFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
