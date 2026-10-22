@@ -163,7 +163,7 @@ function DashboardLayoutContent() {
   }, []);
 
   useEffect(() => {
-    const handleSearchShortcut = (event: KeyboardEvent) => {
+    const handleSearchShortcut = (event: globalThis.KeyboardEvent) => {
       if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented) return;
       const target = event.target;
       if (
