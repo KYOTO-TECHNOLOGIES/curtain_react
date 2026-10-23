@@ -17,6 +17,8 @@ export interface SelectOption {
   isDotCluster?: boolean;
   avatarText?: string;
   count?: number;
+  disabled?: boolean;
+  tooltip?: string;
 }
 
 export interface SelectMenuProps {
@@ -547,10 +549,12 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
                 id={`${selectId}-opt-${idx}`}
                 role="option"
                 aria-selected={isSelected}
+                aria-disabled={opt.disabled}
                 tabIndex={isSearchable && idx === highlightedIndex ? 0 : -1}
+                title={opt.tooltip || (opt.wrapLabel ? opt.label : undefined)}
                 className={`select-menu-option ${size === 'sm' ? 'select-menu-option--compact' : ''} ${size === 'header' ? 'select-menu-option--header' : ''} ${opt.wrapLabel ? 'select-menu-option--wrap' : ''} ${isSelected ? 'is-selected' : ''} ${
                   isHighlighted ? 'is-highlighted' : ''
-                }`}
+                } ${opt.disabled ? 'is-disabled' : ''}`}
                 style={
                   {
                     '--opt-idx': Math.min(idx, 10),
@@ -559,6 +563,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
                   } as React.CSSProperties
                 }
                 onClick={() => {
+                  if (opt.disabled) return;
                   onChange(opt.value);
                   if (selectionCloseDelayMs > 0) {
                     if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
@@ -688,8 +693,10 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
                 id={`${selectId}-opt-${idx}`}
                 role="option"
                 aria-selected={isSelected}
+                aria-disabled={opt.disabled}
                 tabIndex={isSearchable && idx === highlightedIndex ? 0 : -1}
-                className={`select-menu-option ${size === 'header' ? 'select-menu-option--header' : ''} ${opt.wrapLabel ? 'select-menu-option--wrap' : ''} ${isSelected ? 'is-selected' : ''} ${idx === highlightedIndex ? 'is-highlighted' : ''}`}
+                title={opt.tooltip || (opt.wrapLabel ? opt.label : undefined)}
+                className={`select-menu-option ${size === 'header' ? 'select-menu-option--header' : ''} ${opt.wrapLabel ? 'select-menu-option--wrap' : ''} ${isSelected ? 'is-selected' : ''} ${idx === highlightedIndex ? 'is-highlighted' : ''} ${opt.disabled ? 'is-disabled' : ''}`}
                 style={{
                   '--opt-idx': Math.min(idx, 10),
                   '--option-delay': `${Math.min(idx, 10) * 15}ms`,
@@ -702,6 +709,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
                 onMouseEnter={() => setHighlightedIndex(idx)}
                 onKeyDown={handleKeyDown}
                 onClick={() => {
+                  if (opt.disabled) return;
                   onChange(opt.value);
                   if (selectionCloseDelayMs > 0) {
                     if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);

@@ -1,6 +1,6 @@
 import { api } from './client';
 
-export interface WorkTypeFeatures {
+export interface WorkTypeFeatures extends Record<string, unknown> {
   motor: boolean;
   charges: boolean;
   images: boolean;
@@ -24,7 +24,7 @@ export interface WorkType {
 export interface WorkTypeWrite {
   name?: string;
   pricing_unit?: string;
-  features?: Partial<WorkTypeFeatures>;
+  features?: Partial<WorkTypeFeatures> & Record<string, unknown>;
   motor_ids?: number[];
   charge_ids?: number[];
 }

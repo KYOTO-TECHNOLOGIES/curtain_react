@@ -10,7 +10,11 @@ import {
   Loader2,
   Plus,
   Trash2,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
+import { SelectMenu } from '../../components/ui/SelectMenu';
+import { normalizeFeatures } from '../../lib/catalogHelpers';
 import { appointmentsApi } from '../../api/appointments';
 import {
   catalogApi,
@@ -115,6 +119,8 @@ export default function QuotationBuilderPage() {
     special_requirements: '',
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [surfaceFieldErrors, setSurfaceFieldErrors] = useState<Record<string, Record<string, string>>>({});
+  const [configurationError, setConfigurationError] = useState<string | null>(null);
 
   // Fetch Data - load appointments so selected appointment is available in picker
   const { data: appointmentsRes, isLoading: appointmentsLoading } = useQuery({
@@ -175,7 +181,7 @@ export default function QuotationBuilderPage() {
   const workTypes = toArray<WorkType>(workTypesRes);
   const includedCharges = toArray<ChargeTemplate>(chargesRes);
   const selectedWorkType = workTypes.find((workType) => workType.id === quotationSettings.work_type) || workTypes[0];
-  const workTypeFeatures = selectedWorkType?.features;
+  const workTypeFeatures = selectedWorkType ? normalizeFeatures(selectedWorkType.features) : undefined;
 
   const fetchedAppointments: AppointmentListItem[] = toArray<AppointmentListItem>(appointmentsRes);
   const selectedAppointment: AppointmentDetail | null = selectedAppointmentRes?.data || null;
@@ -341,6 +347,27 @@ export default function QuotationBuilderPage() {
     );
   };
 
+  const handleUpdateSurface = (
+    areaId: string,
+    surfaceId: string,
+    updates: Partial<BuilderSurface>
+  ) => {
+    setAreas(
+      areas.map((a) =>
+        a.tempId === areaId
+          ? {
+            ...a,
+            surfaces: a.surfaces.map((s) =>
+              s.tempId === surfaceId
+                ? { ...s, ...updates }
+                : s
+            ),
+          }
+          : a
+      )
+    );
+  };
+
   const handleSaveQuotation = async () => {
     if (!selectedAppointmentId) {
       showToast('Please select an appointment', 'error');
@@ -364,6 +391,8 @@ export default function QuotationBuilderPage() {
     }
 
     setIsSaving(true);
+    setSurfaceFieldErrors({});
+    setConfigurationError(null);
     try {
       const payload = {
         customer: selectedCustomerId,
@@ -379,21 +408,6 @@ export default function QuotationBuilderPage() {
           sort_order: area.sort_order,
           surfaces: area.surfaces.map((surface) => {
             const spec = { ...surface.spec };
-            if (workTypeFeatures?.motor === false) {
-              spec.motor_control_type = 'manual';
-              spec.motor_type = null;
-              spec.motor_price_per_unit = '0';
-            }
-            if (workTypeFeatures?.charges === false) {
-              spec.smart_integration = false;
-              spec.alexa_quantity = 0;
-              spec.alexa_unit_price = '0';
-            }
-            if (workTypeFeatures?.pelmet === false) {
-              spec.pelmet_enabled = false;
-              spec.pelmet_width_cm = '0';
-              spec.pelmet_price_per_metre = '0';
-            }
             const alexaCharge = includedCharges.find((charge) => charge.kind === 'alexa');
             const pelmetCharge = includedCharges.find((charge) => charge.kind === 'pelmet');
             if (spec.smart_integration && alexaCharge && (!spec.alexa_unit_price || spec.alexa_unit_price === '0')) {
@@ -403,14 +417,14 @@ export default function QuotationBuilderPage() {
               spec.pelmet_price_per_metre = pelmetCharge.price;
             }
             return {
-            surface_name: surface.surface_name,
-            surface_type: surface.surface_type,
-            width_cm: surface.width_cm,
-            height_cm: surface.height_cm,
-            opening_direction: workTypeFeatures?.draw === false ? 'one_way' : surface.opening_direction,
-            special_requirements: surface.special_requirements,
-            sort_order: surface.sort_order,
-            spec,
+              surface_name: surface.surface_name,
+              surface_type: surface.surface_type,
+              width_cm: surface.width_cm,
+              height_cm: surface.height_cm,
+              opening_direction: surface.opening_direction || 'one_way',
+              special_requirements: surface.special_requirements,
+              sort_order: surface.sort_order,
+              spec,
             };
           }),
         })),
@@ -431,9 +445,49 @@ export default function QuotationBuilderPage() {
       showToast('Quotation created successfully', 'success');
       navigate(`/quotations/${res.data.id}`);
     } catch (err: any) {
-      const msg = err?.response?.data?.detail || 'Failed to create quotation';
-      showToast(msg, 'error');
-      console.error(err);
+      const data = err?.response?.data;
+      const mappedSurfaceErrors: Record<string, Record<string, string>> = {};
+      let unmappedError = '';
+
+      if (data && typeof data === 'object') {
+        if (Array.isArray(data.areas_data)) {
+          data.areas_data.forEach((areaErr: any, aIdx: number) => {
+            if (areaErr?.surfaces && Array.isArray(areaErr.surfaces)) {
+              const areaObj = areas[aIdx];
+              areaErr.surfaces.forEach((surfErr: any, sIdx: number) => {
+                const surfaceObj = areaObj?.surfaces?.[sIdx];
+                if (surfaceObj && surfErr) {
+                  const errorsForSurface: Record<string, string> = {};
+                  if (surfErr.opening_direction) {
+                    errorsForSurface.opening_direction = Array.isArray(surfErr.opening_direction) ? surfErr.opening_direction.join(' ') : String(surfErr.opening_direction);
+                  }
+                  if (surfErr.spec && typeof surfErr.spec === 'object') {
+                    Object.entries(surfErr.spec).forEach(([k, v]) => {
+                      errorsForSurface[k] = Array.isArray(v) ? (v as string[]).join(' ') : String(v);
+                    });
+                  }
+                  mappedSurfaceErrors[surfaceObj.tempId] = errorsForSurface;
+                }
+              });
+            }
+          });
+        }
+
+        if (data.detail) {
+          unmappedError = String(data.detail);
+        } else if (data.non_field_errors) {
+          unmappedError = Array.isArray(data.non_field_errors) ? data.non_field_errors.join(' ') : String(data.non_field_errors);
+        } else if (Object.keys(mappedSurfaceErrors).length === 0) {
+          unmappedError = typeof data === 'string' ? data : JSON.stringify(data);
+        }
+      } else {
+        unmappedError = err?.message || 'Failed to create quotation';
+      }
+
+      setSurfaceFieldErrors(mappedSurfaceErrors);
+      setConfigurationError(unmappedError || null);
+      showToast(unmappedError || 'Validation error on one or more surfaces. Please review the highlighted fields.', 'error');
+      console.error('Quotation creation error:', err);
     } finally {
       setIsSaving(false);
     }
@@ -503,19 +557,25 @@ export default function QuotationBuilderPage() {
 
           <div className="qb-general-column">
             <div className="qb-field">
-              <label htmlFor="quotation-work-type" className="qb-field-label block text-[15px] font-bold text-slate-700 mb-2">
+              <label id="quotation-work-type-label" className="qb-field-label block text-[15px] font-bold text-slate-700 mb-2">
                 Work Type
               </label>
-              <select
+              <SelectMenu
                 id="quotation-work-type"
-                value={selectedWorkType?.id || quotationSettings.work_type}
-                onChange={(event) => setQuotationSettings({ ...quotationSettings, work_type: Number(event.target.value) })}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-[#5442f6] focus:ring-2 focus:ring-[#5442f6]/20 transition-all font-medium text-slate-700"
-              >
-                {workTypes.map((workType) => (
-                  <option key={workType.id} value={workType.id}>{workType.name}</option>
-                ))}
-              </select>
+                value={String(selectedWorkType?.id || quotationSettings.work_type)}
+                options={workTypes.map((wt) => ({
+                  value: String(wt.id),
+                  label: wt.name,
+                  suffix: `#${wt.id}`,
+                }))}
+                onChange={(val) => {
+                  setQuotationSettings({ ...quotationSettings, work_type: Number(val) });
+                  setSurfaceFieldErrors({});
+                  setConfigurationError(null);
+                }}
+                ariaLabel="Work Type"
+                ariaLabelledBy="quotation-work-type-label"
+              />
             </div>
             <div className="qb-field">
               <span className="qb-field-label block text-[15px] font-bold text-slate-700 mb-2">Quotation Type</span>
@@ -572,6 +632,26 @@ export default function QuotationBuilderPage() {
       {/* Step 2: Areas and Surfaces */}
       {selectedAppointmentId && (
         <>
+          {configurationError && (
+            <div className="mb-4 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm flex items-start justify-between gap-3 shadow-sm">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-rose-600 mt-0.5 shrink-0" />
+                <div>
+                  <strong className="block font-semibold">Quotation Validation Failed</strong>
+                  <span>{configurationError}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConfigurationError(null)}
+                className="text-rose-400 hover:text-rose-600 p-1"
+                aria-label="Dismiss error"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           <section className="qb-card qb-configuration-card qbc-configuration">
             <header className="qbc-configuration-header">
               <span className="qbc-configuration-icon"><Layers3 size={18} aria-hidden="true" /></span>
@@ -684,8 +764,11 @@ export default function QuotationBuilderPage() {
                                   items={items}
                                   motors={motors}
                                   features={workTypeFeatures}
+                                  workTypeName={selectedWorkType?.name}
+                                  fieldErrors={surfaceFieldErrors[surface.tempId]}
                                   onDelete={() => handleDeleteSurface(area.tempId, surface.tempId)}
                                   onUpdateSpec={(updates) => handleUpdateSurfaceSpec(area.tempId, surface.tempId, updates)}
+                                  onUpdateSurface={(updates) => handleUpdateSurface(area.tempId, surface.tempId, updates)}
                                   calculateTotal={calculateSurfaceTotal}
                                 />
                               ))}

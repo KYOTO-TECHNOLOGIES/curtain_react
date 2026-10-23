@@ -159,7 +159,7 @@ export interface CreateOrGetCustomerResponse {
 
 // ── Catalog ─────────────────────────────────────────────
 
-export interface CatalogWorkTypeFeatures {
+export interface CatalogWorkTypeFeatures extends Record<string, unknown> {
   motor: boolean;
   charges: boolean;
   images: boolean;
