@@ -10,6 +10,8 @@ import {
   SlidersHorizontal,
   Tag,
   Trash2,
+  Lock,
+  AlertTriangle,
 } from 'lucide-react';
 import { SelectMenu, type SelectOption } from '../../../components/ui/SelectMenu';
 import type {
@@ -21,12 +23,14 @@ import type {
 } from '../../../api/catalog';
 import type { SurfaceSpec } from '../../../api/quotations';
 
-interface BuilderSurface {
+export interface BuilderSurface {
   tempId: string;
   surface_name: string;
   surface_type: string;
   width_cm: number;
   height_cm: number;
+  opening_direction?: string;
+  special_requirements?: string;
   spec: SurfaceSpec;
 }
 
@@ -37,8 +41,11 @@ interface Props {
   items: CatalogItem[];
   motors: MotorType[];
   features?: Partial<WorkTypeFeatures>;
+  workTypeName?: string;
+  fieldErrors?: Record<string, string>;
   onDelete: () => void;
   onUpdateSpec: (updates: Partial<SurfaceSpec>) => void;
+  onUpdateSurface?: (updates: Partial<BuilderSurface>) => void;
   calculateTotal: (spec: SurfaceSpec, widthCm: number, heightCm: number) => string;
 }
 
@@ -49,16 +56,24 @@ function capitalizeDisplay(value: string) {
 function Field({
   id,
   label,
+  hint,
+  error,
   children,
 }: {
   id: string;
   label: string;
+  hint?: string;
+  error?: string;
   children: ReactNode;
 }) {
   return (
     <div className="qbc-field">
-      <label className="qbc-field-label" htmlFor={id}>{label}</label>
+      <div className="flex items-baseline justify-between mb-1">
+        <label className="qbc-field-label" htmlFor={id}>{label}</label>
+        {hint && <span className="text-[11px] text-slate-400 font-normal">{hint}</span>}
+      </div>
       {children}
+      {error && <span className="text-xs text-rose-500 font-medium mt-1 block">{error}</span>}
     </div>
   );
 }
@@ -68,17 +83,23 @@ function PriceField({
   label,
   value,
   onChange,
-  step,
+  step = '0.01',
+  readOnly = false,
+  hint,
+  error,
 }: {
   id: string;
   label: string;
   value: string | number;
-  onChange: (value: string) => void;
+  onChange?: (val: string) => void;
   step?: string;
+  readOnly?: boolean;
+  hint?: string;
+  error?: string;
 }) {
   return (
-    <Field id={id} label={label}>
-      <div className="qbc-price-control">
+    <Field id={id} label={label} hint={hint} error={error}>
+      <div className={`qbc-price-control${readOnly ? ' bg-slate-50 border-slate-200 cursor-not-allowed' : ''}`}>
         <span className="qbc-currency" aria-hidden="true">AED</span>
         <input
           id={id}
@@ -86,9 +107,10 @@ function PriceField({
           step={step}
           inputMode="decimal"
           autoComplete="off"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className="qbc-price-input"
+          value={value == null ? '' : value}
+          readOnly={readOnly}
+          onChange={(event) => onChange?.(event.target.value)}
+          className={`qbc-price-input${readOnly ? ' bg-transparent cursor-not-allowed font-semibold text-slate-600' : ''}`}
         />
       </div>
     </Field>
@@ -101,23 +123,37 @@ function OptionTile({
   onChange,
   label,
   icon: Icon,
+  disabled = false,
+  tooltip,
 }: {
   id: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
   label: string;
   icon: typeof Mic;
+  disabled?: boolean;
+  tooltip?: string;
 }) {
   return (
-    <label className={`qbc-option-tile${checked ? ' is-checked' : ''}`} htmlFor={id}>
+    <label
+      className={`qbc-option-tile${checked ? ' is-checked' : ''}${disabled ? ' opacity-55 cursor-not-allowed' : ''}`}
+      htmlFor={id}
+      title={tooltip}
+    >
       <input
         id={id}
         type="checkbox"
         checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
+        disabled={disabled}
+        onChange={(event) => {
+          if (disabled) return;
+          onChange(event.target.checked);
+        }}
         className="qbc-option-input"
       />
-      <span className="qbc-option-icon"><Icon size={16} aria-hidden="true" /></span>
+      <span className="qbc-option-icon">
+        {disabled ? <Lock size={15} className="text-amber-600" /> : <Icon size={16} aria-hidden="true" />}
+      </span>
       <span className="qbc-option-label">{label}</span>
       <span className="qbc-switch" aria-hidden="true"><span /></span>
     </label>
@@ -138,9 +174,12 @@ function SurfaceSketch({ surface }: { surface: BuilderSurface }) {
         <rect x={x} y={y} width={width} height={height} rx="3" className="qbc-sketch-frame" />
         {surface.surface_type === 'window' && (
           <>
-            <line x1={x + width / 2} y1={y + 2} x2={x + width / 2} y2={y + height - 2} className="qbc-sketch-cross" />
-            <line x1={x + 2} y1={y + height / 2} x2={x + width - 2} y2={y + height / 2} className="qbc-sketch-cross" />
+            <line x1={x} y1={y + height / 2} x2={x + width} y2={y + height / 2} className="qbc-sketch-mullion" />
+            <line x1={x + width / 2} y1={y} x2={x + width / 2} y2={y + height} className="qbc-sketch-mullion" />
           </>
+        )}
+        {surface.surface_type === 'door' && (
+          <circle cx={x + width - 4} cy={y + height / 2} r="1.5" className="qbc-sketch-knob" />
         )}
       </svg>
     </span>
@@ -154,65 +193,58 @@ export default function BuilderSurfaceCard({
   items,
   motors,
   features,
+  workTypeName,
+  fieldErrors = {},
   onDelete,
   onUpdateSpec,
+  onUpdateSurface,
   calculateTotal,
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(true);
-  const [displayTotal, setDisplayTotal] = useState(0);
   const [isPulsing, setIsPulsing] = useState(false);
   const [announcedTotal, setAnnouncedTotal] = useState('');
-  const firstTotal = useRef(true);
-  const totalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const total = Number(calculateTotal(surface.spec, surface.width_cm, surface.height_cm)) || 0;
-  const safeId = surface.tempId.replace(/[^a-zA-Z0-9_-]/g, '');
-  const surfaceLabel = capitalizeDisplay(surface.surface_name);
-  const areaM2 = ((surface.width_cm * surface.height_cm) / 10000).toFixed(2);
+  const prevTotalRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    if (firstTotal.current) {
-      firstTotal.current = false;
-      setDisplayTotal(total);
-      setAnnouncedTotal(`Line total AED ${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
-      return;
-    }
-
-    const start = displayTotal;
-    const startedAt = performance.now();
-    let frame = 0;
-    const animate = (now: number) => {
-      const progress = Math.min((now - startedAt) / 300, 1);
-      const eased = 1 - (1 - progress) ** 3;
-      setDisplayTotal(start + (total - start) * eased);
-      if (progress < 1) frame = requestAnimationFrame(animate);
-    };
-    frame = requestAnimationFrame(animate);
-    setIsPulsing(true);
-    if (pulseTimer.current) clearTimeout(pulseTimer.current);
-    pulseTimer.current = setTimeout(() => setIsPulsing(false), 400);
-    if (totalTimer.current) clearTimeout(totalTimer.current);
-    totalTimer.current = setTimeout(() => {
-      setAnnouncedTotal(`Line total AED ${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
-    }, 400);
-
-    return () => cancelAnimationFrame(frame);
-  }, [total]);
-
-  useEffect(() => () => {
-    if (totalTimer.current) clearTimeout(totalTimer.current);
-    if (pulseTimer.current) clearTimeout(pulseTimer.current);
-  }, []);
-
-  const fabricName = fabricTypes.find((item) => item.id === surface.spec.fabric_type)?.name;
-  const modelName = models.find((item) => item.id === surface.spec.model)?.name;
-  const itemName = items.find((item) => item.id === surface.spec.catalog_item)?.name;
-  const controlName = surface.spec.motor_control_type === 'motorized' ? 'Motorized' : 'Manual';
-  const summaries = [fabricName, modelName, itemName, controlName].filter(Boolean);
-  const totalDisplay = displayTotal.toLocaleString('en-US', {
+  const safeId = surface.tempId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const areaM2 = Number(((surface.width_cm * surface.height_cm) / 10000).toFixed(2));
+  const rawTotal = calculateTotal(surface.spec, surface.width_cm, surface.height_cm);
+  const total = parseFloat(rawTotal) || 0;
+  const totalDisplay = Number(rawTotal).toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+
+  useEffect(() => {
+    if (prevTotalRef.current !== null && prevTotalRef.current !== total) {
+      setIsPulsing(true);
+      const pulseTimer = setTimeout(() => setIsPulsing(false), 240);
+      const announceTimer = setTimeout(() => {
+        setAnnouncedTotal(`Line total updated to AED ${totalDisplay}`);
+      }, 400);
+      return () => {
+        clearTimeout(pulseTimer);
+        clearTimeout(announceTimer);
+      };
+    }
+    prevTotalRef.current = total;
+  }, [total, totalDisplay]);
+
+  const surfaceLabel = surface.surface_name
+    ? `${surface.surface_name} (${capitalizeDisplay(surface.surface_type)})`
+    : capitalizeDisplay(surface.surface_type);
+
+  const selectedFabric = fabricTypes.find((f) => f.id === surface.spec.fabric_type);
+  const selectedModel = models.find((m) => m.id === surface.spec.model);
+  const selectedItem = items.find((i) => i.id === surface.spec.catalog_item);
+  const selectedMotor = surface.spec.motor_type ? motors.find((m) => m.id === surface.spec.motor_type) : null;
+
+  const summaries = [
+    selectedFabric?.name || selectedModel?.name || selectedItem?.name,
+    capitalizeDisplay(surface.spec.motor_control_type),
+    surface.spec.smart_integration ? 'Smart' : null,
+    surface.spec.pelmet_enabled ? 'Pelmet' : null,
+    surface.spec.addon_label ? `+${surface.spec.addon_label}` : null,
+  ].filter(Boolean) as string[];
 
   const fabricOptions: SelectOption[] = fabricTypes.map((item) => ({
     value: String(item.id),
@@ -227,18 +259,50 @@ export default function BuilderSurfaceCard({
     label: item.name,
     suffix: item.price_per_unit == null ? undefined : String(item.price_per_unit),
   }));
-  const motorOptions: SelectOption[] = motors.map((item) => ({
-    value: String(item.id),
-    label: item.name,
-    suffix: item.price_per_m2 == null ? undefined : String(item.price_per_m2),
-  }));
+
+  // Work type feature allowances
   const allowMotor = features?.motor !== false;
   const allowCharges = features?.charges !== false;
   const allowPelmet = features?.pelmet !== false;
+  const allowDraw = features?.draw !== false;
+
+  // Control Options (Motorized disabled with lock & tooltip if motor is off)
   const controlOptions: SelectOption[] = [
     { value: 'manual', label: 'Manual' },
-    ...(allowMotor ? [{ value: 'motorized', label: 'Motorized' }] : []),
+    {
+      value: 'motorized',
+      label: 'Motorized',
+      disabled: !allowMotor,
+      icon: !allowMotor ? <Lock size={13} className="text-rose-500" /> : undefined,
+      suffix: !allowMotor ? 'Locked' : undefined,
+      tooltip: !allowMotor ? `Motors aren't enabled for ${workTypeName || 'this work type'}` : undefined,
+    },
   ];
+
+  // Motor Options
+  const motorOptions: SelectOption[] = motors.map((item) => ({
+    value: String(item.id),
+    label: item.name,
+    suffix: item.price_per_m2 == null ? undefined : `AED ${item.price_per_m2} / m²`,
+  }));
+
+  // Opening Direction Options
+  const drawOptions: SelectOption[] = [
+    { value: 'one_way', label: '1 Way (One-way draw)' },
+    {
+      value: 'two_way',
+      label: '2 Way (Split draw)',
+      disabled: !allowDraw,
+      icon: !allowDraw ? <Lock size={13} className="text-rose-500" /> : undefined,
+      suffix: !allowDraw ? 'Locked' : undefined,
+      tooltip: !allowDraw ? `Opening direction is locked to 1 way for ${workTypeName || 'this work type'}` : undefined,
+    },
+  ];
+
+  // Estimated Motor Total
+  const estimatedMotorTotal = selectedMotor
+    ? (areaM2 * Number(selectedMotor.price_per_m2 || 0)).toFixed(2)
+    : '0.00';
 
   return (
     <article className="qbc-surface-card">
@@ -294,13 +358,14 @@ export default function BuilderSurfaceCard({
         inert={!isExpanded}
       >
         <div className="qbc-surface-panel-inner">
+          {/* Section: Product */}
           <section className="qbc-section" role="group" aria-labelledby={`product-heading-${safeId}`}>
             <h3 className="qbc-section-heading qbc-section-heading--product" id={`product-heading-${safeId}`}>
               <span className="qbc-section-icon"><Layers3 size={14} aria-hidden="true" /></span>
               <span>Product</span>
             </h3>
             <div className="qbc-product-grid">
-              <Field id={`fabric-${safeId}`} label="Fabric Type">
+              <Field id={`fabric-${safeId}`} label="Fabric Type" error={fieldErrors.fabric_type}>
                 <SelectMenu
                   id={`fabric-${safeId}`}
                   value={String(surface.spec.fabric_type)}
@@ -311,7 +376,7 @@ export default function BuilderSurfaceCard({
                   placeholder={fabricOptions.length ? 'Select fabric type' : 'No options'}
                 />
               </Field>
-              <Field id={`model-${safeId}`} label="Model">
+              <Field id={`model-${safeId}`} label="Model" error={fieldErrors.model}>
                 <SelectMenu
                   id={`model-${safeId}`}
                   value={String(surface.spec.model)}
@@ -322,16 +387,16 @@ export default function BuilderSurfaceCard({
                   placeholder={modelOptions.length ? 'Select model' : 'No options'}
                 />
               </Field>
-              <Field id={`item-${safeId}`} label="Item">
+              <Field id={`item-${safeId}`} label="Item" error={fieldErrors.catalog_item}>
                 <SelectMenu
                   id={`item-${safeId}`}
                   value={String(surface.spec.catalog_item)}
                   options={itemOptions}
                   onChange={(value) => {
-                    const selectedItem = items.find((item) => item.id === Number(value));
+                    const chosen = items.find((item) => item.id === Number(value));
                     onUpdateSpec({
                       catalog_item: Number(value),
-                      unit_price_per_m2: selectedItem?.price_per_unit || surface.spec.unit_price_per_m2,
+                      unit_price_per_m2: chosen?.price_per_unit || surface.spec.unit_price_per_m2,
                     });
                   }}
                   ariaLabel="Item"
@@ -343,13 +408,41 @@ export default function BuilderSurfaceCard({
             </div>
           </section>
 
+          {/* Section: Control & Options */}
           <section className="qbc-section" role="group" aria-labelledby={`control-heading-${safeId}`}>
             <h3 className="qbc-section-heading qbc-section-heading--control" id={`control-heading-${safeId}`}>
               <span className="qbc-section-icon"><SlidersHorizontal size={14} aria-hidden="true" /></span>
               <span>Control and options</span>
             </h3>
+
+            {/* Incompatible Existing Values Amber Warnings */}
+            {surface.spec.motor_control_type === 'motorized' && !allowMotor && (
+              <div className="catalog-notice--amber mb-3">
+                <AlertTriangle size={15} />
+                <span>Motorized control is selected, but Motors are disabled for {workTypeName || 'this work type'}.</span>
+              </div>
+            )}
+            {surface.spec.smart_integration && !allowCharges && (
+              <div className="catalog-notice--amber mb-3">
+                <AlertTriangle size={15} />
+                <span>Smart Integration (Alexa) is selected, but Control &amp; Charges are disabled for {workTypeName || 'this work type'}.</span>
+              </div>
+            )}
+            {surface.spec.pelmet_enabled && !allowPelmet && (
+              <div className="catalog-notice--amber mb-3">
+                <AlertTriangle size={15} />
+                <span>Pelmet is enabled, but Pelmet feature is disabled for {workTypeName || 'this work type'}.</span>
+              </div>
+            )}
+            {surface.opening_direction && surface.opening_direction !== 'one_way' && !allowDraw && (
+              <div className="catalog-notice--amber mb-3">
+                <AlertTriangle size={15} />
+                <span>Opening direction is set to {surface.opening_direction}, but Opening Direction is disabled for {workTypeName || 'this work type'}.</span>
+              </div>
+            )}
+
             <div className="qbc-control-grid">
-              <Field id={`control-${safeId}`} label="Control">
+              <Field id={`control-${safeId}`} label="Control" error={fieldErrors.motor_control_type}>
                 <SelectMenu
                   id={`control-${safeId}`}
                   value={surface.spec.motor_control_type}
@@ -358,53 +451,84 @@ export default function BuilderSurfaceCard({
                   ariaLabel="Control"
                 />
               </Field>
+
+              {/* Option Tiles (Alexa & Pelmet disabled with lock tooltip if feature is off) */}
               <div className="qbc-option-grid">
-                {allowCharges && (
                 <OptionTile
                   id={`alexa-${safeId}`}
                   checked={surface.spec.smart_integration}
+                  disabled={!allowCharges}
+                  tooltip={!allowCharges ? `Control & Charges aren't enabled for ${workTypeName || 'this work type'}` : undefined}
                   onChange={(checked) => onUpdateSpec({ smart_integration: checked })}
                   label="Smart Integration (Alexa)"
                   icon={Mic}
                 />
-                )}
-                {allowPelmet && (
                 <OptionTile
                   id={`pelmet-${safeId}`}
                   checked={surface.spec.pelmet_enabled}
+                  disabled={!allowPelmet}
+                  tooltip={!allowPelmet ? `Pelmet isn't enabled for ${workTypeName || 'this work type'}` : undefined}
                   onChange={(checked) => onUpdateSpec({ pelmet_enabled: checked })}
                   label="Add Pelmet"
                   icon={PanelTop}
                 />
-                )}
               </div>
             </div>
+
+            {/* Opening Direction (draw feature) */}
+            <div className="mt-3">
+              <Field id={`draw-${safeId}`} label="Opening Direction" error={fieldErrors.opening_direction}>
+                <SelectMenu
+                  id={`draw-${safeId}`}
+                  value={surface.opening_direction || 'one_way'}
+                  options={drawOptions}
+                  onChange={(val) => onUpdateSurface?.({ opening_direction: val })}
+                  ariaLabel="Opening Direction"
+                />
+              </Field>
+            </div>
+
+            {/* Extra Fields for Motor, Alexa, Pelmet */}
             {(surface.spec.motor_control_type === 'motorized' || surface.spec.smart_integration || surface.spec.pelmet_enabled) && (
-              <div className="qbc-extra-fields">
-                {allowMotor && surface.spec.motor_control_type === 'motorized' && (
-                  <Field id={`motor-${safeId}`} label="Motor Type">
-                    <SelectMenu
-                      id={`motor-${safeId}`}
-                      value={surface.spec.motor_type == null ? '' : String(surface.spec.motor_type)}
-                      options={[{ value: '', label: 'Select' }, ...motorOptions]}
-                      onChange={(value) => {
-                        const motorId = value ? Number(value) : null;
-                        const selectedMotor = motorId ? motors.find((motor) => motor.id === motorId) : null;
-                        onUpdateSpec({
-                          motor_type: motorId,
-                          motor_price_per_unit: selectedMotor?.price_per_m2 || '0',
-                        });
-                      }}
-                      ariaLabel="Motor Type"
-                      showOptionSuffix
-                      disabled={motors.length === 0}
-                      placeholder={motors.length ? 'Select motor' : 'No options'}
-                    />
-                  </Field>
+              <div className="qbc-extra-fields mt-3">
+                {/* Motor Type Selection */}
+                {surface.spec.motor_control_type === 'motorized' && (
+                  <div className="col-span-full">
+                    <Field id={`motor-${safeId}`} label="Motor Type" error={fieldErrors.motor_type}>
+                      {allowMotor && motors.length === 0 ? (
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500">
+                          No motors selected for this work type yet.
+                        </div>
+                      ) : (
+                        <SelectMenu
+                          id={`motor-${safeId}`}
+                          value={surface.spec.motor_type == null ? '' : String(surface.spec.motor_type)}
+                          options={[{ value: '', label: 'Select Motor' }, ...motorOptions]}
+                          onChange={(value) => {
+                            const motorId = value ? Number(value) : null;
+                            const chosenMotor = motorId ? motors.find((m) => m.id === motorId) : null;
+                            const calculatedMotorPrice = chosenMotor
+                              ? (areaM2 * Number(chosenMotor.price_per_m2 || 0)).toFixed(2)
+                              : '0';
+                            onUpdateSpec({
+                              motor_type: motorId,
+                              motor_price_per_unit: calculatedMotorPrice,
+                            });
+                          }}
+                          ariaLabel="Motor Type"
+                          showOptionSuffix
+                          disabled={motors.length === 0}
+                          placeholder={motors.length ? 'Select motor' : 'No motors available'}
+                        />
+                      )}
+                    </Field>
+                  </div>
                 )}
-                {allowCharges && surface.spec.smart_integration && (
+
+                {/* Alexa Controls */}
+                {surface.spec.smart_integration && (
                   <>
-                    <Field id={`alexa-quantity-${safeId}`} label="Qty">
+                    <Field id={`alexa-quantity-${safeId}`} label="Qty" error={fieldErrors.alexa_quantity}>
                       <input
                         id={`alexa-quantity-${safeId}`}
                         type="number"
@@ -420,12 +544,15 @@ export default function BuilderSurfaceCard({
                       value={surface.spec.alexa_unit_price}
                       onChange={(value) => onUpdateSpec({ alexa_unit_price: value })}
                       step="0.01"
+                      error={fieldErrors.alexa_unit_price}
                     />
                   </>
                 )}
-                {allowPelmet && surface.spec.pelmet_enabled && (
+
+                {/* Pelmet Controls */}
+                {surface.spec.pelmet_enabled && (
                   <>
-                    <Field id={`pelmet-width-${safeId}`} label="Width (cm)">
+                    <Field id={`pelmet-width-${safeId}`} label="Width (cm)" error={fieldErrors.pelmet_width_cm}>
                       <input
                         id={`pelmet-width-${safeId}`}
                         type="number"
@@ -441,6 +568,7 @@ export default function BuilderSurfaceCard({
                       value={surface.spec.pelmet_price_per_metre}
                       onChange={(value) => onUpdateSpec({ pelmet_price_per_metre: value })}
                       step="0.01"
+                      error={fieldErrors.pelmet_price_per_metre}
                     />
                   </>
                 )}
@@ -448,6 +576,7 @@ export default function BuilderSurfaceCard({
             )}
           </section>
 
+          {/* Section: Pricing */}
           <section className="qbc-section" role="group" aria-labelledby={`pricing-heading-${safeId}`}>
             <h3 className="qbc-section-heading qbc-section-heading--pricing" id={`pricing-heading-${safeId}`}>
               <span className="qbc-section-icon"><Banknote size={14} aria-hidden="true" /></span>
@@ -458,28 +587,46 @@ export default function BuilderSurfaceCard({
                 id={`surface-price-${safeId}`}
                 label="Surface Price (AED)"
                 value={(() => {
-                  const areaM2 = (Number(surface.width_cm) * Number(surface.height_cm)) / 10000;
                   const unitPrice = parseFloat(String(surface.spec.unit_price_per_m2)) || 0;
                   return areaM2 > 0 ? (areaM2 * unitPrice).toFixed(2) : '0.00';
                 })()}
                 onChange={(value) => {
-                  const areaM2 = (Number(surface.width_cm) * Number(surface.height_cm)) / 10000;
                   const newSurfacePrice = parseFloat(value) || 0;
                   const newUnitPrice = areaM2 > 0 ? (newSurfacePrice / areaM2).toFixed(4) : '0';
                   onUpdateSpec({ unit_price_per_m2: newUnitPrice });
                 }}
                 step="0.01"
+                error={fieldErrors.unit_price_per_m2}
               />
-              <PriceField
+
+              {/* Motor Price (Read-only, calculated on save from motor_type.price_per_m2) */}
+              <Field
                 id={`motor-price-${safeId}`}
                 label="Motor Price (AED)"
-                value={surface.spec.motor_price_per_unit}
-                onChange={(value) => onUpdateSpec({ motor_price_per_unit: value })}
-                step="0.01"
-              />
+                hint="Calculated on save"
+                error={fieldErrors.motor_price_per_unit}
+              >
+                <div className="qbc-price-control bg-slate-50 border-slate-200 cursor-not-allowed">
+                  <span className="qbc-currency" aria-hidden="true">AED</span>
+                  <input
+                    id={`motor-price-${safeId}`}
+                    type="text"
+                    readOnly
+                    value={surface.spec.motor_price_per_unit || '0.00'}
+                    className="qbc-price-input bg-transparent cursor-not-allowed font-semibold text-slate-600"
+                    title="Calculated from the motor price on save"
+                  />
+                </div>
+                {selectedMotor && (
+                  <span className="text-[11px] text-slate-500 mt-1 block">
+                    Estimate: AED {estimatedMotorTotal} ({areaM2} m² × AED {selectedMotor.price_per_m2})
+                  </span>
+                )}
+              </Field>
             </div>
           </section>
 
+          {/* Section: Add-on */}
           <section className="qbc-section" role="group" aria-labelledby={`addon-heading-${safeId}`}>
             <h3 className="qbc-section-heading qbc-section-heading--addon" id={`addon-heading-${safeId}`}>
               <span className="qbc-section-icon"><PlusSquare size={14} aria-hidden="true" /></span>
@@ -509,6 +656,7 @@ export default function BuilderSurfaceCard({
             </div>
           </section>
 
+          {/* Total Row */}
           <div className={`qbc-total-row${isPulsing ? ' is-pulsing' : ''}`} aria-live="off">
             <span className="qbc-total-label"><Receipt size={17} aria-hidden="true" />Line total</span>
             <span className={`qbc-total-value${total === 0 ? ' is-zero' : ''}`}>
