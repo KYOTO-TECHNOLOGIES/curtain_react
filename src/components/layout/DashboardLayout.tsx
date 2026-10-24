@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { CSSProperties, FocusEvent, KeyboardEvent, ReactNode } from 'react';
+import type { CSSProperties, FocusEvent, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Outlet, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import {
-  Bell, BriefcaseBusiness, ConciergeBell, HelpCircle, Menu, Search, ShieldCheck,
-  UserCog, X,
+  Bell, BriefcaseBusiness, ConciergeBell, HelpCircle, Menu, ShieldCheck, UserCog,
 } from 'lucide-react';
 import Sidebar from './Sidebar';
 import { SidebarProvider, useSidebar } from './SidebarContext';
@@ -134,11 +133,8 @@ function TopbarTooltip({ content, children, className = '', tooltipClassName = '
 
 function DashboardLayoutContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState('');
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const { sidebarWidth, isReady, isTabletOverlayOpen, closeOverlay } = useSidebar();
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const mainRef = useRef<HTMLElement>(null);
   const scrollSentinelRef = useRef<HTMLSpanElement>(null);
 
@@ -161,41 +157,6 @@ function DashboardLayoutContent() {
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, []);
-
-  useEffect(() => {
-    const handleSearchShortcut = (event: globalThis.KeyboardEvent) => {
-      if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented) return;
-      const target = event.target;
-      if (
-        target instanceof HTMLElement
-        && target.closest('input, textarea, select, [contenteditable="true"]')
-      ) return;
-      if (document.querySelector('[aria-modal="true"], [role="dialog"]')) return;
-
-      event.preventDefault();
-      setMobileSearchOpen(true);
-      window.requestAnimationFrame(() => searchInputRef.current?.focus());
-    };
-
-    window.addEventListener('keydown', handleSearchShortcut);
-    return () => window.removeEventListener('keydown', handleSearchShortcut);
-  }, []);
-
-  const collapseMobileSearch = () => {
-    if (searchValue) return;
-    setMobileSearchOpen(false);
-  };
-
-  const handleSearchBlur = () => {
-    window.requestAnimationFrame(collapseMobileSearch);
-  };
-
-  const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Escape') {
-      setMobileSearchOpen(false);
-      searchInputRef.current?.blur();
-    }
-  };
 
   return (
     <div
@@ -230,53 +191,6 @@ function DashboardLayoutContent() {
           >
             <Menu aria-hidden="true" />
           </button>
-
-          <div className={`cm-topbar-search-region${mobileSearchOpen ? ' is-mobile-open' : ''}`}>
-            <button
-              type="button"
-              className="cm-topbar-search-mobile-trigger"
-              aria-label="Open search"
-              onClick={() => {
-                setMobileSearchOpen(true);
-                window.requestAnimationFrame(() => searchInputRef.current?.focus());
-              }}
-            >
-              <Search aria-hidden="true" />
-            </button>
-
-            <div
-              role="search"
-              aria-label="Global search"
-              className={`cm-topbar-search-control${searchValue ? ' has-value' : ''}`}
-            >
-              <Search className="cm-topbar-search-icon" aria-hidden="true" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchValue}
-                onChange={(event) => setSearchValue(event.target.value)}
-                onBlur={handleSearchBlur}
-                onKeyDown={handleSearchKeyDown}
-                placeholder="Search orders, clients, textiles..."
-                aria-label="Search orders, clients, textiles"
-              />
-              {searchValue && (
-                <button
-                  type="button"
-                  className="cm-topbar-search-clear"
-                  aria-label="Clear search"
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => {
-                    setSearchValue('');
-                    searchInputRef.current?.focus();
-                  }}
-                >
-                  <X aria-hidden="true" />
-                </button>
-              )}
-              <kbd className="cm-topbar-search-shortcut" aria-hidden="true">/</kbd>
-            </div>
-          </div>
 
           <div className="cm-topbar-spacer" />
 
