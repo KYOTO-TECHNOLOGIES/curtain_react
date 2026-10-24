@@ -53,6 +53,51 @@ import './CatalogPage.css';
 type TabType = 'work-types' | 'fabric-types' | 'models' | 'items' | 'motors' | 'charges';
 const catalogTabs: TabType[] = ['work-types', 'fabric-types', 'models', 'items', 'motors', 'charges'];
 
+function useCountChangeAnimation(count: number) {
+  const previousCount = useRef(count);
+  const [isChanging, setIsChanging] = useState(false);
+
+  useEffect(() => {
+    if (previousCount.current === count) return undefined;
+    previousCount.current = count;
+    setIsChanging(true);
+    const timeout = window.setTimeout(() => setIsChanging(false), 160);
+    return () => window.clearTimeout(timeout);
+  }, [count]);
+
+  return isChanging;
+}
+
+function CatalogTabCount({ count }: { count: number }) {
+  const isChanging = useCountChangeAnimation(count);
+
+  return (
+    <span
+      className={`catalog__tab-count${isChanging ? ' is-changing' : ''}`}
+      data-zero={count === 0}
+    >
+      <span className="catalog__count-roll-clip">
+        <span key={count} className="catalog__count-roll">{count}</span>
+      </span>
+    </span>
+  );
+}
+
+function CatalogResultCount({ count, searching }: { count: number; searching: boolean }) {
+  const isChanging = useCountChangeAnimation(count);
+
+  return (
+    <span className={`catalog__result-count${isChanging ? ' is-changing' : ''}`}>
+      <Layers className="catalog__result-icon" aria-hidden="true" />
+      <span className="catalog__count-roll-clip">
+        <span key={count} className="catalog__count-roll">{count}</span>
+      </span>
+      <span>{count === 1 ? 'item' : 'items'}</span>
+      {searching && <span className="catalog__result-dot" aria-hidden="true" />}
+    </span>
+  );
+}
+
 const nameColors = ['#2F5D8F', '#10B981', '#F97316', '#8B5CF6', '#F59E0B', '#14B8A6', '#6366F1', '#EC4899'];
 const stableNameColor = (value: string) => {
   let hash = 0;
@@ -99,7 +144,7 @@ export default function CatalogPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const tabListRef = useRef<HTMLDivElement>(null);
   const tabButtonRefs = useRef<Partial<Record<TabType, HTMLButtonElement>>>({});
-  const [tabThumb, setTabThumb] = useState({ left: 0, width: 0 });
+  const [tabThumb, setTabThumb] = useState({ left: 0, width: 0, ready: false });
   const [tabDirection, setTabDirection] = useState(1);
   const [tabEdges, setTabEdges] = useState({ left: false, right: false });
   const [focusedTab, setFocusedTab] = useState<TabType>('items');
@@ -213,6 +258,18 @@ export default function CatalogPage() {
     charges,
   };
 
+  const tabCountKnown: Record<TabType, boolean> = {
+    'work-types': workTypesRes !== undefined,
+    'fabric-types': fabricTypesRes !== undefined,
+    models: modelsRes !== undefined,
+    items: itemsRes !== undefined,
+    motors: motorsRes !== undefined,
+    charges: chargesRes !== undefined,
+  };
+  const tabCountSignature = catalogTabs
+    .map((tab) => `${tab}:${tabCountKnown[tab] ? tabData[tab].length : 'unknown'}`)
+    .join('|');
+
   const tabColumns: Record<TabType, string[]> = {
     'work-types': ['id', 'name', 'pricing_unit', 'features', 'includes'],
     'fabric-types': ['id', 'work_type_name', 'name'],
@@ -295,22 +352,63 @@ export default function CatalogPage() {
     return () => document.removeEventListener('keydown', handleShortcut);
   }, []);
 
-  // Tab Slide Animation Indicator
+  // Keep the sliding tab indicator aligned as the track or its contents change size.
   useEffect(() => {
-    const updateThumb = () => {
-      const tabElement = tabButtonRefs.current[activeTab];
-      const tabList = tabListRef.current;
-      if (!tabElement || !tabList) return;
-      setTabThumb({ left: tabElement.offsetLeft, width: tabElement.offsetWidth });
+    const tabList = tabListRef.current;
+    if (!tabList) return undefined;
+
+    let animationFrame = 0;
+    const updateEdges = () => {
       setTabEdges({
         left: tabList.scrollLeft > 0,
         right: tabList.scrollLeft + tabList.clientWidth < tabList.scrollWidth - 1,
       });
     };
-    updateThumb();
+    const updateThumb = () => {
+      const tabElement = tabButtonRefs.current[activeTab];
+      if (!tabElement) return;
+      setTabThumb((current) => {
+        const next = { left: tabElement.offsetLeft, width: tabElement.offsetWidth, ready: true };
+        return current.left === next.left && current.width === next.width && current.ready
+          ? current
+          : next;
+      });
+      updateEdges();
+    };
+    const scheduleUpdate = () => {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(updateThumb);
+    };
+
+    if (window.matchMedia('(max-width: 1023px)').matches) {
+      tabButtonRefs.current[activeTab]?.scrollIntoView({
+        block: 'nearest',
+        inline: 'nearest',
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      });
+    }
+    scheduleUpdate();
+
     window.addEventListener('resize', updateThumb);
-    return () => window.removeEventListener('resize', updateThumb);
-  }, [activeTab]);
+    tabList.addEventListener('scroll', updateEdges, { passive: true });
+    const observer = new ResizeObserver(scheduleUpdate);
+    observer.observe(tabList);
+    Object.values(tabButtonRefs.current).forEach((button) => {
+      if (button) observer.observe(button);
+    });
+    let isMounted = true;
+    void document.fonts.ready.then(() => {
+      if (isMounted) scheduleUpdate();
+    });
+
+    return () => {
+      isMounted = false;
+      window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener('resize', updateThumb);
+      tabList.removeEventListener('scroll', updateEdges);
+      observer.disconnect();
+    };
+  }, [activeTab, tabCountSignature]);
 
   const handleTabSelect = (tab: TabType) => {
     const oldIndex = catalogTabs.indexOf(activeTab);
@@ -935,7 +1033,7 @@ export default function CatalogPage() {
         >
           <div className="catalog__tabs" ref={tabListRef} role="tablist">
             <span
-              className="catalog__tab-thumb"
+              className={`catalog__tab-thumb${tabThumb.ready ? ' is-ready' : ''}`}
               style={{
                 transform: `translateX(${tabThumb.left}px)`,
                 width: `${tabThumb.width}px`,
@@ -945,23 +1043,26 @@ export default function CatalogPage() {
             {catalogTabs.map((tab) => {
               const isCurrent = activeTab === tab;
               const count = tabData[tab]?.length;
+              const tabId = `catalog-tab-${tab}`;
               return (
                 <button
                   key={tab}
+                  id={tabId}
                   ref={(element) => {
                     tabButtonRefs.current[tab] = element || undefined;
                   }}
                   type="button"
                   role="tab"
                   aria-selected={isCurrent}
+                  aria-controls="catalog-panel"
                   tabIndex={focusedTab === tab ? 0 : -1}
                   className={`catalog__tab${isCurrent ? ' catalog__tab--active' : ''}`}
                   onClick={() => handleTabSelect(tab)}
                 >
                   <span className="catalog__tab-icon">{getTabIcon(tab)}</span>
-                  <span>{getTabLabel(tab)}</span>
-                  {typeof count === 'number' && (
-                    <span className="catalog__tab-count">{count}</span>
+                  <span className="catalog__tab-label">{getTabLabel(tab)}</span>
+                  {tabCountKnown[tab] && typeof count === 'number' && (
+                    <CatalogTabCount count={count} />
                   )}
                 </button>
               );
@@ -982,6 +1083,11 @@ export default function CatalogPage() {
               className="catalog__search-input"
               aria-label={`Search ${getTabLabel(activeTab).toLowerCase()}`}
             />
+            {!searchQuery && (
+              <span key={activeTab} className="catalog__placeholder-label" aria-hidden="true">
+                {`Search ${getTabLabel(activeTab).toLowerCase()}...`}
+              </span>
+            )}
             {searchQuery ? (
               <button
                 type="button"
@@ -1027,14 +1133,25 @@ export default function CatalogPage() {
           )}
 
           {dataArray.length > 0 && (
-            <span className="catalog__result-count" aria-live="polite">
-              {dataArray.length} {dataArray.length === 1 ? 'item' : 'items'}
-            </span>
+            <CatalogResultCount count={dataArray.length} searching={Boolean(searchQuery.trim())} />
           )}
         </div>
 
         {/* Table Content */}
-        {renderContent()}
+        <div
+          className="catalog__content"
+          id="catalog-panel"
+          role="tabpanel"
+          aria-labelledby={`catalog-tab-${activeTab}`}
+          tabIndex={0}
+        >
+          {renderContent()}
+        </div>
+        <span className="catalog__live-count" aria-live="polite" aria-atomic="true">
+          {debouncedSearch.trim()
+            ? `${dataArray.length} results for ${debouncedSearch.trim()}`
+            : `${dataArray.length} ${dataArray.length === 1 ? 'item' : 'items'}`}
+        </span>
       </div>
 
       {/* Main Add/Edit Modal */}

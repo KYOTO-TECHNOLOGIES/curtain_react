@@ -43,6 +43,13 @@ export default function AreaAccordion({
   onAddSurface,
   onDeleteArea,
   onDeleteSurface,
+  onChangeArea,
+  onChangeSurface,
+  onUpdateSpec,
+  fabricTypes = [],
+  models = [],
+  items = [],
+  motors = [],
   className = '',
 }: Props) {
   // All areas open by default for effortless overview, toggleable individually
@@ -105,41 +112,88 @@ export default function AreaAccordion({
             <div key={areaIdx} className="qd-card qd-area transition-all">
               {/* Accordion Header */}
               <div className="flex items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={() => toggleArea(areaIdx)}
-                  className="qd-area-header flex-1"
-                  aria-expanded={isOpen}
-                >
-                  <div className="qd-area-left">
-                    <div className="qd-area-icon">
-                      <Layers />
+                {isEditing && onChangeArea ? (
+                  /* Editable area header */
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => toggleArea(areaIdx)}
+                      className="flex-shrink-0 p-0 bg-transparent border-none cursor-pointer"
+                      aria-expanded={isOpen}
+                    >
+                      <div className="qd-area-icon">
+                        <Layers />
+                      </div>
+                    </button>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <input
+                        type="text"
+                        value={area.display_name || ''}
+                        onChange={(e) => onChangeArea(areaIdx, 'display_name', e.target.value)}
+                        placeholder="Area name"
+                        className="px-3 py-1.5 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] text-sm font-semibold text-slate-900 min-w-0 flex-1 max-w-[180px]"
+                      />
+                      <input
+                        type="text"
+                        value={area.area_type || ''}
+                        onChange={(e) => onChangeArea(areaIdx, 'area_type', e.target.value)}
+                        placeholder="Area type"
+                        className="px-3 py-1.5 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 focus:border-[#2F5D8F] text-xs font-medium text-slate-600 min-w-0 flex-1 max-w-[140px]"
+                      />
+                      <span className="qd-area-count flex-shrink-0">
+                        {surfaces.length} {surfaces.length === 1 ? 'surface' : 'surfaces'}
+                      </span>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="qd-area-name">
-                          {area.display_name || sentenceCase(area.area_type) || `Area ${areaIdx + 1}`}
-                        </span>
-                        {area.area_type && area.display_name && (
-                          <span className="text-xs text-slate-400 font-normal">
-                            ({sentenceCase(area.area_type)})
+                    <button
+                      type="button"
+                      onClick={() => toggleArea(areaIdx)}
+                      className="flex-shrink-0 p-0 bg-transparent border-none cursor-pointer"
+                    >
+                      <ChevronDown
+                        className={`qd-area-chevron ${
+                          isOpen ? 'qd-area-chevron--open' : ''
+                        }`}
+                      />
+                    </button>
+                  </div>
+                ) : (
+                  /* Read-only area header */
+                  <button
+                    type="button"
+                    onClick={() => toggleArea(areaIdx)}
+                    className="qd-area-header flex-1"
+                    aria-expanded={isOpen}
+                  >
+                    <div className="qd-area-left">
+                      <div className="qd-area-icon">
+                        <Layers />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="qd-area-name">
+                            {area.display_name || sentenceCase(area.area_type) || `Area ${areaIdx + 1}`}
                           </span>
-                        )}
-                        <span className="qd-area-count">
-                          {surfaces.length} {surfaces.length === 1 ? 'surface' : 'surfaces'}
-                        </span>
+                          {area.area_type && area.display_name && (
+                            <span className="text-xs text-slate-400 font-normal">
+                              ({sentenceCase(area.area_type)})
+                            </span>
+                          )}
+                          <span className="qd-area-count">
+                            {surfaces.length} {surfaces.length === 1 ? 'surface' : 'surfaces'}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="qd-area-right">
-                    <ChevronDown
-                      className={`qd-area-chevron ${
-                        isOpen ? 'qd-area-chevron--open' : ''
-                      }`}
-                    />
-                  </div>
-                </button>
+                    <div className="qd-area-right">
+                      <ChevronDown
+                        className={`qd-area-chevron ${
+                          isOpen ? 'qd-area-chevron--open' : ''
+                        }`}
+                      />
+                    </div>
+                  </button>
+                )}
 
                 {/* Edit Controls for Area */}
                 {isEditing && (
@@ -201,6 +255,20 @@ export default function AreaAccordion({
                             ? () => onDeleteSurface(areaIdx, surfIdx)
                             : undefined
                         }
+                        onChangeSurface={
+                          onChangeSurface
+                            ? (field, value) => onChangeSurface(areaIdx, surfIdx, field, value)
+                            : undefined
+                        }
+                        onUpdateSpec={
+                          onUpdateSpec
+                            ? (specUpdates) => onUpdateSpec(areaIdx, surfIdx, specUpdates)
+                            : undefined
+                        }
+                        fabricTypes={fabricTypes}
+                        models={models}
+                        items={items}
+                        motors={motors}
                       />
                     ))
                   )}

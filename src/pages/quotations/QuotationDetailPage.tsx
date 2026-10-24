@@ -294,10 +294,49 @@ export default function QuotationDetailPage() {
     if (!id || !quotation) return;
     setSaving(true);
     try {
-      await quotationsApi.update(id, {
-        ...formData,
+      // Build a clean payload matching the backend's expected PATCH schema.
+      // The API expects `areas_data` (not `areas`) and only writable fields —
+      // computed fields like totals, *_name lookups, and IDs must be stripped.
+      const areas = formData.areas || [];
+      const payload: Record<string, any> = {
+        quote_type: formData.quote_type,
+        valid_until: formData.valid_until,
         discount_percentage: formData.discount_percentage || 0,
-      } as any);
+        areas_data: areas.map((area) => ({
+          area_type: area.area_type,
+          display_name: area.display_name,
+          sort_order: area.sort_order,
+          surfaces: (area.surfaces || []).map((surface) => ({
+            surface_name: surface.surface_name,
+            surface_type: surface.surface_type,
+            width_cm: surface.width_cm,
+            height_cm: surface.height_cm,
+            opening_direction: surface.opening_direction || 'left_to_right',
+            special_requirements: surface.special_requirements || '',
+            sort_order: surface.sort_order,
+            spec: {
+              fabric_type: surface.spec?.fabric_type,
+              model: surface.spec?.model,
+              catalog_item: surface.spec?.catalog_item,
+              fabric_code: surface.spec?.fabric_code || '',
+              unit_price_per_m2: surface.spec?.unit_price_per_m2 || 0,
+              motor_control_type: surface.spec?.motor_control_type || 'manual',
+              motor_type: surface.spec?.motor_type || null,
+              motor_price_per_unit: surface.spec?.motor_price_per_unit || 0,
+              smart_integration: surface.spec?.smart_integration || false,
+              alexa_quantity: surface.spec?.alexa_quantity || 0,
+              alexa_unit_price: surface.spec?.alexa_unit_price || 0,
+              pelmet_enabled: surface.spec?.pelmet_enabled || false,
+              pelmet_width_cm: surface.spec?.pelmet_width_cm || 0,
+              pelmet_price_per_metre: surface.spec?.pelmet_price_per_metre || 0,
+              addon_label: surface.spec?.addon_label || '',
+              addon_amount: surface.spec?.addon_amount || 0,
+            },
+          })),
+        })),
+      };
+
+      await quotationsApi.update(id, payload);
       showToast('Quotation updated successfully', 'success');
       setIsEditing(false);
       refetch();
@@ -424,6 +463,15 @@ export default function QuotationDetailPage() {
         typeLabel={quotation.quote_type === 'b2c' ? 'B2C (Retail)' : 'B2B (Business)'}
         validUntil={quotation.valid_until}
         created={quotation.created_at}
+        isEditing={isEditing}
+        editQuoteType={formData.quote_type || quotation.quote_type}
+        editValidUntil={formData.valid_until || quotation.valid_until}
+        onQuoteTypeChange={(value) =>
+          setFormData({ ...formData, quote_type: value as 'b2c' | 'b2b' })
+        }
+        onValidUntilChange={(value) =>
+          setFormData({ ...formData, valid_until: value })
+        }
       />
 
       {/* Main Content */}

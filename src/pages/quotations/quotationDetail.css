@@ -1328,3 +1328,20 @@
   vertical-align: super;
   line-height: 0;
 }
+
+/* ── Surface card edit mode ──────────────────────────── */
+.qd-surface--editing {
+  background: #fff;
+  border: 1px solid rgba(47, 93, 143, 0.18);
+  border-left: 3px solid var(--qd-brand);
+  border-radius: 16px;
+  padding: 18px 20px;
+  transition: border-color var(--qd-dur-fast) ease, box-shadow var(--qd-dur-fast) ease;
+  box-shadow: 0 2px 12px -4px rgba(47, 93, 143, 0.08);
+}
+
+.qd-surface--editing:focus-within {
+  border-color: rgba(47, 93, 143, 0.3);
+  box-shadow: 0 4px 20px -6px rgba(47, 93, 143, 0.12);
+}
+
