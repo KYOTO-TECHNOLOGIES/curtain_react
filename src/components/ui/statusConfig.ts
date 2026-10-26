@@ -9,11 +9,9 @@ export interface StatusOptionConfig {
 export const STATUS_CONFIGS: Record<string, StatusOptionConfig[]> = {
   appointments: [
     { value: '', label: 'All Status' },
-    { value: 'pending', label: 'Pending', color: '#8B5CF6', textColor: '#7C3AED', tint: '#F5F3FF' },
     { value: 'scheduled', label: 'Scheduled', color: '#2F5D8F', textColor: '#2F5D8F', tint: '#EEF4FA' },
-    { value: 'in_progress', label: 'In Progress', color: '#F97316', textColor: '#EA580C', tint: '#FFF4EA' },
-    { value: 'completed', label: 'Completed', color: '#10B981', textColor: '#059669', tint: '#E8F8F2' },
     { value: 'quoted', label: 'Quoted', color: '#009688', textColor: '#00897B', tint: '#E0F7FA' },
+    { value: 'rescheduled', label: 'Rescheduled', color: '#8B5CF6', textColor: '#7C3AED', tint: '#F3E8FD' },
     { value: 'cancelled', label: 'Cancelled', color: '#EF4444', textColor: '#DC2626', tint: '#FEEFEF' },
   ],
   quotations: [

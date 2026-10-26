@@ -6,6 +6,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import type { AppointmentListItem, User } from '../../types';
+import { isAssignableStaff } from '../../types';
 import Modal from '../ui/Modal';
 import { AppointmentSummaryCard } from './AppointmentSummaryCard';
 import { StaffAssignmentPicker } from './StaffAssignmentPicker';
@@ -38,14 +39,18 @@ export function AssignAppointmentModal({
   onAssign,
   onStaffChange,
 }: AssignAppointmentModalProps) {
+  const eligibleUsers = useMemo(() => (
+    (Array.isArray(users) ? users : []).filter(isAssignableStaff)
+  ), [users]);
+
   const staffOptions = useMemo(() => (
-    (Array.isArray(users) ? users : []).map((user) => ({
+    eligibleUsers.map((user) => ({
       value: String(user.id),
       name: user.full_name,
       email: user.email,
       role: typeof user.role === 'object' ? user.role?.name : undefined,
     }))
-  ), [users]);
+  ), [eligibleUsers]);
 
   const selectedStaff = users.find((user) => String(user.id) === String(assignUserId));
   const selectedName = selectedStaff?.full_name || '';

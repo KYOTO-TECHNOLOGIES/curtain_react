@@ -38,6 +38,27 @@ export interface User {
   updated_at: string;
 }
 
+/**
+ * Checks if a user is eligible to be assigned an appointment.
+ * The backend validation allows only salesmen and admins.
+ */
+export function isAssignableStaff(user: User | null | undefined): boolean {
+  if (!user || user.is_active === false) return false;
+  const roleName = (
+    typeof user.role === 'object' && user.role !== null
+      ? user.role.name
+      : (user as any)?.role_name || (user as any)?.role || ''
+  )?.toString().trim().toLowerCase();
+
+  return (
+    roleName === 'salesman' ||
+    roleName === 'sales' ||
+    roleName === 'admin' ||
+    roleName === 'administrator'
+  );
+}
+
+
 export interface Customer {
   id: number;
   first_name: string;
@@ -219,13 +240,10 @@ export interface CatalogChargeTemplate {
 // ── Appointments ────────────────────────────────────────
 
 export type AppointmentStatus =
-  | 'pending'
   | 'scheduled'
-  | 'in_progress'
-  | 'completed'
-  | 'cancelled'
+  | 'quoted'
   | 'rescheduled'
-  | 'quoted';
+  | 'cancelled';
 
 export type JobType =
   | 'measurement'
@@ -344,6 +362,8 @@ export interface AppointmentFilters {
   date_from?: string;
   date_to?: string;
   customer?: number;
+  search?: string;
+  ordering?: string;
 }
 
 export interface AppointmentStats {
