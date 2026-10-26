@@ -41,10 +41,9 @@ function formatAppointmentDate(value: string) {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: '#64748B',
   scheduled: '#2F5D8F',
-  in_progress: '#F97316',
-  completed: '#10B981',
+  quoted: '#009688',
+  rescheduled: '#8B5CF6',
   cancelled: '#EF4444',
 };
 

@@ -20,7 +20,7 @@ import { usePagination } from '../../hooks/usePagination';
 import UserFormModal from './UserFormModal';
 import './UsersPage.css';
 
-const userPalette = [
+export const userPalette = [
   { color: '#2F5D8F', tint: '#EEF4FA', ink: '#2F5D8F', ring: 'rgba(47, 93, 143, 0.18)' },
   { color: '#10B981', tint: '#E8F8F2', ink: '#047857', ring: 'rgba(16, 185, 129, 0.18)' },
   { color: '#F97316', tint: '#FFF4EA', ink: '#C2410C', ring: 'rgba(249, 115, 22, 0.18)' },
@@ -31,7 +31,7 @@ const userPalette = [
   { color: '#EC4899', tint: '#FDF2F8', ink: '#BE185D', ring: 'rgba(236, 72, 153, 0.18)' },
 ];
 
-function stableHash(value: string) {
+export function stableHash(value: string) {
   let hash = 0;
   for (let index = 0; index < value.length; index += 1) {
     hash = (hash * 31 + value.charCodeAt(index)) | 0;
@@ -39,7 +39,7 @@ function stableHash(value: string) {
   return Math.abs(hash);
 }
 
-function getInitials(name: string) {
+export function getInitials(name: string) {
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return '?';
   if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
@@ -50,7 +50,7 @@ function getUserColor(user: User) {
   return userPalette[stableHash(String(user.id || user.full_name)) % userPalette.length];
 }
 
-function getRolePresentation(roleName: string) {
+export function getRolePresentation(roleName: string) {
   const normalized = roleName.trim().toLowerCase();
   if (normalized === 'administrator') {
     return { ...userPalette[0], Icon: ShieldCheck };

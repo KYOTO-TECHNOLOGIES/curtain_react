@@ -25,6 +25,7 @@ import { usersApi } from '../../api/users';
 import { useToast } from '../../components/ui/Toast';
 import { useQuery } from '@tanstack/react-query';
 import type { Customer } from '../../types';
+import { isAssignableStaff } from '../../types';
 import { CountrySelect } from '../../components/appointments/CountrySelect';
 import { StaffAssignmentPicker } from '../../components/appointments/StaffAssignmentPicker';
 import { DatePicker } from '../../components/ui/DatePicker';
@@ -476,7 +477,15 @@ export default function CreateAppointmentPage() {
         appointment_date: data.date,
         appointment_time: data.time.split(' ')[0] + ':00',
         job_type: data.jobType as any,
-        status: editAppointment ? editAppointment.status : 'pending',
+        ...(editAppointment
+          ? (() => {
+              const dateChanged = (editAppointment.appointment_date || '').slice(0, 10) !== data.date;
+              const timeChanged = (editAppointment.appointment_time || '').slice(0, 5) !== data.time.split(' ')[0];
+              return editAppointment.status !== 'cancelled' && (dateChanged || timeChanged)
+                ? { status: 'rescheduled' as const }
+                : {};
+            })()
+          : { status: 'scheduled' as const }),
         assigned_to: assigneeId,
         assignee: assigneeId,
         assignee_id: assigneeId,
@@ -490,9 +499,14 @@ export default function CreateAppointmentPage() {
         showToast('Appointment updated successfully', 'success');
         navigate(`/appointments/${editAppointment.id}`);
       } else {
-        await appointmentsApi.create(payload);
+        const createRes = await appointmentsApi.create(payload);
         showToast('Appointment created successfully', 'success');
-        navigate('/appointments');
+        navigate('/appointments', {
+          state: {
+            resetPage: true,
+            newlyCreatedId: createRes?.data?.id,
+          },
+        });
       }
     } catch (error: any) {
       console.error('Create Appointment Error:', error?.response?.data);
@@ -696,15 +710,17 @@ export default function CreateAppointmentPage() {
                     label="Assign To"
                     name={assignedToRegistration.name}
                     value={watch('assignedTo') || ''}
-                    options={(Array.isArray(users) ? users : []).map((user) => ({
+                    options={(Array.isArray(users) ? users.filter(isAssignableStaff) : []).map((user) => ({
                       value: String(user.id),
                       name: user.full_name,
                       email: user.email,
                       role: typeof user.role === 'object' ? user.role?.name : undefined,
                     }))}
                     inputRef={assignedToRegistration.ref}
-                    onChange={assignedToRegistration.onChange}
-                    onBlur={assignedToRegistration.onBlur}
+                    onChange={(event) =>
+                      setValue('assignedTo', event.target.value, { shouldDirty: true, shouldTouch: true, shouldValidate: true })
+                    }
+                    onBlur={() => { /* touched state is set on change */ }}
                     allowUnassigned
                   />
 

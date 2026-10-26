@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { UserCheck, CalendarClock, Loader2, AlertTriangle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { appointmentsApi } from '../../api/appointments';
 import { customersApi } from '../../api/customers';
 import { usersApi } from '../../api/users';
 import Modal from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
 import type { AppointmentListItem, CreateAppointmentRequest, User } from '../../types';
-import { useQuery } from '@tanstack/react-query';
+import { isAssignableStaff } from '../../types';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { StatusSummary } from '../../components/appointments/StatusSummary';
 import { AppointmentHeader } from '../../components/appointments/AppointmentHeader';
 import { FilterBar } from '../../components/appointments/FilterBar';
@@ -21,12 +22,32 @@ import { DatePicker } from '../../components/ui/DatePicker';
 
 export default function AppointmentsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [assigneeFilter, setAssigneeFilter] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const pagination = usePagination();
+
+  // Reset pagination to first page and refresh when a new appointment was created
+  useEffect(() => {
+    if (location.state?.resetPage) {
+      pagination.resetPage();
+      setStatusFilter('');
+      setAssigneeFilter('');
+      setSearchQuery('');
+      setDebouncedSearch('');
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['appointments_stats'] });
+      if (location.state?.newlyCreatedId) {
+        setRecentlyUpdatedId(location.state.newlyCreatedId);
+        setTimeout(() => setRecentlyUpdatedId(null), 3000);
+      }
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname, queryClient]);
 
   // Debounce search for backend call by 250ms
   useEffect(() => {
@@ -48,7 +69,7 @@ export default function AppointmentsPage() {
 
   // Form fields
   const [form, setForm] = useState<Partial<CreateAppointmentRequest>>({
-    title: '', description: '', appointment_date: '', appointment_time: '', job_type: 'consultation', status: 'pending',
+    title: '', description: '', appointment_date: '', appointment_time: '', job_type: 'consultation', status: 'scheduled',
     customer_first_name: '', customer_last_name: '', customer_phone: '', location_full_address: ''
   });
 
@@ -60,12 +81,13 @@ export default function AppointmentsPage() {
   const { data: listRes, isLoading: loadingList, refetch: refetchList } = useQuery({
     queryKey: ['appointments', statusFilter, assigneeFilter, debouncedSearch, pagination.currentPage, pagination.pageSize],
     queryFn: () => appointmentsApi.list({
-      status: statusFilter || undefined,
+      status: (statusFilter || undefined) as any,
       assigned_to: assigneeFilter ? Number(assigneeFilter) : undefined,
       search: debouncedSearch || undefined,
+      ordering: '-created_at,-id',
       limit: pagination.limit,
       offset: pagination.offset,
-    } as any),
+    }),
   });
 
   const { data: statsRes, isLoading: loadingStats, refetch: refetchStats } = useQuery({
@@ -75,15 +97,30 @@ export default function AppointmentsPage() {
 
   const { items: appointments, totalCount: paginatedTotal } = useMemo(() => {
     const raw = listRes?.data;
+    let list: AppointmentListItem[] = [];
+    let count = 0;
+
     // DRF paginated response: { count, results: [...] }
     if (raw && typeof raw === 'object' && !Array.isArray(raw) && Array.isArray((raw as any).results)) {
-      return { items: (raw as any).results as AppointmentListItem[], totalCount: (raw as any).count as number };
+      list = (raw as any).results as AppointmentListItem[];
+      count = (raw as any).count as number;
+    } else {
+      const rawArray: AppointmentListItem[] = Array.isArray(raw)
+        ? raw
+        : Array.isArray(listRes)
+        ? (listRes as any)
+        : [];
+      count = rawArray.length;
+      // If array is unpaginated (has more than pageSize items), slice by offset/limit
+      if (rawArray.length > pagination.pageSize) {
+        list = rawArray.slice(pagination.offset, pagination.offset + pagination.limit);
+      } else {
+        list = rawArray;
+      }
     }
-    // Fallback: plain array response
-    if (Array.isArray(raw)) return { items: raw, totalCount: raw.length };
-    if (Array.isArray(listRes)) return { items: listRes as any, totalCount: (listRes as any).length };
-    return { items: [] as AppointmentListItem[], totalCount: 0 };
-  }, [listRes]);
+
+    return { items: list, totalCount: count };
+  }, [listRes, pagination.offset, pagination.limit, pagination.pageSize]);
   const stats = statsRes?.data || null;
   const loading = loadingList || loadingStats;
 
@@ -123,7 +160,8 @@ export default function AppointmentsPage() {
 
   const openAssign = (a: AppointmentListItem) => {
     setAssignTarget(a);
-    setAssignUserId(a.assigned_to ?? '');
+    const isEligible = a.assigned_to && users.some((u) => u.id === a.assigned_to && isAssignableStaff(u));
+    setAssignUserId(isEligible ? a.assigned_to! : '');
     setAssignOpen(true);
   };
 
@@ -143,9 +181,21 @@ export default function AppointmentsPage() {
       setTimeout(() => setRecentlyUpdatedId(null), 1500);
       setAssignConfirmOpen(false);
       setAssignOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['appointment-detail', String(assignTarget.id)] });
       load();
     } catch (err: any) {
-      showToast(err?.response?.data?.detail || 'Failed to assign appointment', 'error');
+      const data = err?.response?.data;
+      const errorMsg = data
+        ? typeof data === 'string'
+          ? data
+          : data.detail
+          ? data.detail
+          : typeof data === 'object'
+          ? Object.values(data).flat().join(', ')
+          : 'Failed to assign appointment'
+        : 'Failed to assign appointment';
+      showToast(errorMsg, 'error');
     }
     setAssigning(false);
   };
@@ -257,9 +307,20 @@ export default function AppointmentsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await appointmentsApi.create(form as CreateAppointmentRequest);
+      const createRes = await appointmentsApi.create(form as CreateAppointmentRequest);
       showToast('Appointment created successfully');
       setFormOpen(false);
+      pagination.resetPage();
+      setStatusFilter('');
+      setAssigneeFilter('');
+      setSearchQuery('');
+      setDebouncedSearch('');
+      if (createRes?.data?.id) {
+        setRecentlyUpdatedId(createRes.data.id);
+        setTimeout(() => setRecentlyUpdatedId(null), 3000);
+      }
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['appointments_stats'] });
       load();
     } catch (err: any) {
       showToast(err?.response?.data?.detail || 'Operation failed', 'error');

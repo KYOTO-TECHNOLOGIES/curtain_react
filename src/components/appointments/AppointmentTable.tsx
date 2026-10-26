@@ -29,10 +29,9 @@ export interface AppointmentTableProps {
 }
 
 const STATUS_ACCENT_COLORS: Record<string, string> = {
-  pending: '#64748B',
   scheduled: '#2F5D8F',
-  in_progress: '#F97316',
-  completed: '#10B981',
+  quoted: '#009688',
+  rescheduled: '#8B5CF6',
   cancelled: '#EF4444',
 };
 
@@ -71,7 +70,9 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
 
   // Sorted appointments
   const sortedAppointments = useMemo(() => {
-    if (!sortKey || !sortDirection) return appointments;
+    if (!sortKey || !sortDirection) {
+      return appointments;
+    }
 
     return [...appointments].sort((a, b) => {
       let comparison = 0;
@@ -101,11 +102,9 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
 
   const statusCounts = {
     '': stats?.total ?? totalCount ?? appointments.length,
-    pending: stats?.by_status?.pending ?? 0,
     scheduled: stats?.by_status?.scheduled ?? 0,
-    in_progress: stats?.by_status?.in_progress ?? 0,
-    completed: stats?.by_status?.completed ?? 0,
     quoted: stats?.by_status?.quoted ?? 0,
+    rescheduled: stats?.by_status?.rescheduled ?? 0,
     cancelled: stats?.by_status?.cancelled ?? 0,
   };
 
