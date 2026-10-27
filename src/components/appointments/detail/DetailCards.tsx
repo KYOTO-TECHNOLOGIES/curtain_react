@@ -22,7 +22,7 @@ import { StaffAssignmentPicker } from '../StaffAssignmentPicker';
 import type { StaffAssignmentOption } from '../StaffAssignmentPicker';
 import { getRolePresentation } from '../../../pages/users/UsersPage';
 import { Card, CopyButton, EditField, EditShell, Value } from './DetailPrimitives';
-import { JobTypeChip } from './StatusStrip';
+import { JobTypeChip, SourceChip } from './StatusStrip';
 import {
   avatarPalette,
   daysFromToday,
@@ -30,9 +30,11 @@ import {
   formatDisplayDate,
   formatDisplayTime,
   getInitials,
+  getSourceMeta,
   hasValue,
   overdueDays,
   relativeDayHint,
+  SOURCE_OPTIONS,
 } from './helpers';
 import type { AppointmentFormState, UpdateField } from './types';
 
@@ -50,9 +52,19 @@ interface FormCardProps {
   updateField: UpdateField;
 }
 
-function Tile({ icon: Icon, label, children }: { icon: typeof Clock; label: string; children: ReactNode }) {
+function Tile({
+  icon: Icon,
+  label,
+  children,
+  className = '',
+}: {
+  icon: typeof Clock;
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="ad-tile">
+    <div className={`ad-tile ${className}`.trim()}>
       <span className="ad-tile__icon" aria-hidden="true"><Icon /></span>
       <div className="ad-tile__body">
         <dt className="ad-label">{label}</dt>
@@ -61,6 +73,15 @@ function Tile({ icon: Icon, label, children }: { icon: typeof Clock; label: stri
     </div>
   );
 }
+
+const sourceSelectOptions = (current: string) => {
+  const options = [{ value: '', label: 'Not specified' }, ...SOURCE_OPTIONS];
+  // Keep an unknown backend value selectable instead of silently dropping it.
+  if (hasValue(current) && !options.some((option) => option.value === current)) {
+    options.push({ value: current, label: displayCase(current) });
+  }
+  return options;
+};
 
 /* ── Appointment Overview ───────────────────────────── */
 export function OverviewCard({ form, original, isEditing, updateField, status }: FormCardProps & { status: string }) {
@@ -94,6 +115,14 @@ export function OverviewCard({ form, original, isEditing, updateField, status }:
               ariaLabel="Service type"
             />
           </EditShell>
+          <EditShell label="Appointment Source" edited={form.source !== original.source}>
+            <SelectMenu
+              value={form.source}
+              options={sourceSelectOptions(form.source)}
+              onChange={(v) => updateField('source', v)}
+              ariaLabel="Appointment source"
+            />
+          </EditShell>
         </div>
       </Card>
     );
@@ -101,6 +130,7 @@ export function OverviewCard({ form, original, isEditing, updateField, status }:
 
   const days = daysFromToday(form.appointment_date);
   const overdue = overdueDays(status, form.appointment_date) !== null;
+  const sourceMeta = getSourceMeta(form.source);
   return (
     <Card icon={CalendarDays} tone="brand" title="Appointment Overview">
       <dl className="ad-tiles">
@@ -123,6 +153,11 @@ export function OverviewCard({ form, original, isEditing, updateField, status }:
         <Tile icon={Wrench} label="Service Type">
           <JobTypeChip jobType={form.job_type} />
         </Tile>
+        {sourceMeta && (
+          <Tile className="ad-span-2" icon={sourceMeta.icon} label="Appointment Source">
+            <SourceChip source={form.source} />
+          </Tile>
+        )}
       </dl>
     </Card>
   );

@@ -1,4 +1,15 @@
-import { Briefcase, Ruler, Wrench } from 'lucide-react';
+import {
+  Briefcase,
+  Footprints,
+  Globe,
+  Mail,
+  MessageSquare,
+  Phone,
+  Ruler,
+  Share2,
+  Users,
+  Wrench,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { getInitials, stableHash, userPalette } from '../../../pages/users/UsersPage';
 
@@ -16,6 +27,37 @@ export const displayCase = (value: string | null | undefined) =>
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
+
+/** Same keys as the Create Appointment source picker. */
+export const SOURCE_OPTIONS = [
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'phone', label: 'Phone' },
+  { value: 'email', label: 'Email' },
+  { value: 'walk_in', label: 'Walk-in' },
+  { value: 'website', label: 'Website' },
+  { value: 'referral', label: 'Referral' },
+];
+
+const SOURCE_META: Record<string, { label: string; icon: LucideIcon }> = {
+  whatsapp: { label: 'WhatsApp', icon: MessageSquare },
+  phone: { label: 'Phone', icon: Phone },
+  phone_call: { label: 'Phone', icon: Phone },
+  call: { label: 'Phone', icon: Phone },
+  email: { label: 'Email', icon: Mail },
+  walk_in: { label: 'Walk-in', icon: Footprints },
+  walkin: { label: 'Walk-in', icon: Footprints },
+  website: { label: 'Website', icon: Globe },
+  web: { label: 'Website', icon: Globe },
+  referral: { label: 'Referral', icon: Users },
+};
+
+/** Display label + icon for a source, or null when no source was provided. */
+export const getSourceMeta = (source?: string | null): { label: string; icon: LucideIcon } | null => {
+  if (!hasValue(source)) return null;
+  const raw = String(source).trim();
+  const key = raw.toLowerCase().replace(/[\s-]+/g, '_');
+  return SOURCE_META[key] ?? { label: displayCase(raw), icon: Share2 };
+};
 
 export const jobTypeIcon = (jobType: string | null | undefined): LucideIcon => {
   const key = (jobType || '').toLowerCase();

@@ -40,6 +40,7 @@ const buildFormState = (appointment: AppointmentDetail): AppointmentFormState =>
   description: appointment.description || '',
   status: appointment.status || 'scheduled',
   job_type: appointment.job_type || 'consultation',
+  source: (appointment.source || appointment.customer_source || '').trim(),
   appointment_date: appointment.appointment_date || '',
   appointment_time: appointment.appointment_time || '',
   end_time: appointment.end_time || '',
@@ -164,11 +165,13 @@ export default function AppointmentDetailsPage() {
         appointment_time: formState.appointment_time,
         end_time: formState.end_time || undefined,
         job_type: formState.job_type as any,
+        source: formState.source.trim() || undefined,
+        customer_source: formState.source.trim() || undefined,
         // Status is system-driven: only flip to 'rescheduled' when date/time changed.
         // Otherwise omit it so an edit never overwrites the current status.
         ...(appointment.status !== 'cancelled' &&
-        (formState.appointment_date !== (appointment.appointment_date || '') ||
-          formState.appointment_time.slice(0, 5) !== (appointment.appointment_time || '').slice(0, 5))
+          (formState.appointment_date !== (appointment.appointment_date || '') ||
+            formState.appointment_time.slice(0, 5) !== (appointment.appointment_time || '').slice(0, 5))
           ? { status: 'rescheduled' as const }
           : {}),
         assigned_to: formState.assigned_to ? Number(formState.assigned_to) : undefined,
@@ -283,6 +286,7 @@ export default function AppointmentDetailsPage() {
       <StatusStrip
         status={appointment.status}
         jobType={isEditing ? formState.job_type : appointment.job_type}
+        source={formState.source}
         appointmentDate={appointment.appointment_date}
         updatedAt={appointment.updated_at}
         updatedLabel={new Date(appointment.updated_at).toLocaleDateString('en-GB', {
