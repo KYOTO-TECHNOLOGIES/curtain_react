@@ -47,6 +47,10 @@ interface AddSurfaceModalProps {
   openingDirectionOptions?: SurfaceTypeOption[];
   specialRequirements?: string;
   onSpecialRequirementsChange?: (value: string) => void;
+  onAddType?: (label: string) => string | null;
+  onRenameType?: (value: string, label: string) => void;
+  onRemoveType?: (value: string) => void;
+  isCustomType?: (value: string) => boolean;
 }
 
 function typeIcon(type: string, size = 16) {
@@ -252,7 +256,36 @@ export default function AddSurfaceModal({
   openingDirectionOptions,
   specialRequirements,
   onSpecialRequirementsChange,
+  onAddType,
+  onRenameType,
+  onRemoveType,
+  isCustomType,
 }: AddSurfaceModalProps) {
+  const [manageOpen, setManageOpen] = useState(false);
+  const [newTypeLabel, setNewTypeLabel] = useState('');
+  const [editingType, setEditingType] = useState<string | null>(null);
+  const [editingLabel, setEditingLabel] = useState('');
+  const canManage = Boolean(onAddType && onRenameType && onRemoveType && isCustomType);
+  const customOptions = canManage ? typeOptions.filter((option) => isCustomType!(option.value)) : [];
+
+  const submitNewType = () => {
+    if (!onAddType) return;
+    const value = onAddType(newTypeLabel);
+    if (value) {
+      onTypeChange(value);
+      setNewTypeLabel('');
+    }
+  };
+
+  const commitRename = () => {
+    if (editingType && onRenameType) onRenameType(editingType, editingLabel);
+    setEditingType(null);
+  };
+
+  const removeType = (value: string) => {
+    onRemoveType?.(value);
+    if (type === value) onTypeChange('window');
+  };
   const id = useId();
   const previewRef = useRef<HTMLElement>(null);
   const [preview, setPreview] = useState({ width: 0, height: 0, area: 0 });
@@ -364,6 +397,68 @@ export default function AddSurfaceModal({
           options={typeOptions}
           onChange={onTypeChange}
         />
+        {canManage && (
+          <div className="surface-type-manager">
+            <button
+              type="button"
+              className="surface-type-manager-toggle"
+              aria-expanded={manageOpen}
+              onClick={() => setManageOpen((current) => !current)}
+            >
+              {manageOpen ? 'Hide custom types' : '+ Customize types'}
+            </button>
+            {manageOpen && (
+              <div className="surface-type-manager-body">
+                <div className="surface-type-manager-add">
+                  <input
+                    type="text"
+                    value={newTypeLabel}
+                    placeholder="New type, e.g. Balcony"
+                    aria-label="New surface type name"
+                    onChange={(event) => setNewTypeLabel(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        submitNewType();
+                      }
+                    }}
+                  />
+                  <button type="button" onClick={submitNewType} disabled={!newTypeLabel.trim()}>Add</button>
+                </div>
+                {customOptions.length === 0 ? (
+                  <p className="surface-type-manager-empty">No custom types yet. Window, Wall and Door are built in.</p>
+                ) : (
+                  <ul className="surface-type-manager-list">
+                    {customOptions.map((option) => (
+                      <li key={option.value}>
+                        {editingType === option.value ? (
+                          <input
+                            type="text"
+                            autoFocus
+                            value={editingLabel}
+                            aria-label={`Rename ${option.label}`}
+                            onChange={(event) => setEditingLabel(event.target.value)}
+                            onBlur={commitRename}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') commitRename();
+                              if (event.key === 'Escape') setEditingType(null);
+                            }}
+                          />
+                        ) : (
+                          <span>{option.label}</span>
+                        )}
+                        <span className="surface-type-manager-actions">
+                          <button type="button" onClick={() => { setEditingType(option.value); setEditingLabel(option.label); }}>Rename</button>
+                          <button type="button" onClick={() => removeType(option.value)}>Delete</button>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
       {openingDirection !== undefined && onOpeningDirectionChange && openingDirectionOptions && (
         <div className="add-surface-field">

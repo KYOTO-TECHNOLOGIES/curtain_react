@@ -3,7 +3,6 @@ import {
   Building2,
   Loader2,
   Mail,
-  MapPin,
   Phone,
   Save,
   UserRound,
@@ -15,7 +14,6 @@ interface CustomerSummaryProps {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
-  customerLocation?: string;
   isLoading: boolean;
 }
 
@@ -23,7 +21,6 @@ export function CustomerSummary({
   customerName,
   customerEmail,
   customerPhone,
-  customerLocation,
   isLoading,
 }: CustomerSummaryProps) {
   return (
@@ -73,16 +70,6 @@ export function CustomerSummary({
               <CopyButton value={customerPhone} ariaLabel="Copy customer phone" className="qb-copy-button" />
             )}
           </div>
-          {customerLocation && (
-            <div className="qb-customer-row group">
-              <span className="qb-customer-row-icon"><MapPin size={15} /></span>
-              <div className="qb-customer-row-copy">
-                <dt>Location</dt>
-                <dd>{customerLocation}</dd>
-              </div>
-              <CopyButton value={customerLocation} ariaLabel="Copy location address" className="qb-copy-button" />
-            </div>
-          )}
         </dl>
       )}
     </section>

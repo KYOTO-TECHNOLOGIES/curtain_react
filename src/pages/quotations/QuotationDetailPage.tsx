@@ -24,12 +24,14 @@ import { useToast } from '../../components/ui/Toast';
 import Modal from '../../components/ui/Modal';
 import AddAreaModal from './components/AddAreaModal';
 import AddSurfaceModal from './components/AddSurfaceModal';
+import { useSurfaceTypes } from './hooks/useSurfaceTypes';
 import type { QuotationDetail, SurfaceSpec } from '../../api/quotations';
 
 export default function QuotationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const surfaceTypes = useSurfaceTypes();
 
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setSaving] = useState(false);
@@ -684,12 +686,11 @@ export default function QuotationDetailPage() {
         onTypeChange={(surface_type) => setNewSurfaceData({ ...newSurfaceData, surface_type })}
         onWidthChange={(width_cm) => setNewSurfaceData({ ...newSurfaceData, width_cm })}
         onHeightChange={(height_cm) => setNewSurfaceData({ ...newSurfaceData, height_cm })}
-        typeOptions={[
-          { value: 'window', label: 'Window' },
-          { value: 'door', label: 'Door' },
-          { value: 'wall', label: 'Wall' },
-          { value: 'other', label: 'Other' },
-        ]}
+        typeOptions={surfaceTypes.options.some((o) => o.value === 'other') ? surfaceTypes.options : [...surfaceTypes.options, { value: 'other', label: 'Other' }]}
+        onAddType={surfaceTypes.add}
+        onRenameType={surfaceTypes.rename}
+        onRemoveType={surfaceTypes.remove}
+        isCustomType={surfaceTypes.isCustom}
         openingDirection={newSurfaceData.opening_direction}
         onOpeningDirectionChange={(opening_direction) => setNewSurfaceData({ ...newSurfaceData, opening_direction })}
         openingDirectionOptions={[

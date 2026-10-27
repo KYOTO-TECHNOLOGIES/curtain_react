@@ -37,6 +37,7 @@ import {
 } from './components/QuotationBuilderComponents';
 import AddAreaModal from './components/AddAreaModal';
 import AddSurfaceModal from './components/AddSurfaceModal';
+import { useSurfaceTypes } from './hooks/useSurfaceTypes';
 import QuotationHeader from './components/QuotationHeader';
 import './QuotationBuilderPage.css';
 
@@ -166,6 +167,12 @@ export default function QuotationBuilderPage() {
     enabled: !!quotationSettings.work_type,
   });
 
+  const { data: quotationsRes } = useQuery({
+    queryKey: ['quotations', 'for-duplicate-check'],
+    queryFn: () => quotationsApi.list(),
+  });
+  const surfaceTypes = useSurfaceTypes();
+
   const toArray = <T,>(res: any): T[] => {
     const d = res?.data;
     if (Array.isArray(d)) return d;
@@ -182,6 +189,18 @@ export default function QuotationBuilderPage() {
   const includedCharges = toArray<ChargeTemplate>(chargesRes);
   const selectedWorkType = workTypes.find((workType) => workType.id === quotationSettings.work_type) || workTypes[0];
   const workTypeFeatures = selectedWorkType ? normalizeFeatures(selectedWorkType.features) : undefined;
+
+  const quotedAppointmentIds = useMemo(() => {
+    const ids = new Set<string>();
+    toArray<any>(quotationsRes).forEach((q) => {
+      if (q?.status === 'cancelled') return;
+      const apptId = q?.appointment_id ?? q?.appointment;
+      if (apptId !== undefined && apptId !== null && apptId !== '') ids.add(String(apptId));
+    });
+    return ids;
+  }, [quotationsRes]);
+  const isAppointmentQuoted = (a?: { id: number | string; status?: string; has_quotation?: boolean; quotation_id?: number | string | null } | null) =>
+    !!a && (!!a.has_quotation || !!a.quotation_id || a.status === 'quoted' || quotedAppointmentIds.has(String(a.id)));
 
   const fetchedAppointments: AppointmentListItem[] = toArray<AppointmentListItem>(appointmentsRes);
   const selectedAppointment: AppointmentDetail | null = selectedAppointmentRes?.data || null;
@@ -217,18 +236,20 @@ export default function QuotationBuilderPage() {
   const selectedAppointmentSummary = appointments.find(
     (appointment) => String(appointment.id) === selectedAppointmentId
   );
+  const selectableAppointments = appointments.filter(
+    (appointment) => appointment.status !== 'cancelled' && !isAppointmentQuoted(appointment)
+  );
+  const selectedAlreadyQuoted =
+    !!selectedAppointmentId && (isAppointmentQuoted(selectedAppointment) || isAppointmentQuoted(selectedAppointmentSummary));
+  const pickerAppointments = appointments.filter(
+    (appointment) => String(appointment.id) === selectedAppointmentId || selectableAppointments.includes(appointment)
+  );
   const selectedCustomerId = selectedAppointment?.customer?.id ?? selectedAppointmentSummary?.customer;
   const selectedCustomerName =
     selectedAppointment?.customer?.full_name || selectedAppointmentSummary?.customer_name || '';
   const selectedCustomerEmail = selectedAppointment?.customer?.email || '';
   const selectedCustomerPhone =
     selectedAppointment?.customer?.phone || selectedAppointmentSummary?.customer_phone || '';
-  const selectedCustomerLocation =
-    selectedAppointment?.location?.full_address ||
-    selectedAppointmentSummary?.location_full_address ||
-    (selectedAppointment?.location?.building_name
-      ? `${selectedAppointment.location.building_name}${selectedAppointment.location.unit_number ? ` Unit ${selectedAppointment.location.unit_number}` : ''}`
-      : '');
   const validityMessage = getValidityMessage(quotationSettings.valid_until);
   const surfaceCount = areas.reduce((count, area) => count + area.surfaces.length, 0);
 
@@ -371,6 +392,11 @@ export default function QuotationBuilderPage() {
   const handleSaveQuotation = async () => {
     if (!selectedAppointmentId) {
       showToast('Please select an appointment', 'error');
+      return;
+    }
+
+    if (selectedAlreadyQuoted) {
+      showToast('A quotation already exists for this appointment', 'error');
       return;
     }
 
@@ -537,19 +563,25 @@ export default function QuotationBuilderPage() {
                   <AppointmentPicker
                     id="quotation-appointment"
                     value={selectedAppointmentId}
-                    appointments={appointments}
+                    appointments={pickerAppointments}
                     onChange={(e) => setSelectedAppointmentId(e.target.value)}
                   />
                 )}
               </div>
             </div>
 
+            {selectedAlreadyQuoted && (
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-start gap-2" role="alert">
+                <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>A quotation already exists for this appointment. Choose a different appointment.</span>
+              </div>
+            )}
+
             {selectedAppointmentId && (
               <CustomerSummary
                 customerName={selectedCustomerName}
                 customerEmail={selectedCustomerEmail}
                 customerPhone={selectedCustomerPhone}
-                customerLocation={selectedCustomerLocation}
                 isLoading={selectedAppointmentLoading}
               />
             )}
@@ -798,7 +830,7 @@ export default function QuotationBuilderPage() {
           {/* Save Button */}
           <StickyActionBar
             isSaving={isSaving}
-            canSave={!isSaving && !!selectedAppointmentId && !!selectedCustomerId && areas.length > 0}
+            canSave={!isSaving && !selectedAlreadyQuoted && !!selectedAppointmentId && !!selectedCustomerId && areas.length > 0}
             onCancel={() => navigate('/quotations')}
             onSave={handleSaveQuotation}
           />
@@ -833,11 +865,11 @@ export default function QuotationBuilderPage() {
         onTypeChange={(surface_type) => setNewSurfaceData({ ...newSurfaceData, surface_type })}
         onWidthChange={(width_cm) => setNewSurfaceData({ ...newSurfaceData, width_cm })}
         onHeightChange={(height_cm) => setNewSurfaceData({ ...newSurfaceData, height_cm })}
-        typeOptions={[
-          { value: 'window', label: 'Window' },
-          { value: 'wall', label: 'Wall' },
-          { value: 'door', label: 'Door' },
-        ]}
+        typeOptions={surfaceTypes.options}
+        onAddType={surfaceTypes.add}
+        onRenameType={surfaceTypes.rename}
+        onRemoveType={surfaceTypes.remove}
+        isCustomType={surfaceTypes.isCustom}
         widthPlaceholder="240"
         heightPlaceholder="310"
         widthMin={0}

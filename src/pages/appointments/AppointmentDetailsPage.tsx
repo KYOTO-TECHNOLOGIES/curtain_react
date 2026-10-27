@@ -18,7 +18,21 @@ import { hasValue } from '../../components/appointments/detail/helpers';
 import type { AppointmentFormState } from '../../components/appointments/detail/types';
 import type { AppointmentDetail, User } from '../../types';
 import { isAssignableStaff } from '../../types';
+import Modal from '../../components/ui/Modal';
 import './appointmentDetail.css';
+
+/** Turns DRF-style error payloads ({field: [msg]}, {detail}) into a readable string. */
+const formatApiError = (err: any, fallback: string): string => {
+  const data = err?.response?.data;
+  if (!data) return err?.message || fallback;
+  if (typeof data === 'string') return data;
+  if (data.detail) return String(data.detail);
+  const parts = Object.entries(data).map(([key, value]) => {
+    const text = Array.isArray(value) ? value.join(' ') : typeof value === 'string' ? value : JSON.stringify(value);
+    return key === 'non_field_errors' ? text : `${key.replace(/_/g, ' ')}: ${text}`;
+  });
+  return parts.join(' | ') || fallback;
+};
 
 const buildFormState = (appointment: AppointmentDetail): AppointmentFormState => ({
   id: appointment.id,
@@ -50,6 +64,8 @@ export default function AppointmentDetailsPage() {
   const [formState, setFormState] = useState<AppointmentFormState | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['appointment-detail', id],
@@ -91,12 +107,25 @@ export default function AppointmentDetailsPage() {
     setIsEditing(false);
   };
 
-  const handleCancelAppointment = async () => {
+  const handleCancelAppointment = () => {
     if (!appointment || appointment.status === 'cancelled') return;
-    if (!window.confirm('Cancel this appointment?')) return;
+    setCancelReason('');
+    setShowCancelModal(true);
+  };
+
+  const confirmCancelAppointment = async () => {
+    if (!appointment) return;
+    const reason = cancelReason.trim();
+    if (!reason) {
+      showToast('Please provide a reason for cancelling.', 'error');
+      return;
+    }
     try {
       setIsCancelling(true);
-      const response = await appointmentsApi.updateStatus(appointment.id, { status: 'cancelled' });
+      const response = await appointmentsApi.updateStatus(appointment.id, {
+        status: 'cancelled',
+        cancellation_reason: reason,
+      });
       const updated = response.data as AppointmentDetail;
       queryClient.setQueryData(['appointment-detail', String(id)], (previous: any) => ({
         ...(previous || {}),
@@ -104,9 +133,10 @@ export default function AppointmentDetailsPage() {
       }));
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['appointments_stats'] });
+      setShowCancelModal(false);
       showToast('Appointment cancelled', 'success');
     } catch (cancelError: any) {
-      showToast(cancelError?.response?.data?.detail || 'Failed to cancel appointment', 'error');
+      showToast(formatApiError(cancelError, 'Failed to cancel appointment'), 'error');
     } finally {
       setIsCancelling(false);
     }
@@ -170,8 +200,7 @@ export default function AppointmentDetailsPage() {
       setIsEditing(false);
       showToast('Appointment updated successfully', 'success');
     } catch (saveError: any) {
-      const message = saveError?.response?.data?.detail || saveError?.response?.data || 'Failed to update appointment';
-      showToast(message, 'error');
+      showToast(formatApiError(saveError, 'Failed to update appointment'), 'error');
     } finally {
       setIsSaving(false);
     }
@@ -306,6 +335,43 @@ export default function AppointmentDetailsPage() {
       </div>
 
       {isEditing && <EditBar isSaving={isSaving} onCancel={handleCancel} onSave={handleSave} />}
+
+      <Modal
+        open={showCancelModal}
+        onClose={() => !isCancelling && setShowCancelModal(false)}
+        title="Cancel Appointment"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600">Please tell us why this appointment is being cancelled.</p>
+          <textarea
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+            rows={4}
+            maxLength={500}
+            placeholder="Reason for cancellation"
+            aria-label="Cancellation reason"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+          />
+          <div className="flex gap-3 justify-end">
+            <button
+              type="button"
+              onClick={() => setShowCancelModal(false)}
+              disabled={isCancelling}
+              className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300"
+            >
+              Keep Appointment
+            </button>
+            <button
+              type="button"
+              onClick={confirmCancelAppointment}
+              disabled={isCancelling || !cancelReason.trim()}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-60"
+            >
+              {isCancelling ? 'Cancelling...' : 'Cancel Appointment'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
