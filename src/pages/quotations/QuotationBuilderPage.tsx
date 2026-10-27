@@ -433,7 +433,12 @@ export default function QuotationBuilderPage() {
           display_name: area.display_name,
           sort_order: area.sort_order,
           surfaces: area.surfaces.map((surface) => {
-            const spec = { ...surface.spec };
+            const spec = { ...surface.spec } as SurfaceSpec & { motor_quantity?: number };
+            delete spec.motor_quantity; // UI-only; already folded into motor_price_per_unit
+            if (spec.motor_control_type !== 'motorized') {
+              spec.smart_integration = false;
+              spec.alexa_quantity = 0;
+            }
             const alexaCharge = includedCharges.find((charge) => charge.kind === 'alexa');
             const pelmetCharge = includedCharges.find((charge) => charge.kind === 'pelmet');
             if (spec.smart_integration && alexaCharge && (!spec.alexa_unit_price || spec.alexa_unit_price === '0')) {
@@ -521,7 +526,20 @@ export default function QuotationBuilderPage() {
 
   const calculateSurfaceTotal = (spec: SurfaceSpec, widthCm: number, heightCm: number) => {
     const areaM2 = (widthCm * heightCm) / 10000;
-    const fabricTotal = parseFloat(String(spec.unit_price_per_m2)) * areaM2;
+    const pricingUnit = selectedWorkType?.pricing_unit;
+    const quantity = pricingUnit === 'flat' ? 1 : pricingUnit === 'm' ? widthCm / 100 : areaM2;
+    const fabricTotal = parseFloat(String(spec.unit_price_per_m2)) * quantity;
+    const controlTemplate = includedCharges.find((charge) =>
+      charge.kind === (spec.motor_control_type === 'motorized' ? 'motorized' : 'manual')
+    );
+    const controlPrice = parseFloat(String(controlTemplate?.price ?? 0)) || 0;
+    const controlTotal = !controlTemplate
+      ? 0
+      : controlTemplate.unit === 'flat'
+        ? controlPrice
+        : controlTemplate.unit === 'm'
+          ? controlPrice * (widthCm / 100)
+          : controlPrice * areaM2;
     const motorTotal =
       spec.motor_control_type === 'motorized'
         ? parseFloat(String(spec.motor_price_per_unit))
@@ -535,7 +553,7 @@ export default function QuotationBuilderPage() {
       : 0;
     const addonTotal = parseFloat(String(spec.addon_amount));
 
-    return (fabricTotal + motorTotal + alexaTotal + pelmetTotal + addonTotal).toFixed(2);
+    return (fabricTotal + controlTotal + motorTotal + alexaTotal + pelmetTotal + addonTotal).toFixed(2);
   };
 
   return (
@@ -797,6 +815,8 @@ export default function QuotationBuilderPage() {
                                   motors={motors}
                                   features={workTypeFeatures}
                                   workTypeName={selectedWorkType?.name}
+                                  pricingUnit={selectedWorkType?.pricing_unit}
+                                  charges={includedCharges}
                                   fieldErrors={surfaceFieldErrors[surface.tempId]}
                                   onDelete={() => handleDeleteSurface(area.tempId, surface.tempId)}
                                   onUpdateSpec={(updates) => handleUpdateSurfaceSpec(area.tempId, surface.tempId, updates)}

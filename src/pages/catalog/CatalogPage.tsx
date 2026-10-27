@@ -702,6 +702,7 @@ export default function CatalogPage() {
         if (data.motor_ids) errors.motor_ids = Array.isArray(data.motor_ids) ? data.motor_ids.join(' ') : String(data.motor_ids);
         if (data.charge_ids) errors.charge_ids = Array.isArray(data.charge_ids) ? data.charge_ids.join(' ') : String(data.charge_ids);
         if (data.name) errors.name = Array.isArray(data.name) ? data.name.join(' ') : String(data.name);
+        if (data.pricing_unit) errors.pricing_unit = Array.isArray(data.pricing_unit) ? data.pricing_unit.join(' ') : String(data.pricing_unit);
         if (data.price) errors.price = Array.isArray(data.price) ? data.price.join(' ') : String(data.price);
         if (data.price_per_m2) errors.price_per_m2 = Array.isArray(data.price_per_m2) ? data.price_per_m2.join(' ') : String(data.price_per_m2);
         if (data.detail) errors.general = String(data.detail);
@@ -1295,6 +1296,7 @@ export default function CatalogPage() {
                       placeholder="Pricing unit"
                       ariaLabel="Pricing Unit"
                     />
+                    {fieldErrors.pricing_unit && <span className="catalog-field-error">{fieldErrors.pricing_unit}</span>}
                   </div>
                 </div>
 
