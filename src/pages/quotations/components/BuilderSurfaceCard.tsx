@@ -17,6 +17,7 @@ import { SelectMenu, type SelectOption } from '../../../components/ui/SelectMenu
 import type {
   CatalogItem,
   CatalogModel,
+  ChargeTemplate,
   FabricType,
   MotorType,
   WorkTypeFeatures,
@@ -42,6 +43,8 @@ interface Props {
   motors: MotorType[];
   features?: Partial<WorkTypeFeatures>;
   workTypeName?: string;
+  pricingUnit?: string;
+  charges?: ChargeTemplate[];
   fieldErrors?: Record<string, string>;
   onDelete: () => void;
   onUpdateSpec: (updates: Partial<SurfaceSpec>) => void;
@@ -194,6 +197,8 @@ export default function BuilderSurfaceCard({
   motors,
   features,
   workTypeName,
+  pricingUnit,
+  charges = [],
   fieldErrors = {},
   onDelete,
   onUpdateSpec,
@@ -304,6 +309,45 @@ export default function BuilderSurfaceCard({
     ? (areaM2 * Number(selectedMotor.price_per_m2 || 0)).toFixed(2)
     : '0.00';
 
+  // Catalog charge templates (set up in Catalog > Charges)
+  const chargeFor = (kind: string) => charges.find((charge) => charge.kind === kind);
+  const manualCharge = chargeFor('manual');
+  const motorizedCharge = chargeFor('motorized');
+  const alexaCharge = chargeFor('alexa');
+  const pelmetCharge = chargeFor('pelmet');
+  const chargeAmount = (charge: ChargeTemplate | undefined, widthCm: number) => {
+    if (!charge) return 0;
+    const price = Number(charge.price) || 0;
+    if (charge.unit === 'flat') return price;
+    if (charge.unit === 'm') return price * (widthCm / 100);
+    return price * areaM2;
+  };
+  const chargeUnitText = (charge: ChargeTemplate) =>
+    charge.unit === 'flat' ? 'flat' : charge.unit === 'm' ? 'per m' : 'per m²';
+  const isMotorized = surface.spec.motor_control_type === 'motorized';
+  const motorQuantity = Math.max(1, Number(surface.spec.motor_quantity) || 1);
+  const motorUnitTotal = selectedMotor ? areaM2 * Number(selectedMotor.price_per_m2 || 0) : 0;
+  const controlCharge = isMotorized ? motorizedCharge : manualCharge;
+  const controlChargeTotal = chargeAmount(controlCharge, surface.width_cm);
+  const alexaTotal = surface.spec.smart_integration
+    ? (Number(surface.spec.alexa_unit_price) || 0) * (Number(surface.spec.alexa_quantity) || 0)
+    : 0;
+  const pelmetTotal = surface.spec.pelmet_enabled
+    ? (Number(surface.spec.pelmet_price_per_metre) || 0) * ((Number(surface.spec.pelmet_width_cm) || 0) / 100)
+    : 0;
+  const money = (value: number) => value.toFixed(2);
+
+  // Catalog fabric pricing (respects the work type's pricing unit)
+  const catalogUnitPrice = parseFloat(String(surface.spec.unit_price_per_m2)) || 0;
+  const isFlat = pricingUnit === 'flat';
+  const isPerMetre = pricingUnit === 'm';
+  const unitLabel = isFlat ? 'flat' : isPerMetre ? 'per m' : 'per m²';
+  const fabricQuantity = isFlat ? 1 : isPerMetre ? surface.width_cm / 100 : areaM2;
+  const fabricTotal = catalogUnitPrice * fabricQuantity;
+  const fabricFormula = isFlat
+    ? 'Flat rate'
+    : `${Number(fabricQuantity.toFixed(2))} ${isPerMetre ? 'm' : 'm²'} × AED ${catalogUnitPrice.toFixed(2)}`;
+
   return (
     <article className="qbc-surface-card">
       <header className="qbc-surface-header">
@@ -406,6 +450,63 @@ export default function BuilderSurfaceCard({
                 />
               </Field>
             </div>
+
+            {/* Fabric pricing from catalog, optional custom code, special requirements */}
+            <div className="qbc-product-grid mt-3">
+              <Field
+                id={`fabric-code-${safeId}`}
+                label="Custom Fabric Code"
+                hint="Optional"
+                error={fieldErrors.fabric_code}
+              >
+                <input
+                  id={`fabric-code-${safeId}`}
+                  type="text"
+                  autoComplete="off"
+                  value={surface.spec.fabric_code || ''}
+                  onChange={(event) => onUpdateSpec({ fabric_code: event.target.value })}
+                  placeholder="e.g. FB-2041"
+                  className="qbc-input"
+                />
+              </Field>
+              <Field id={`catalog-unit-price-${safeId}`} label={`Unit Price (${unitLabel})`} hint="From catalog">
+                <div className="qbc-price-control bg-slate-50 border-slate-200">
+                  <span className="qbc-currency" aria-hidden="true">AED</span>
+                  <input
+                    id={`catalog-unit-price-${safeId}`}
+                    type="text"
+                    readOnly
+                    value={catalogUnitPrice.toFixed(2)}
+                    className="qbc-price-input bg-transparent font-semibold text-slate-600"
+                  />
+                </div>
+              </Field>
+              <Field id={`fabric-total-${safeId}`} label="Fabric Total" hint={fabricFormula}>
+                <div className="qbc-price-control bg-slate-50 border-slate-200">
+                  <span className="qbc-currency" aria-hidden="true">AED</span>
+                  <input
+                    id={`fabric-total-${safeId}`}
+                    type="text"
+                    readOnly
+                    value={fabricTotal.toFixed(2)}
+                    className="qbc-price-input bg-transparent font-semibold text-slate-600"
+                  />
+                </div>
+              </Field>
+            </div>
+            <div className="mt-3">
+              <Field id={`special-requirements-${safeId}`} label="Special Requirements" hint="Optional">
+                <textarea
+                  id={`special-requirements-${safeId}`}
+                  rows={3}
+                  value={surface.special_requirements || ''}
+                  onChange={(event) => onUpdateSurface?.({ special_requirements: event.target.value })}
+                  placeholder="e.g. Needs blackout lining..."
+                  className="qbc-input"
+                  style={{ resize: 'vertical' }}
+                />
+              </Field>
+            </div>
           </section>
 
           {/* Section: Control & Options */}
@@ -447,22 +548,43 @@ export default function BuilderSurfaceCard({
                   id={`control-${safeId}`}
                   value={surface.spec.motor_control_type}
                   options={controlOptions}
-                  onChange={(value) => onUpdateSpec({ motor_control_type: value as 'manual' | 'motorized' })}
+                  onChange={(value) => {
+                    const next = value as 'manual' | 'motorized';
+                    // Alexa / smart integration only applies to motorized control
+                    onUpdateSpec(
+                      next === 'manual'
+                        ? { motor_control_type: next, smart_integration: false, alexa_quantity: 0, motor_quantity: 1 }
+                        : { motor_control_type: next }
+                    );
+                  }}
                   ariaLabel="Control"
                 />
               </Field>
 
               {/* Option Tiles (Alexa & Pelmet disabled with lock tooltip if feature is off) */}
               <div className="qbc-option-grid">
-                <OptionTile
-                  id={`alexa-${safeId}`}
-                  checked={surface.spec.smart_integration}
-                  disabled={!allowCharges}
-                  tooltip={!allowCharges ? `Control & Charges aren't enabled for ${workTypeName || 'this work type'}` : undefined}
-                  onChange={(checked) => onUpdateSpec({ smart_integration: checked })}
-                  label="Smart Integration (Alexa)"
-                  icon={Mic}
-                />
+                {isMotorized && (
+                  <OptionTile
+                    id={`alexa-${safeId}`}
+                    checked={surface.spec.smart_integration}
+                    disabled={!allowCharges}
+                    tooltip={!allowCharges ? `Control & Charges aren't enabled for ${workTypeName || 'this work type'}` : undefined}
+                    onChange={(checked) =>
+                      onUpdateSpec(
+                        checked
+                          ? {
+                            smart_integration: true,
+                            alexa_quantity: Math.max(1, Number(surface.spec.alexa_quantity) || 1),
+                            alexa_unit_price:
+                              Number(surface.spec.alexa_unit_price) > 0 ? surface.spec.alexa_unit_price : alexaCharge?.price ?? '0',
+                          }
+                          : { smart_integration: false, alexa_quantity: 0 }
+                      )
+                    }
+                    label="Smart Integration (Alexa)"
+                    icon={Mic}
+                  />
+                )}
                 <OptionTile
                   id={`pelmet-${safeId}`}
                   checked={surface.spec.pelmet_enabled}
@@ -508,7 +630,7 @@ export default function BuilderSurfaceCard({
                             const motorId = value ? Number(value) : null;
                             const chosenMotor = motorId ? motors.find((m) => m.id === motorId) : null;
                             const calculatedMotorPrice = chosenMotor
-                              ? (areaM2 * Number(chosenMotor.price_per_m2 || 0)).toFixed(2)
+                              ? (areaM2 * Number(chosenMotor.price_per_m2 || 0) * motorQuantity).toFixed(2)
                               : '0';
                             onUpdateSpec({
                               motor_type: motorId,
@@ -522,6 +644,27 @@ export default function BuilderSurfaceCard({
                         />
                       )}
                     </Field>
+                    {selectedMotor && (
+                      <div className="mt-3">
+                        <Field id={`motor-quantity-${safeId}`} label="Motor Quantity" hint={`AED ${money(motorUnitTotal)} each`}>
+                          <input
+                            id={`motor-quantity-${safeId}`}
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={motorQuantity}
+                            onChange={(event) => {
+                              const qty = Math.max(1, Math.floor(Number(event.target.value) || 1));
+                              onUpdateSpec({
+                                motor_quantity: qty,
+                                motor_price_per_unit: (motorUnitTotal * qty).toFixed(2),
+                              });
+                            }}
+                            className="qbc-input"
+                          />
+                        </Field>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -574,6 +717,38 @@ export default function BuilderSurfaceCard({
                 )}
               </div>
             )}
+
+            {/* Catalog-driven charge breakdown */}
+            <dl className="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm grid gap-1.5" aria-label="Control and charge breakdown">
+              <div className="flex justify-between">
+                <dt className="text-slate-600">
+                  {isMotorized ? 'Motorized control charge' : 'Manual control charge'}
+                  {controlCharge && <span className="text-slate-400"> (AED {Number(controlCharge.price).toFixed(2)} {chargeUnitText(controlCharge)})</span>}
+                </dt>
+                <dd className="font-semibold">{controlCharge ? `AED ${money(controlChargeTotal)}` : 'Not set in catalog'}</dd>
+              </div>
+              {isMotorized && (
+                <div className="flex justify-between">
+                  <dt className="text-slate-600">Motor{selectedMotor ? ` (${selectedMotor.name} × ${motorQuantity})` : ''}</dt>
+                  <dd className="font-semibold">AED {money(motorUnitTotal * motorQuantity)}</dd>
+                </div>
+              )}
+              {isMotorized && surface.spec.smart_integration && (
+                <div className="flex justify-between">
+                  <dt className="text-slate-600">Alexa ({surface.spec.alexa_quantity} × AED {Number(surface.spec.alexa_unit_price || 0).toFixed(2)})</dt>
+                  <dd className="font-semibold">AED {money(alexaTotal)}</dd>
+                </div>
+              )}
+              {surface.spec.pelmet_enabled && (
+                <div className="flex justify-between">
+                  <dt className="text-slate-600">
+                    Pelmet charge
+                    {pelmetCharge && <span className="text-slate-400"> (AED {Number(pelmetCharge.price).toFixed(2)} per m)</span>}
+                  </dt>
+                  <dd className="font-semibold">AED {money(pelmetTotal)}</dd>
+                </div>
+              )}
+            </dl>
           </section>
 
           {/* Section: Pricing */}
@@ -586,13 +761,10 @@ export default function BuilderSurfaceCard({
               <PriceField
                 id={`surface-price-${safeId}`}
                 label="Surface Price (AED)"
-                value={(() => {
-                  const unitPrice = parseFloat(String(surface.spec.unit_price_per_m2)) || 0;
-                  return areaM2 > 0 ? (areaM2 * unitPrice).toFixed(2) : '0.00';
-                })()}
+                value={fabricTotal.toFixed(2)}
                 onChange={(value) => {
                   const newSurfacePrice = parseFloat(value) || 0;
-                  const newUnitPrice = areaM2 > 0 ? (newSurfacePrice / areaM2).toFixed(4) : '0';
+                  const newUnitPrice = fabricQuantity > 0 ? (newSurfacePrice / fabricQuantity).toFixed(4) : '0';
                   onUpdateSpec({ unit_price_per_m2: newUnitPrice });
                 }}
                 step="0.01"

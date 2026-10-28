@@ -37,6 +37,7 @@ import {
 } from './components/QuotationBuilderComponents';
 import AddAreaModal from './components/AddAreaModal';
 import AddSurfaceModal from './components/AddSurfaceModal';
+import { useSurfaceTypes } from './hooks/useSurfaceTypes';
 import QuotationHeader from './components/QuotationHeader';
 import './QuotationBuilderPage.css';
 
@@ -166,6 +167,12 @@ export default function QuotationBuilderPage() {
     enabled: !!quotationSettings.work_type,
   });
 
+  const { data: quotationsRes } = useQuery({
+    queryKey: ['quotations', 'for-duplicate-check'],
+    queryFn: () => quotationsApi.list(),
+  });
+  const surfaceTypes = useSurfaceTypes();
+
   const toArray = <T,>(res: any): T[] => {
     const d = res?.data;
     if (Array.isArray(d)) return d;
@@ -182,6 +189,18 @@ export default function QuotationBuilderPage() {
   const includedCharges = toArray<ChargeTemplate>(chargesRes);
   const selectedWorkType = workTypes.find((workType) => workType.id === quotationSettings.work_type) || workTypes[0];
   const workTypeFeatures = selectedWorkType ? normalizeFeatures(selectedWorkType.features) : undefined;
+
+  const quotedAppointmentIds = useMemo(() => {
+    const ids = new Set<string>();
+    toArray<any>(quotationsRes).forEach((q) => {
+      if (q?.status === 'cancelled') return;
+      const apptId = q?.appointment_id ?? q?.appointment;
+      if (apptId !== undefined && apptId !== null && apptId !== '') ids.add(String(apptId));
+    });
+    return ids;
+  }, [quotationsRes]);
+  const isAppointmentQuoted = (a?: { id: number | string; status?: string; has_quotation?: boolean; quotation_id?: number | string | null } | null) =>
+    !!a && (!!a.has_quotation || !!a.quotation_id || a.status === 'quoted' || quotedAppointmentIds.has(String(a.id)));
 
   const fetchedAppointments: AppointmentListItem[] = toArray<AppointmentListItem>(appointmentsRes);
   const selectedAppointment: AppointmentDetail | null = selectedAppointmentRes?.data || null;
@@ -217,18 +236,20 @@ export default function QuotationBuilderPage() {
   const selectedAppointmentSummary = appointments.find(
     (appointment) => String(appointment.id) === selectedAppointmentId
   );
+  const selectableAppointments = appointments.filter(
+    (appointment) => appointment.status !== 'cancelled' && !isAppointmentQuoted(appointment)
+  );
+  const selectedAlreadyQuoted =
+    !!selectedAppointmentId && (isAppointmentQuoted(selectedAppointment) || isAppointmentQuoted(selectedAppointmentSummary));
+  const pickerAppointments = appointments.filter(
+    (appointment) => String(appointment.id) === selectedAppointmentId || selectableAppointments.includes(appointment)
+  );
   const selectedCustomerId = selectedAppointment?.customer?.id ?? selectedAppointmentSummary?.customer;
   const selectedCustomerName =
     selectedAppointment?.customer?.full_name || selectedAppointmentSummary?.customer_name || '';
   const selectedCustomerEmail = selectedAppointment?.customer?.email || '';
   const selectedCustomerPhone =
     selectedAppointment?.customer?.phone || selectedAppointmentSummary?.customer_phone || '';
-  const selectedCustomerLocation =
-    selectedAppointment?.location?.full_address ||
-    selectedAppointmentSummary?.location_full_address ||
-    (selectedAppointment?.location?.building_name
-      ? `${selectedAppointment.location.building_name}${selectedAppointment.location.unit_number ? ` Unit ${selectedAppointment.location.unit_number}` : ''}`
-      : '');
   const validityMessage = getValidityMessage(quotationSettings.valid_until);
   const surfaceCount = areas.reduce((count, area) => count + area.surfaces.length, 0);
 
@@ -374,6 +395,11 @@ export default function QuotationBuilderPage() {
       return;
     }
 
+    if (selectedAlreadyQuoted) {
+      showToast('A quotation already exists for this appointment', 'error');
+      return;
+    }
+
     if (!selectedCustomerId) {
       showToast('Unable to load the selected customer details', 'error');
       return;
@@ -407,7 +433,12 @@ export default function QuotationBuilderPage() {
           display_name: area.display_name,
           sort_order: area.sort_order,
           surfaces: area.surfaces.map((surface) => {
-            const spec = { ...surface.spec };
+            const spec = { ...surface.spec } as SurfaceSpec & { motor_quantity?: number };
+            delete spec.motor_quantity; // UI-only; already folded into motor_price_per_unit
+            if (spec.motor_control_type !== 'motorized') {
+              spec.smart_integration = false;
+              spec.alexa_quantity = 0;
+            }
             const alexaCharge = includedCharges.find((charge) => charge.kind === 'alexa');
             const pelmetCharge = includedCharges.find((charge) => charge.kind === 'pelmet');
             if (spec.smart_integration && alexaCharge && (!spec.alexa_unit_price || spec.alexa_unit_price === '0')) {
@@ -495,7 +526,20 @@ export default function QuotationBuilderPage() {
 
   const calculateSurfaceTotal = (spec: SurfaceSpec, widthCm: number, heightCm: number) => {
     const areaM2 = (widthCm * heightCm) / 10000;
-    const fabricTotal = parseFloat(String(spec.unit_price_per_m2)) * areaM2;
+    const pricingUnit = selectedWorkType?.pricing_unit;
+    const quantity = pricingUnit === 'flat' ? 1 : pricingUnit === 'm' ? widthCm / 100 : areaM2;
+    const fabricTotal = parseFloat(String(spec.unit_price_per_m2)) * quantity;
+    const controlTemplate = includedCharges.find((charge) =>
+      charge.kind === (spec.motor_control_type === 'motorized' ? 'motorized' : 'manual')
+    );
+    const controlPrice = parseFloat(String(controlTemplate?.price ?? 0)) || 0;
+    const controlTotal = !controlTemplate
+      ? 0
+      : controlTemplate.unit === 'flat'
+        ? controlPrice
+        : controlTemplate.unit === 'm'
+          ? controlPrice * (widthCm / 100)
+          : controlPrice * areaM2;
     const motorTotal =
       spec.motor_control_type === 'motorized'
         ? parseFloat(String(spec.motor_price_per_unit))
@@ -509,7 +553,7 @@ export default function QuotationBuilderPage() {
       : 0;
     const addonTotal = parseFloat(String(spec.addon_amount));
 
-    return (fabricTotal + motorTotal + alexaTotal + pelmetTotal + addonTotal).toFixed(2);
+    return (fabricTotal + controlTotal + motorTotal + alexaTotal + pelmetTotal + addonTotal).toFixed(2);
   };
 
   return (
@@ -537,19 +581,25 @@ export default function QuotationBuilderPage() {
                   <AppointmentPicker
                     id="quotation-appointment"
                     value={selectedAppointmentId}
-                    appointments={appointments}
+                    appointments={pickerAppointments}
                     onChange={(e) => setSelectedAppointmentId(e.target.value)}
                   />
                 )}
               </div>
             </div>
 
+            {selectedAlreadyQuoted && (
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-start gap-2" role="alert">
+                <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>A quotation already exists for this appointment. Choose a different appointment.</span>
+              </div>
+            )}
+
             {selectedAppointmentId && (
               <CustomerSummary
                 customerName={selectedCustomerName}
                 customerEmail={selectedCustomerEmail}
                 customerPhone={selectedCustomerPhone}
-                customerLocation={selectedCustomerLocation}
                 isLoading={selectedAppointmentLoading}
               />
             )}
@@ -765,6 +815,8 @@ export default function QuotationBuilderPage() {
                                   motors={motors}
                                   features={workTypeFeatures}
                                   workTypeName={selectedWorkType?.name}
+                                  pricingUnit={selectedWorkType?.pricing_unit}
+                                  charges={includedCharges}
                                   fieldErrors={surfaceFieldErrors[surface.tempId]}
                                   onDelete={() => handleDeleteSurface(area.tempId, surface.tempId)}
                                   onUpdateSpec={(updates) => handleUpdateSurfaceSpec(area.tempId, surface.tempId, updates)}
@@ -798,7 +850,7 @@ export default function QuotationBuilderPage() {
           {/* Save Button */}
           <StickyActionBar
             isSaving={isSaving}
-            canSave={!isSaving && !!selectedAppointmentId && !!selectedCustomerId && areas.length > 0}
+            canSave={!isSaving && !selectedAlreadyQuoted && !!selectedAppointmentId && !!selectedCustomerId && areas.length > 0}
             onCancel={() => navigate('/quotations')}
             onSave={handleSaveQuotation}
           />
@@ -833,11 +885,11 @@ export default function QuotationBuilderPage() {
         onTypeChange={(surface_type) => setNewSurfaceData({ ...newSurfaceData, surface_type })}
         onWidthChange={(width_cm) => setNewSurfaceData({ ...newSurfaceData, width_cm })}
         onHeightChange={(height_cm) => setNewSurfaceData({ ...newSurfaceData, height_cm })}
-        typeOptions={[
-          { value: 'window', label: 'Window' },
-          { value: 'wall', label: 'Wall' },
-          { value: 'door', label: 'Door' },
-        ]}
+        typeOptions={surfaceTypes.options}
+        onAddType={surfaceTypes.add}
+        onRenameType={surfaceTypes.rename}
+        onRemoveType={surfaceTypes.remove}
+        isCustomType={surfaceTypes.isCustom}
         widthPlaceholder="240"
         heightPlaceholder="310"
         widthMin={0}

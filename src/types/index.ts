@@ -67,6 +67,8 @@ export interface Customer {
   email: string;
   phone: string;
   company_name: string;
+  source?: string;
+  customer_source?: string;
   address_line_1: string;
   address_line_2: string;
   city: string;
@@ -290,6 +292,8 @@ export interface AppointmentListItem {
   assignee_name?: string | null;
   assignee_username?: string | null;
   location_full_address: string;
+  source?: string;
+  customer_source?: string;
   has_quotation?: boolean;
   quotation_id?: number | string | null;
   created_at: string;
@@ -301,6 +305,8 @@ export interface AppointmentDetail {
   customer?: Customer | null;
   title: string;
   description: string;
+  source?: string;
+  customer_source?: string;
   appointment_date: string;
   appointment_time: string;
   end_time: string;
@@ -335,6 +341,7 @@ export interface CreateAppointmentRequest {
   customer_address?: string;
   customer_city?: string;
   customer_source?: string;
+  source?: string;
   // Appointment fields
   title: string;
   description?: string;

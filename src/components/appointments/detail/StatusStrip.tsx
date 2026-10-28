@@ -1,6 +1,6 @@
 import { AlertCircle, Clock } from 'lucide-react';
 import { StatusBadge } from '../../ui/StatusBadge';
-import { displayCase, jobTypeIcon, overdueDays } from './helpers';
+import { displayCase, getSourceMeta, jobTypeIcon, overdueDays } from './helpers';
 
 export function JobTypeChip({ jobType }: { jobType: string }) {
   const Icon = jobTypeIcon(jobType);
@@ -12,20 +12,34 @@ export function JobTypeChip({ jobType }: { jobType: string }) {
   );
 }
 
+/** Renders nothing when no source was provided. */
+export function SourceChip({ source }: { source?: string | null }) {
+  const meta = getSourceMeta(source);
+  if (!meta) return null;
+  const Icon = meta.icon;
+  return (
+    <span className="ad-sourcechip">
+      <Icon aria-hidden="true" />
+      {meta.label}
+    </span>
+  );
+}
+
 interface StatusStripProps {
   status: string;
   jobType: string;
+  source?: string | null;
   appointmentDate: string;
   updatedAt: string;
   updatedLabel: string;
 }
 
 /**
- * Status / job type / updated strip.
+ * Status / job type / source / updated strip.
  * The optional progress stepper is intentionally omitted: the existing statuses
  * (scheduled, quoted, rescheduled, cancelled) are not a linear sequence.
  */
-export function StatusStrip({ status, jobType, appointmentDate, updatedAt, updatedLabel }: StatusStripProps) {
+export function StatusStrip({ status, jobType, source, appointmentDate, updatedAt, updatedLabel }: StatusStripProps) {
   const overdue = overdueDays(status, appointmentDate);
   return (
     <section className="ad-card ad-strip ad-reveal" style={{ '--i': 1 } as React.CSSProperties} aria-label="Appointment status">
@@ -46,6 +60,13 @@ export function StatusStrip({ status, jobType, appointmentDate, updatedAt, updat
         <span className="ad-caption">Job type</span>
         <JobTypeChip jobType={jobType} />
       </div>
+
+      {getSourceMeta(source) && (
+        <div className="ad-strip__item">
+          <span className="ad-caption">Source</span>
+          <SourceChip source={source} />
+        </div>
+      )}
 
       <div className="ad-strip__item ad-strip__item--end">
         <span className="ad-strip__updated">

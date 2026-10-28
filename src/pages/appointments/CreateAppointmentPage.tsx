@@ -40,7 +40,7 @@ const appointmentSchema = z.object({
   building: z.string().min(2, 'Required'),
   room: z.string().optional(),
   address: z.string().optional(),
-  source: z.string().min(1, 'Required'),
+  source: z.string(),
   assignedTo: z.string().optional(),
   jobType: z.string().min(1, 'Required'),
   date: z.string().min(1, 'Required'),
@@ -425,7 +425,8 @@ export default function CreateAppointmentPage() {
       setValue('building', editAppointment.location?.building_name || editAppointment.location_building || '');
       setValue('room', editAppointment.location?.unit_number || editAppointment.location_unit || '');
       setValue('address', editAppointment.location?.full_address || editAppointment.location_full_address || '');
-      setValue('source', editAppointment.customer_source || 'whatsapp');
+      // Use the stored source only; never fabricate a default for an existing appointment.
+      setValue('source', editAppointment.source || editAppointment.customer_source || '');
       setValue('jobType', editAppointment.job_type || 'installation');
       setValue('date', editAppointment.appointment_date || new Date().toISOString().split('T')[0]);
       setValue('time', editAppointment.appointment_time ? editAppointment.appointment_time.slice(0, 5) : '09:00 AM');
@@ -471,7 +472,8 @@ export default function CreateAppointmentPage() {
         customer_phone: data.phone,
         customer_email: data.email || undefined,
         customer_address: data.address,
-        customer_source: data.source,
+        customer_source: data.source || undefined,
+        source: data.source || undefined,
         title: `${data.jobType.charAt(0).toUpperCase() + data.jobType.slice(1)} Appointment`,
         description: data.notes,
         appointment_date: data.date,
@@ -479,12 +481,12 @@ export default function CreateAppointmentPage() {
         job_type: data.jobType as any,
         ...(editAppointment
           ? (() => {
-              const dateChanged = (editAppointment.appointment_date || '').slice(0, 10) !== data.date;
-              const timeChanged = (editAppointment.appointment_time || '').slice(0, 5) !== data.time.split(' ')[0];
-              return editAppointment.status !== 'cancelled' && (dateChanged || timeChanged)
-                ? { status: 'rescheduled' as const }
-                : {};
-            })()
+            const dateChanged = (editAppointment.appointment_date || '').slice(0, 10) !== data.date;
+            const timeChanged = (editAppointment.appointment_time || '').slice(0, 5) !== data.time.split(' ')[0];
+            return editAppointment.status !== 'cancelled' && (dateChanged || timeChanged)
+              ? { status: 'rescheduled' as const }
+              : {};
+          })()
           : { status: 'scheduled' as const }),
         assigned_to: assigneeId,
         assignee: assigneeId,

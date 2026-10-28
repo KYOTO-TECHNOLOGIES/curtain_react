@@ -4,6 +4,7 @@ export type AppointmentFormState = {
   description: string;
   status: string;
   job_type: string;
+  source: string;
   appointment_date: string;
   appointment_time: string;
   end_time: string;

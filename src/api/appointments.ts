@@ -34,7 +34,46 @@ const normalizeAssigneePayload = <T extends Record<string, unknown>>(payload: T)
     normalized.assignee_id = assigneeId;
   }
 
+  // Backend docs use `customer_source`; mirror to `source` so either serializer field is filled.
+  const rawSource = normalized.source ?? normalized.customer_source;
+  if (rawSource !== undefined && rawSource !== null && String(rawSource).trim() !== '') {
+    const cleanSource = String(rawSource).trim();
+    normalized.source = cleanSource;
+    normalized.customer_source = cleanSource;
+  } else {
+    delete normalized.source;
+    delete normalized.customer_source;
+  }
+
   return normalized as T & AssigneePayload;
+};
+
+/**
+ * Local fallback for the appointment source. The documented GET responses do not
+ * include a source field, so the value chosen at creation is remembered per
+ * appointment id and used only when the API response has no source.
+ */
+const SOURCE_CACHE_KEY = 'appointment_sources';
+
+const readSourceCache = (): Record<string, string> => {
+  try {
+    return JSON.parse(localStorage.getItem(SOURCE_CACHE_KEY) || '{}') || {};
+  } catch {
+    return {};
+  }
+};
+
+const rememberSource = (id: unknown, source: unknown) => {
+  if (id === undefined || id === null) return;
+  try {
+    const cache = readSourceCache();
+    const clean = source === undefined || source === null ? '' : String(source).trim();
+    if (clean) cache[String(id)] = clean;
+    else delete cache[String(id)];
+    localStorage.setItem(SOURCE_CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // storage unavailable; ignore
+  }
 };
 
 // 'pending' was removed from the appointment workflow; treat legacy rows as 'scheduled'.
@@ -72,6 +111,34 @@ const normalizeAppointmentResponse = <T>(data: T): T => {
   }
   if (item.assigned_to_username == null && item.assignee_username) {
     item.assigned_to_username = item.assignee_username;
+  }
+
+  // Source may live on the appointment or on the nested customer, under several names.
+  const customerObj = item.customer && typeof item.customer === 'object' ? item.customer : null;
+  const apiSource = [
+    item.source,
+    item.customer_source,
+    item.appointment_source,
+    item.lead_source,
+    customerObj?.source,
+    customerObj?.customer_source,
+    customerObj?.lead_source,
+  ].find((value) => value !== undefined && value !== null && String(value).trim() !== '');
+
+  const resolvedSource =
+    apiSource !== undefined
+      ? String(apiSource).trim()
+      : item.id !== undefined && item.id !== null
+        ? readSourceCache()[String(item.id)]
+        : undefined;
+
+  if (resolvedSource) {
+    item.source = resolvedSource;
+    item.customer_source = resolvedSource;
+  } else if (item.id !== undefined) {
+    // Never surface an empty string / bogus default as a source.
+    delete item.source;
+    delete item.customer_source;
   }
 
   return data;
@@ -201,6 +268,8 @@ export const appointmentsApi = {
       normalizeAssigneePayload({ ...data, status: 'scheduled' as const })
     );
     const created = res.data as AppointmentDetail;
+    const submittedSource = data.source ?? data.customer_source;
+    if (created?.id !== undefined) rememberSource(created.id, submittedSource);
     // Backend may ignore the submitted status and default to 'pending'; force 'scheduled'.
     if (created?.id !== undefined && created.status !== 'scheduled') {
       try {
@@ -217,6 +286,9 @@ export const appointmentsApi = {
     const assigneeId = data.assigned_to ?? (data as any).assignee ?? (data as any).assignee_id;
     if (assigneeId) {
       await ensureAssignableRole(assigneeId);
+    }
+    if ('source' in (data as any) || 'customer_source' in (data as any)) {
+      rememberSource(id, (data as any).source ?? (data as any).customer_source);
     }
     return api.patch<AppointmentDetail>(`appointments/${id}/`, normalizeAssigneePayload({ ...data })).then(normalizeApiResponse);
   },

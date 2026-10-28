@@ -224,18 +224,16 @@ export default function AppointmentDetailPage() {
             {/* Status and Job Type */}
             <div className="flex gap-3 mb-6">
               <span
-                className={`px-4 py-2 rounded-full font-medium text-sm ${
-                  statusColors[displayData.status as AppointmentStatus]
-                }`}
+                className={`px-4 py-2 rounded-full font-medium text-sm ${statusColors[displayData.status as AppointmentStatus]
+                  }`}
               >
                 {displayData.status.charAt(0).toUpperCase() +
                   displayData.status.slice(1)}
               </span>
               <span
-                className={`px-4 py-2 rounded-full font-medium text-sm ${
-                  jobTypeColors[displayData.job_type] ||
+                className={`px-4 py-2 rounded-full font-medium text-sm ${jobTypeColors[displayData.job_type] ||
                   'bg-gray-100 text-gray-800'
-                }`}
+                  }`}
               >
                 {displayData.job_type.charAt(0).toUpperCase() +
                   displayData.job_type.slice(1)}
