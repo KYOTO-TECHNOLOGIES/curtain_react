@@ -65,10 +65,12 @@ export function DetailHeader({
                   <span>{isCancelling ? 'Cancelling...' : 'Cancel Appointment'}</span>
                 </button>
               )}
-              <button type="button" className="ad-btn ad-btn--primary" onClick={onEdit}>
-                <PencilLine aria-hidden="true" />
-                <span>Edit Appointment</span>
-              </button>
+              {!isCancelled && (
+                <button type="button" className="ad-btn ad-btn--primary" onClick={onEdit}>
+                  <PencilLine aria-hidden="true" />
+                  <span>Edit Appointment</span>
+                </button>
+              )}
             </>
           )}
         </div>

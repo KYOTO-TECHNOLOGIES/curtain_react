@@ -141,9 +141,6 @@ export default function InvoicesPage() {
       {/* Redesigned Page Header (Design Spells Aesthetic) */}
       <InvoicePageHeader
         onExport={() => showToast('Exporting invoices...', 'info')}
-        onGenerateInvoice={() =>
-          showToast('Invoices are auto-generated from Orders', 'success')
-        }
       />
 
       {/* Redesigned Filter Bar Card */}

@@ -191,6 +191,7 @@ export const AppointmentTable: React.FC<AppointmentTableProps> = ({
       render: (a) => (
         <RowActions
           appointmentId={a.id}
+          status={a.status}
           isAssigned={Boolean(a.assigned_to_name || a.assigned_to)}
           hasQuotation={Boolean(a.has_quotation)}
           onAssign={() => onAssign(a)}

@@ -95,9 +95,6 @@ export default function OrdersPage() {
       {/* Redesigned Page Header (Design Spells Aesthetic) */}
       <OrderPageHeader
         onExport={() => showToast('Exporting orders...', 'info')}
-        onCreateOrder={() =>
-          showToast('Orders are automatically generated from accepted quotations.', 'success')
-        }
       />
 
       {/* Redesigned Filter Bar Card */}
