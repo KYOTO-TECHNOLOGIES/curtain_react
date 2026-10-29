@@ -1,15 +1,14 @@
 import React from 'react';
-import { Download, Plus, ChevronRight } from 'lucide-react';
+import { Download, ChevronRight } from 'lucide-react';
 import '../appointments/AppointmentHeader.css';
 
 interface InvoicePageHeaderProps {
   onExport?: () => void;
-  onGenerateInvoice: () => void;
+  onGenerateInvoice?: () => void;
 }
 
 export const InvoicePageHeader: React.FC<InvoicePageHeaderProps> = ({
   onExport,
-  onGenerateInvoice,
 }) => {
   return (
     <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -42,27 +41,19 @@ export const InvoicePageHeader: React.FC<InvoicePageHeaderProps> = ({
       </div>
 
       {/* Action Buttons */}
-      <div className="header-stagger-item header-stagger-3 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onExport}
-          className="btn-export-list"
-          title="Export invoices to CSV/Excel"
-        >
-          <Download className="export-icon" strokeWidth={2.2} />
-          <span className="hidden sm:inline">Export List</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={onGenerateInvoice}
-          className="btn-schedule-primary"
-        >
-          <Plus className="schedule-icon" strokeWidth={2.5} />
-          <span className="hidden sm:inline">Generate Invoice</span>
-          <span className="sm:hidden">Generate</span>
-        </button>
-      </div>
+      {onExport && (
+        <div className="header-stagger-item header-stagger-3 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onExport}
+            className="btn-export-list"
+            title="Export invoices to CSV/Excel"
+          >
+            <Download className="export-icon" strokeWidth={2.2} />
+            <span className="hidden sm:inline">Export List</span>
+          </button>
+        </div>
+      )}
     </header>
   );
 };

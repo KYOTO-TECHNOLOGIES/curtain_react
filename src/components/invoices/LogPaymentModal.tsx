@@ -153,9 +153,18 @@ export function LogPaymentModal({
     current.click();
   };
 
-  const amountRegistration = form.register('amount');
   const dateRegistration = form.register('payment_date');
   const notesRegistration = form.register('notes');
+
+  /** Fill the amount field with the full outstanding balance without submitting. */
+  const handlePayFullBalance = () => {
+    if (!paymentSummary) return;
+    form.setValue(
+      'amount',
+      formatMinorForInput(paymentSummary.outstandingMinor),
+      { shouldValidate: true, shouldDirty: true, shouldTouch: true }
+    );
+  };
 
   return (
     <Modal
@@ -192,6 +201,7 @@ export function LogPaymentModal({
               />
             )}
 
+            {/* Amount */}
             <section className="payment-field payment-amount-field">
               <FieldLabel
                 htmlFor={`${id}-amount`}
@@ -203,16 +213,7 @@ export function LogPaymentModal({
                     <button
                       type="button"
                       className="payment-full-balance-button"
-                      onClick={() => {
-                        if (paymentSummary) {
-                          void amountRegistration.onChange({
-                            target: {
-                              name: amountRegistration.name,
-                              value: formatMinorForInput(paymentSummary.outstandingMinor),
-                            },
-                          });
-                        }
-                      }}
+                      onClick={handlePayFullBalance}
                     >
                       Pay full balance
                     </button>
@@ -224,8 +225,7 @@ export function LogPaymentModal({
               <div className={`payment-amount-control ${amountError ? 'is-invalid' : ''}`}>
                 <span className="payment-currency-prefix" aria-hidden="true">AED</span>
                 <input
-                  {...amountRegistration}
-                  ref={amountRegistration.ref}
+                  {...form.register('amount')}
                   id={`${id}-amount`}
                   data-payment-autofocus
                   type="number"
@@ -249,6 +249,7 @@ export function LogPaymentModal({
               <ErrorMessage id={`${id}-amount-error`} message={amountError} />
             </section>
 
+            {/* Payment Method */}
             <section className="payment-field">
               <FieldLabel htmlFor={`${id}-method-bank_transfer`} required>Payment Method</FieldLabel>
               <div
@@ -306,45 +307,49 @@ export function LogPaymentModal({
               <ErrorMessage id={`${id}-method-error`} message={methodError} />
             </section>
 
-            <section className="payment-field">
-              <FieldLabel htmlFor={`${id}-date`} required>Payment Date</FieldLabel>
-              <DatePicker
-                {...dateRegistration}
-                ref={(element) => {
-                  dateRegistration.ref(element);
-                  dateRef.current = element;
-                }}
-                id={`${id}-date`}
-                value={paymentDate || ''}
-                required
-                readOnly={isSubmitting}
-                aria-invalid={Boolean(dateError)}
-                aria-describedby={dateError ? `${id}-date-error` : undefined}
-              />
-              <p className={`payment-date-hint ${dateHint && new Date(`${paymentDate}T00:00:00`).getTime() > new Date().setHours(0, 0, 0, 0) ? 'is-future' : ''}`}>
-                <span key={paymentDate}>{dateHint}</span>
-              </p>
-              <ErrorMessage id={`${id}-date-error`} message={dateError} />
-            </section>
-
-            <section className="payment-field">
-              <FieldLabel htmlFor={`${id}-reference`}>Reference Number</FieldLabel>
-              <div className="payment-icon-control">
-                <Hash className="payment-leading-icon" aria-hidden="true" />
-                <input
-                  {...form.register('reference')}
-                  id={`${id}-reference`}
-                  type="text"
-                  autoComplete="off"
-                  autoCapitalize="characters"
-                  spellCheck={false}
+            {/* Date + Reference — side-by-side on wider modal */}
+            <div className="payment-date-reference-row">
+              <section className="payment-field">
+                <FieldLabel htmlFor={`${id}-date`} required>Payment Date</FieldLabel>
+                <DatePicker
+                  {...dateRegistration}
+                  ref={(element) => {
+                    dateRegistration.ref(element);
+                    dateRef.current = element;
+                  }}
+                  id={`${id}-date`}
+                  value={paymentDate || ''}
+                  required
                   readOnly={isSubmitting}
-                  className="payment-standard-input payment-reference-input"
-                  placeholder="e.g. TXN-12345"
+                  aria-invalid={Boolean(dateError)}
+                  aria-describedby={dateError ? `${id}-date-error` : undefined}
                 />
-              </div>
-            </section>
+                <p className={`payment-date-hint ${dateHint && new Date(`${paymentDate}T00:00:00`).getTime() > new Date().setHours(0, 0, 0, 0) ? 'is-future' : ''}`}>
+                  <span key={paymentDate}>{dateHint}</span>
+                </p>
+                <ErrorMessage id={`${id}-date-error`} message={dateError} />
+              </section>
 
+              <section className="payment-field">
+                <FieldLabel htmlFor={`${id}-reference`}>Reference Number</FieldLabel>
+                <div className="payment-icon-control">
+                  <Hash className="payment-leading-icon" aria-hidden="true" />
+                  <input
+                    {...form.register('reference')}
+                    id={`${id}-reference`}
+                    type="text"
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                    readOnly={isSubmitting}
+                    className="payment-standard-input payment-reference-input"
+                    placeholder="e.g. TXN-12345"
+                  />
+                </div>
+              </section>
+            </div>
+
+            {/* Notes */}
             <section className="payment-field">
               <FieldLabel htmlFor={`${id}-notes`}>Notes</FieldLabel>
               <textarea
@@ -357,7 +362,7 @@ export function LogPaymentModal({
                 readOnly={isSubmitting}
                 className="payment-notes-input"
                 placeholder="Any additional notes..."
-                rows={4}
+                rows={2}
                 onInput={() => {
                   const textarea = notesRef.current;
                   if (!textarea) return;

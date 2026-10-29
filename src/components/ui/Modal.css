@@ -37,9 +37,9 @@
 .payment-modal-card {
   display: flex;
   flex-direction: column;
-  width: 480px;
+  width: 600px;
   max-width: calc(100vw - 32px);
-  max-height: calc(100dvh - 48px);
+  max-height: calc(100dvh - 64px);
   overflow: hidden;
   border: 1px solid rgba(15, 23, 42, 0.06);
   border-radius: var(--cm-payment-radius-card);
