@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import {
   ArrowRight,
   ArrowLeft,
@@ -56,6 +57,20 @@ interface Props {
   className?: string;
 }
 
+function getModelFabricTypeId(model: any): number {
+  const raw = typeof model?.fabric_type === 'object' && model?.fabric_type !== null
+    ? model.fabric_type.id
+    : model?.fabric_type;
+  return Number(raw) || 0;
+}
+
+function getItemModelId(item: any): number {
+  const raw = typeof item?.model === 'object' && item?.model !== null
+    ? item.model.id
+    : item?.model;
+  return Number(raw) || 0;
+}
+
 export default function SurfaceCard({
   surface,
   isEditing = false,
@@ -79,17 +94,83 @@ export default function SurfaceCard({
   const h = Number(surface.height_cm) || 0;
   const areaM2 = (w * h) / 10000;
 
+  const spec = surface.spec || {};
+  const selectedFabricId = Number(spec.fabric_type) || 0;
+  const filteredModels = selectedFabricId
+    ? models.filter((m: any) => getModelFabricTypeId(m) === selectedFabricId)
+    : [];
+  const activeModel = filteredModels.find((m: any) => Number(m.id) === Number(spec.model));
+  const selectedModelId = activeModel ? Number(activeModel.id) : 0;
+  const filteredItems = selectedModelId
+    ? items.filter((i: any) => getItemModelId(i) === selectedModelId)
+    : [];
+  const activeItem = filteredItems.find((i: any) => Number(i.id) === Number(spec.catalog_item));
+  const selectedItemId = activeItem ? Number(activeItem.id) : 0;
+
+  useEffect(() => {
+    if (!isEditing || !onUpdateSpec || !selectedFabricId || models.length === 0) return;
+
+    if (filteredModels.length === 0) {
+      if (Number(spec.model) !== 0 || Number(spec.catalog_item) !== 0) {
+        onUpdateSpec({ model: 0, catalog_item: 0 });
+      }
+      return;
+    }
+
+    if (!activeModel) {
+      const nextModel =
+        filteredModels.find((m: any) => items.some((i: any) => getItemModelId(i) === Number(m.id))) ||
+        filteredModels[0];
+      const nextItems = nextModel
+        ? items.filter((i: any) => getItemModelId(i) === Number(nextModel.id))
+        : [];
+      const nextItem = nextItems[0];
+      onUpdateSpec({
+        model: nextModel ? Number(nextModel.id) : 0,
+        catalog_item: nextItem ? Number(nextItem.id) : 0,
+        unit_price_per_m2: nextItem ? String(nextItem.price_per_unit ?? spec.unit_price_per_m2 ?? '0') : '0',
+      });
+      return;
+    }
+
+    if (filteredItems.length === 0) {
+      if (Number(spec.catalog_item) !== 0) {
+        onUpdateSpec({ catalog_item: 0 });
+      }
+      return;
+    }
+
+    if (!activeItem) {
+      const nextItem = filteredItems[0];
+      onUpdateSpec({
+        catalog_item: Number(nextItem.id),
+        unit_price_per_m2: String(nextItem.price_per_unit ?? spec.unit_price_per_m2 ?? '0'),
+      });
+    }
+  }, [
+    isEditing,
+    selectedFabricId,
+    spec.model,
+    spec.catalog_item,
+    models,
+    items,
+    filteredModels.length,
+    filteredItems.length,
+    activeModel,
+    activeItem,
+  ]);
+
   if (isEditing && onChangeSurface && onUpdateSpec) {
-    // Build select options
+    // Build select options filtered by current Fabric Type -> Model
     const fabricOptions = fabricTypes.map((f: any) => ({
       value: String(f.id),
       label: f.name,
     }));
-    const modelOptions = models.map((m: any) => ({
+    const modelOptions = filteredModels.map((m: any) => ({
       value: String(m.id),
       label: m.name,
     }));
-    const itemOptions = items.map((i: any) => ({
+    const itemOptions = filteredItems.map((i: any) => ({
       value: String(i.id),
       label: i.name,
       suffix: i.price_per_unit != null ? String(i.price_per_unit) : undefined,
@@ -118,8 +199,6 @@ export default function SurfaceCard({
       { value: 'center_open', label: 'Center Open' },
       { value: 'fixed', label: 'Fixed' },
     ];
-
-    const spec = surface.spec || {};
 
     return (
       <div className={`qd-surface qd-surface--editing ${className}`}>
@@ -213,32 +292,65 @@ export default function SurfaceCard({
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Fabric Type</label>
                 <SelectMenu
-                  value={String(spec.fabric_type || '')}
+                  value={selectedFabricId ? String(selectedFabricId) : ''}
                   options={fabricOptions}
-                  onChange={(val) => onUpdateSpec({ fabric_type: Number(val) })}
+                  onChange={(val) => {
+                    const nextFabricId = Number(val);
+                    const nextModels = models.filter((m: any) => getModelFabricTypeId(m) === nextFabricId);
+                    const nextModel =
+                      nextModels.find((m: any) => items.some((i: any) => getItemModelId(i) === Number(m.id))) ||
+                      nextModels[0];
+                    const nextItems = nextModel
+                      ? items.filter((i: any) => getItemModelId(i) === Number(nextModel.id))
+                      : [];
+                    const nextItem = nextItems[0];
+                    onUpdateSpec({
+                      fabric_type: nextFabricId,
+                      model: nextModel ? Number(nextModel.id) : 0,
+                      catalog_item: nextItem ? Number(nextItem.id) : 0,
+                      unit_price_per_m2: nextItem ? String(nextItem.price_per_unit ?? '0') : '0',
+                    });
+                  }}
                   ariaLabel="Fabric Type"
+                  showPlaceholderOnEmpty
                   disabled={fabricOptions.length === 0}
-                  placeholder={fabricOptions.length ? 'Select' : 'No options'}
+                  placeholder={fabricOptions.length ? 'Select' : 'No fabric types available'}
+                  emptyMessage="No fabric types available"
                 />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Model</label>
                 <SelectMenu
-                  value={String(spec.model || '')}
+                  value={selectedModelId ? String(selectedModelId) : ''}
                   options={modelOptions}
-                  onChange={(val) => onUpdateSpec({ model: Number(val) })}
+                  onChange={(val) => {
+                    const nextModelId = Number(val);
+                    const nextItems = items.filter((i: any) => getItemModelId(i) === nextModelId);
+                    const nextItem = nextItems[0];
+                    onUpdateSpec({
+                      model: nextModelId,
+                      catalog_item: nextItem ? Number(nextItem.id) : 0,
+                      unit_price_per_m2: nextItem ? String(nextItem.price_per_unit ?? '0') : '0',
+                    });
+                  }}
                   ariaLabel="Model"
-                  disabled={modelOptions.length === 0}
-                  placeholder={modelOptions.length ? 'Select' : 'No options'}
+                  showPlaceholderOnEmpty
+                  placeholder={modelOptions.length ? 'Select' : 'No model available'}
+                  emptyMessage="No model available under this fabric type"
                 />
+                {selectedFabricId > 0 && modelOptions.length === 0 && (
+                  <p className="mt-1.5 text-xs font-medium text-amber-600">
+                    No model available under this fabric type
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Item</label>
                 <SelectMenu
-                  value={String(spec.catalog_item || '')}
+                  value={selectedItemId ? String(selectedItemId) : ''}
                   options={itemOptions}
                   onChange={(val) => {
-                    const chosen = items.find((i: any) => i.id === Number(val));
+                    const chosen = filteredItems.find((i: any) => Number(i.id) === Number(val));
                     onUpdateSpec({
                       catalog_item: Number(val),
                       unit_price_per_m2: chosen?.price_per_unit || spec.unit_price_per_m2,
@@ -246,9 +358,21 @@ export default function SurfaceCard({
                   }}
                   ariaLabel="Item"
                   showOptionSuffix
-                  disabled={itemOptions.length === 0}
-                  placeholder={itemOptions.length ? 'Select' : 'No options'}
+                  showPlaceholderOnEmpty
+                  placeholder={itemOptions.length ? 'Select' : 'No item available'}
+                  emptyMessage={
+                    modelOptions.length === 0
+                      ? 'No model or item available under this fabric type'
+                      : 'No item available under this model'
+                  }
                 />
+                {selectedFabricId > 0 && itemOptions.length === 0 && (
+                  <p className="mt-1.5 text-xs font-medium text-amber-600">
+                    {modelOptions.length === 0
+                      ? 'No item available under this fabric type'
+                      : 'No item available under this model'}
+                  </p>
+                )}
               </div>
             </div>
           </div>

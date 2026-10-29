@@ -183,10 +183,23 @@ export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(function
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
       if (triggerRef.current?.contains(target) || popoverRef.current?.contains(target)) return;
-      closePicker();
+      closePicker(false);
     };
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
+    const onDocumentKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        closePicker(true);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('mousedown', onPointerDown as EventListener, true);
+    document.addEventListener('keydown', onDocumentKeyDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('mousedown', onPointerDown as EventListener, true);
+      document.removeEventListener('keydown', onDocumentKeyDown, true);
+    };
   }, [isOpen, closePicker]);
 
   useEffect(() => () => {
@@ -269,6 +282,12 @@ export const DatePicker = forwardRef<HTMLInputElement, DatePickerProps>(function
         onClick={() => isOpen ? closePicker(false) : openPicker()}
         onFocus={onFocus as FocusEventHandler<HTMLButtonElement> | undefined}
         onKeyDown={(event) => {
+          if (event.key === 'Escape' && isOpen) {
+            event.preventDefault();
+            event.stopPropagation();
+            closePicker(true);
+            return;
+          }
           if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
             openPicker();

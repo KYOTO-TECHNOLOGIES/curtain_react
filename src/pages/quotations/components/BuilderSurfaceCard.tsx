@@ -52,6 +52,20 @@ interface Props {
   calculateTotal: (spec: SurfaceSpec, widthCm: number, heightCm: number) => string;
 }
 
+function getModelFabricTypeId(model: CatalogModel): number {
+  const raw = typeof model.fabric_type === 'object' && model.fabric_type !== null
+    ? (model.fabric_type as any).id
+    : model.fabric_type;
+  return Number(raw) || 0;
+}
+
+function getItemModelId(item: CatalogItem): number {
+  const raw = typeof item.model === 'object' && item.model !== null
+    ? (item.model as any).id
+    : item.model;
+  return Number(raw) || 0;
+}
+
 function capitalizeDisplay(value: string) {
   return value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : value;
 }
@@ -238,10 +252,71 @@ export default function BuilderSurfaceCard({
     ? `${surface.surface_name} (${capitalizeDisplay(surface.surface_type)})`
     : capitalizeDisplay(surface.surface_type);
 
-  const selectedFabric = fabricTypes.find((f) => f.id === surface.spec.fabric_type);
-  const selectedModel = models.find((m) => m.id === surface.spec.model);
-  const selectedItem = items.find((i) => i.id === surface.spec.catalog_item);
+  const selectedFabricId = Number(surface.spec.fabric_type) || 0;
+  const selectedFabric = fabricTypes.find((f) => Number(f.id) === selectedFabricId);
+  const filteredModels = selectedFabricId
+    ? models.filter((m) => getModelFabricTypeId(m) === selectedFabricId)
+    : [];
+  const selectedModel = filteredModels.find((m) => Number(m.id) === Number(surface.spec.model));
+  const selectedModelId = selectedModel ? Number(selectedModel.id) : 0;
+  const filteredItems = selectedModelId
+    ? items.filter((i) => getItemModelId(i) === selectedModelId)
+    : [];
+  const selectedItem = filteredItems.find((i) => Number(i.id) === Number(surface.spec.catalog_item));
+  const selectedItemId = selectedItem ? Number(selectedItem.id) : 0;
   const selectedMotor = surface.spec.motor_type ? motors.find((m) => m.id === surface.spec.motor_type) : null;
+
+  useEffect(() => {
+    if (!selectedFabricId || models.length === 0) return;
+
+    if (filteredModels.length === 0) {
+      if (Number(surface.spec.model) !== 0 || Number(surface.spec.catalog_item) !== 0) {
+        onUpdateSpec({ model: 0, catalog_item: 0, unit_price_per_m2: '0' });
+      }
+      return;
+    }
+
+    if (!selectedModel) {
+      const nextModel =
+        filteredModels.find((m) => items.some((i) => getItemModelId(i) === Number(m.id))) ||
+        filteredModels[0];
+      const nextItems = nextModel
+        ? items.filter((i) => getItemModelId(i) === Number(nextModel.id))
+        : [];
+      const nextItem = nextItems[0];
+      onUpdateSpec({
+        model: nextModel ? Number(nextModel.id) : 0,
+        catalog_item: nextItem ? Number(nextItem.id) : 0,
+        unit_price_per_m2: nextItem ? String(nextItem.price_per_unit ?? '0') : '0',
+      });
+      return;
+    }
+
+    if (filteredItems.length === 0) {
+      if (Number(surface.spec.catalog_item) !== 0) {
+        onUpdateSpec({ catalog_item: 0, unit_price_per_m2: '0' });
+      }
+      return;
+    }
+
+    if (!selectedItem) {
+      const nextItem = filteredItems[0];
+      onUpdateSpec({
+        catalog_item: Number(nextItem.id),
+        unit_price_per_m2: String(nextItem.price_per_unit ?? '0'),
+      });
+    }
+  }, [
+    selectedFabricId,
+    surface.spec.model,
+    surface.spec.catalog_item,
+    models,
+    items,
+    filteredModels.length,
+    filteredItems.length,
+    selectedModel,
+    selectedItem,
+  ]);
 
   const summaries = [
     selectedFabric?.name || selectedModel?.name || selectedItem?.name,
@@ -255,11 +330,11 @@ export default function BuilderSurfaceCard({
     value: String(item.id),
     label: item.name,
   }));
-  const modelOptions: SelectOption[] = models.map((item) => ({
+  const modelOptions: SelectOption[] = filteredModels.map((item) => ({
     value: String(item.id),
     label: item.name,
   }));
-  const itemOptions: SelectOption[] = items.map((item) => ({
+  const itemOptions: SelectOption[] = filteredItems.map((item) => ({
     value: String(item.id),
     label: item.name,
     suffix: item.price_per_unit == null ? undefined : String(item.price_per_unit),
@@ -412,32 +487,65 @@ export default function BuilderSurfaceCard({
               <Field id={`fabric-${safeId}`} label="Fabric Type" error={fieldErrors.fabric_type}>
                 <SelectMenu
                   id={`fabric-${safeId}`}
-                  value={String(surface.spec.fabric_type)}
+                  value={selectedFabricId ? String(selectedFabricId) : ''}
                   options={fabricOptions}
-                  onChange={(value) => onUpdateSpec({ fabric_type: Number(value) })}
+                  onChange={(value) => {
+                    const nextFabricId = Number(value);
+                    const nextModels = models.filter((m) => getModelFabricTypeId(m) === nextFabricId);
+                    const nextModel =
+                      nextModels.find((m) => items.some((i) => getItemModelId(i) === Number(m.id))) ||
+                      nextModels[0];
+                    const nextItems = nextModel
+                      ? items.filter((i) => getItemModelId(i) === Number(nextModel.id))
+                      : [];
+                    const nextItem = nextItems[0];
+                    onUpdateSpec({
+                      fabric_type: nextFabricId,
+                      model: nextModel ? Number(nextModel.id) : 0,
+                      catalog_item: nextItem ? Number(nextItem.id) : 0,
+                      unit_price_per_m2: nextItem ? String(nextItem.price_per_unit ?? '0') : '0',
+                    });
+                  }}
                   ariaLabel="Fabric Type"
+                  showPlaceholderOnEmpty
                   disabled={fabricOptions.length === 0}
-                  placeholder={fabricOptions.length ? 'Select fabric type' : 'No options'}
+                  placeholder={fabricOptions.length ? 'Select fabric type' : 'No fabric types available'}
+                  emptyMessage="No fabric types available"
                 />
               </Field>
               <Field id={`model-${safeId}`} label="Model" error={fieldErrors.model}>
                 <SelectMenu
                   id={`model-${safeId}`}
-                  value={String(surface.spec.model)}
+                  value={selectedModelId ? String(selectedModelId) : ''}
                   options={modelOptions}
-                  onChange={(value) => onUpdateSpec({ model: Number(value) })}
+                  onChange={(value) => {
+                    const nextModelId = Number(value);
+                    const nextItems = items.filter((i) => getItemModelId(i) === nextModelId);
+                    const nextItem = nextItems[0];
+                    onUpdateSpec({
+                      model: nextModelId,
+                      catalog_item: nextItem ? Number(nextItem.id) : 0,
+                      unit_price_per_m2: nextItem ? String(nextItem.price_per_unit ?? '0') : '0',
+                    });
+                  }}
                   ariaLabel="Model"
-                  disabled={modelOptions.length === 0}
-                  placeholder={modelOptions.length ? 'Select model' : 'No options'}
+                  showPlaceholderOnEmpty
+                  placeholder={modelOptions.length ? 'Select model' : 'No model available'}
+                  emptyMessage="No model available under this fabric type"
                 />
+                {selectedFabricId > 0 && modelOptions.length === 0 && (
+                  <span className="text-xs text-amber-600 font-medium mt-1 block">
+                    No model available under this fabric type
+                  </span>
+                )}
               </Field>
               <Field id={`item-${safeId}`} label="Item" error={fieldErrors.catalog_item}>
                 <SelectMenu
                   id={`item-${safeId}`}
-                  value={String(surface.spec.catalog_item)}
+                  value={selectedItemId ? String(selectedItemId) : ''}
                   options={itemOptions}
                   onChange={(value) => {
-                    const chosen = items.find((item) => item.id === Number(value));
+                    const chosen = filteredItems.find((item) => Number(item.id) === Number(value));
                     onUpdateSpec({
                       catalog_item: Number(value),
                       unit_price_per_m2: chosen?.price_per_unit || surface.spec.unit_price_per_m2,
@@ -445,9 +553,21 @@ export default function BuilderSurfaceCard({
                   }}
                   ariaLabel="Item"
                   showOptionSuffix
-                  disabled={itemOptions.length === 0}
-                  placeholder={itemOptions.length ? 'Select item' : 'No options'}
+                  showPlaceholderOnEmpty
+                  placeholder={itemOptions.length ? 'Select item' : 'No item available'}
+                  emptyMessage={
+                    modelOptions.length === 0
+                      ? 'No model or item available under this fabric type'
+                      : 'No item available under this model'
+                  }
                 />
+                {selectedFabricId > 0 && itemOptions.length === 0 && (
+                  <span className="text-xs text-amber-600 font-medium mt-1 block">
+                    {modelOptions.length === 0
+                      ? 'No item available under this fabric type'
+                      : 'No item available under this model'}
+                  </span>
+                )}
               </Field>
             </div>
 

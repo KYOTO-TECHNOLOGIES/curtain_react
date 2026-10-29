@@ -285,7 +285,15 @@ export default function QuotationBuilderPage() {
       return;
     }
 
-    const defaultItem = items[0] as any;
+    const defaultFabricId = fabricTypes[0]?.id || 0;
+    const defaultModels = models.filter(
+      (m: any) => Number(m.fabric_type?.id ?? m.fabric_type ?? m.fabric_type_id ?? 0) === Number(defaultFabricId)
+    );
+    const defaultModelId = defaultModels[0]?.id || 0;
+    const defaultItems = items.filter(
+      (i: any) => Number(i.model?.id ?? i.model ?? i.model_id ?? 0) === Number(defaultModelId)
+    );
+    const defaultItem = defaultItems[0] as any;
     const newSurface: BuilderSurface = {
       tempId: Date.now().toString(),
       surface_name: newSurfaceData.surface_name,
@@ -296,11 +304,11 @@ export default function QuotationBuilderPage() {
       special_requirements: newSurfaceData.special_requirements,
       sort_order: 0,
       spec: {
-        fabric_type: fabricTypes[0]?.id || 0,
-        model: models[0]?.id || 0,
-        catalog_item: items[0]?.id || 0,
+        fabric_type: defaultFabricId,
+        model: defaultModelId,
+        catalog_item: defaultItem?.id || 0,
         fabric_code: defaultItem?.code || '',
-        unit_price_per_m2: defaultItem?.price_per_unit || '0',
+        unit_price_per_m2: defaultItem?.price_per_unit || defaultItem?.unit_price_per_m2 || '0',
         motor_control_type: 'manual',
         motor_type: null,
         motor_price_per_unit: '0',
