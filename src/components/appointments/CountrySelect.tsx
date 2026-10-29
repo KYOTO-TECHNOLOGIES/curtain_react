@@ -124,10 +124,10 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
     }
   }, [isOpen]);
 
-  // Click outside listener
+  // Click outside and Escape key listener
   useEffect(() => {
     if (!isOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent | PointerEvent) => {
       if (
         popoverRef.current &&
         !popoverRef.current.contains(e.target as Node) &&
@@ -137,8 +137,21 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    const handleDocumentKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        handleClose();
+      }
+    };
+    document.addEventListener('pointerdown', handleClickOutside, true);
+    document.addEventListener('mousedown', handleClickOutside, true);
+    document.addEventListener('keydown', handleDocumentKeyDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', handleClickOutside, true);
+      document.removeEventListener('mousedown', handleClickOutside, true);
+      document.removeEventListener('keydown', handleDocumentKeyDown, true);
+    };
   }, [isOpen]);
 
   // Scroll highlighted item into view

@@ -106,12 +106,22 @@ function TypeDropdown({
       maxHeight: Math.min(320, flipped ? above : below),
       transformOrigin: flipped ? 'bottom center' : 'top center',
     });
-    const closeOutside = (event: PointerEvent) => {
+    const closeOutside = (event: PointerEvent | MouseEvent) => {
       if (!(event.target instanceof Node)) return;
       if (triggerRef.current?.contains(event.target) || menuRef.current?.contains(event.target)) return;
       setOpen(false);
     };
-    document.addEventListener('pointerdown', closeOutside);
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', closeOutside, true);
+    document.addEventListener('mousedown', closeOutside, true);
+    document.addEventListener('keydown', closeOnEscape, true);
     const reposition = () => {
       if (!triggerRef.current) return;
       const nextRect = triggerRef.current.getBoundingClientRect();
@@ -120,7 +130,9 @@ function TypeDropdown({
     window.addEventListener('scroll', reposition, true);
     window.addEventListener('resize', reposition);
     return () => {
-      document.removeEventListener('pointerdown', closeOutside);
+      document.removeEventListener('pointerdown', closeOutside, true);
+      document.removeEventListener('mousedown', closeOutside, true);
+      document.removeEventListener('keydown', closeOnEscape, true);
       window.removeEventListener('scroll', reposition, true);
       window.removeEventListener('resize', reposition);
     };

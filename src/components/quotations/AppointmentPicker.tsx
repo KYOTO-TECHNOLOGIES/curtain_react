@@ -192,13 +192,27 @@ export function AppointmentPicker({
 
   useEffect(() => {
     if (!isOpen) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
+    const handleClickOutside = (event: MouseEvent | PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
       if (triggerRef.current?.contains(target) || popoverRef.current?.contains(target)) return;
-      closeMenu();
+      closeMenu(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    const handleDocumentKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        closeMenu(true);
+      }
+    };
+    document.addEventListener('pointerdown', handleClickOutside, true);
+    document.addEventListener('mousedown', handleClickOutside, true);
+    document.addEventListener('keydown', handleDocumentKeyDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', handleClickOutside, true);
+      document.removeEventListener('mousedown', handleClickOutside, true);
+      document.removeEventListener('keydown', handleDocumentKeyDown, true);
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -216,6 +230,10 @@ export function AppointmentPicker({
       event.preventDefault();
       event.stopPropagation();
       closeMenu(true);
+      return;
+    }
+    if (event.key === 'Tab') {
+      closeMenu(false);
       return;
     }
     if (isSearchable && event.key === 'ArrowDown' && document.activeElement === searchInputRef.current) {
@@ -295,8 +313,8 @@ export function AppointmentPicker({
   };
 
   const popover = isRendered && createPortal(
-    <div className="appointment-picker__portal" onMouseDown={(event) => event.stopPropagation()}>
-      <div className="appointment-picker__backdrop" aria-hidden="true" onClick={() => closeMenu()} />
+    <div className="appointment-picker__portal">
+      <div className="appointment-picker__backdrop" aria-hidden="true" onClick={() => closeMenu(false)} />
       <div
         ref={popoverRef}
         className={`appointment-picker__popover ${isClosing ? 'is-closing' : ''}`}
@@ -388,6 +406,12 @@ export function AppointmentPicker({
           disabled={disabled}
           onClick={() => isOpen ? closeMenu() : openMenu()}
           onKeyDown={(event) => {
+            if (event.key === 'Escape' && isOpen) {
+              event.preventDefault();
+              event.stopPropagation();
+              closeMenu(true);
+              return;
+            }
             if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Enter' || event.key === ' ') {
               event.preventDefault();
               if (!isOpen) openMenu();

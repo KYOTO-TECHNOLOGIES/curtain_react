@@ -217,7 +217,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
       ? Math.min(maxListHeight ?? 320, window.innerHeight * 0.5)
       : size === 'sm' || (size === 'header' && isSearchable) ? 280 : 320;
     const estimatedHeight = Math.min(
-      filteredOptions.length * 40 + (isSearchable ? 50 : 0) + (size === 'sm' ? 12 : 16),
+      Math.max(1, filteredOptions.length) * 40 + (isSearchable ? 50 : 0) + (size === 'sm' ? 12 : 16),
       maxPopoverHeight
     );
 
@@ -291,7 +291,7 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
     }
   }, [isOpen]);
 
-  // Close on outside click
+  // Close on outside click and Escape key
   useEffect(() => {
     if (!isOpen) return;
     const handleClickOutside = (e: MouseEvent | PointerEvent) => {
@@ -302,16 +302,25 @@ export const SelectMenu: React.FC<SelectMenuProps> = ({
       ) {
         return;
       }
-      closeMenu();
+      closeMenu(false);
+    };
+    const handleDocumentKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (stopEscapePropagation) e.stopPropagation();
+        closeMenu(true);
+      }
     };
 
-    if (outsidePointerDown) {
-      document.addEventListener('pointerdown', handleClickOutside as (event: PointerEvent) => void);
-      return () => document.removeEventListener('pointerdown', handleClickOutside as (event: PointerEvent) => void);
-    }
-    document.addEventListener('mousedown', handleClickOutside as (event: MouseEvent) => void);
-    return () => document.removeEventListener('mousedown', handleClickOutside as (event: MouseEvent) => void);
-  }, [isOpen, outsidePointerDown]);
+    document.addEventListener('pointerdown', handleClickOutside, true);
+    document.addEventListener('mousedown', handleClickOutside, true);
+    document.addEventListener('keydown', handleDocumentKeyDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', handleClickOutside, true);
+      document.removeEventListener('mousedown', handleClickOutside, true);
+      document.removeEventListener('keydown', handleDocumentKeyDown, true);
+    };
+  }, [isOpen, outsidePointerDown, stopEscapePropagation]);
 
   // Keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
