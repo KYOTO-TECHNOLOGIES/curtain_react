@@ -14,6 +14,7 @@ import {
   OverviewCard,
 } from '../../components/appointments/detail/DetailCards';
 import { DetailError, DetailSkeleton, EditBar } from '../../components/appointments/detail/DetailStates';
+import { AppointmentQuotationsCard } from '../../components/appointments/detail/AppointmentQuotationsCard';
 import { hasValue } from '../../components/appointments/detail/helpers';
 import type { AppointmentFormState } from '../../components/appointments/detail/types';
 import type { AppointmentDetail, User } from '../../types';
@@ -309,6 +310,11 @@ export default function AppointmentDetailsPage() {
           {showNotes && (
             <div className="ad-slot-notes ad-reveal" style={{ '--i': 4 } as React.CSSProperties}>
               <NotesCard {...cardProps} />
+            </div>
+          )}
+          {!isEditing && (
+            <div className="ad-reveal" style={{ '--i': 5 } as React.CSSProperties}>
+              <AppointmentQuotationsCard appointmentId={appointment.id} />
             </div>
           )}
         </div>
