@@ -15,6 +15,10 @@ import {
 } from 'lucide-react';
 import { SelectMenu } from '../../components/ui/SelectMenu';
 import { normalizeFeatures } from '../../lib/catalogHelpers';
+import {
+  calculateCatalogSurfaceTotal,
+  resolvedChargeIds,
+} from '../../lib/quotationPricing';
 import { appointmentsApi } from '../../api/appointments';
 import {
   catalogApi,
@@ -113,10 +117,10 @@ export default function QuotationBuilderPage() {
   const [newAreaData, setNewAreaData] = useState({ type: '', display_name: '' });
   const [newSurfaceData, setNewSurfaceData] = useState({
     surface_name: '',
-    surface_type: 'window',
+    surface_type: 'window_curtain_path',
     width_cm: '',
     height_cm: '',
-    opening_direction: 'left_to_right',
+    opening_direction: 'one_way',
     special_requirements: '',
   });
   const [isSaving, setIsSaving] = useState(false);
@@ -189,6 +193,15 @@ export default function QuotationBuilderPage() {
   const includedCharges = toArray<ChargeTemplate>(chargesRes);
   const selectedWorkType = workTypes.find((workType) => workType.id === quotationSettings.work_type) || workTypes[0];
   const workTypeFeatures = selectedWorkType ? normalizeFeatures(selectedWorkType.features) : undefined;
+  const availableFabricTypes = fabricTypes.filter(
+    (fabricType) => Number(fabricType.work_type) === Number(selectedWorkType?.id),
+  );
+
+  useEffect(() => {
+    if (workTypes.length > 0 && !workTypes.some((workType) => workType.id === quotationSettings.work_type)) {
+      setQuotationSettings((current) => ({ ...current, work_type: workTypes[0].id }));
+    }
+  }, [workTypes, quotationSettings.work_type]);
 
   const quotedAppointmentIds = useMemo(() => {
     const ids = new Set<string>();
@@ -285,7 +298,7 @@ export default function QuotationBuilderPage() {
       return;
     }
 
-    const defaultFabricId = fabricTypes[0]?.id || 0;
+    const defaultFabricId = availableFabricTypes[0]?.id || 0;
     const defaultModels = models.filter(
       (m: any) => Number(m.fabric_type?.id ?? m.fabric_type ?? m.fabric_type_id ?? 0) === Number(defaultFabricId)
     );
@@ -294,6 +307,7 @@ export default function QuotationBuilderPage() {
       (i: any) => Number(i.model?.id ?? i.model ?? i.model_id ?? 0) === Number(defaultModelId)
     );
     const defaultItem = defaultItems[0] as any;
+    const defaultControlCharge = includedCharges.find((charge) => charge.kind === 'manual');
     const newSurface: BuilderSurface = {
       tempId: Date.now().toString(),
       surface_name: newSurfaceData.surface_name,
@@ -312,6 +326,7 @@ export default function QuotationBuilderPage() {
         motor_control_type: 'manual',
         motor_type: null,
         motor_price_per_unit: '0',
+        selected_charge_ids: defaultControlCharge ? [defaultControlCharge.id] : [],
         smart_integration: false,
         alexa_quantity: 0,
         alexa_unit_price: '0',
@@ -333,10 +348,10 @@ export default function QuotationBuilderPage() {
 
     setNewSurfaceData({
       surface_name: '',
-      surface_type: 'window',
+      surface_type: 'window_curtain_path',
       width_cm: '',
       height_cm: '',
-      opening_direction: 'left_to_right',
+      opening_direction: 'one_way',
       special_requirements: '',
     });
     setShowAddSurfaceModal(false);
@@ -441,20 +456,27 @@ export default function QuotationBuilderPage() {
           display_name: area.display_name,
           sort_order: area.sort_order,
           surfaces: area.surfaces.map((surface) => {
-            const spec = { ...surface.spec } as SurfaceSpec & { motor_quantity?: number };
-            delete spec.motor_quantity; // UI-only; already folded into motor_price_per_unit
+            const spec = { ...surface.spec };
+            const selectedItem = items.find((item) => item.id === Number(spec.catalog_item));
+            const selectedMotor = motors.find((motor) => motor.id === Number(spec.motor_type));
+            spec.unit_price_per_m2 = selectedItem?.price_per_unit ?? spec.unit_price_per_m2;
+            spec.fabric_code = selectedItem?.name ?? spec.fabric_code;
+            spec.motor_price_per_unit = selectedMotor?.price_per_m2 ?? 0;
+            spec.selected_charge_ids = resolvedChargeIds(spec, includedCharges);
             if (spec.motor_control_type !== 'motorized') {
+              spec.motor_type = null;
+              spec.motor_price_per_unit = 0;
               spec.smart_integration = false;
               spec.alexa_quantity = 0;
             }
-            const alexaCharge = includedCharges.find((charge) => charge.kind === 'alexa');
-            const pelmetCharge = includedCharges.find((charge) => charge.kind === 'pelmet');
-            if (spec.smart_integration && alexaCharge && (!spec.alexa_unit_price || spec.alexa_unit_price === '0')) {
-              spec.alexa_unit_price = alexaCharge.price;
-            }
-            if (spec.pelmet_enabled && pelmetCharge && (!spec.pelmet_price_per_metre || spec.pelmet_price_per_metre === '0')) {
-              spec.pelmet_price_per_metre = pelmetCharge.price;
-            }
+            const selectedCharges = resolvedChargeIds(spec, includedCharges)
+              .map((chargeId) => includedCharges.find((charge) => charge.id === chargeId))
+              .filter((charge): charge is ChargeTemplate => Boolean(charge));
+            spec.alexa_unit_price = selectedCharges.find((charge) => charge.kind === 'alexa')?.price ?? 0;
+            spec.pelmet_price_per_metre = selectedCharges.find((charge) => charge.kind === 'pelmet')?.price ?? 0;
+            const extras = selectedCharges.filter((charge) => charge.kind === 'other');
+            spec.addon_label = extras.map((charge) => charge.name).join(', ');
+            spec.addon_amount = 0;
             return {
               surface_name: surface.surface_name,
               surface_type: surface.surface_type,
@@ -533,35 +555,13 @@ export default function QuotationBuilderPage() {
   };
 
   const calculateSurfaceTotal = (spec: SurfaceSpec, widthCm: number, heightCm: number) => {
-    const areaM2 = (widthCm * heightCm) / 10000;
-    const pricingUnit = selectedWorkType?.pricing_unit;
-    const quantity = pricingUnit === 'flat' ? 1 : pricingUnit === 'm' ? widthCm / 100 : areaM2;
-    const fabricTotal = parseFloat(String(spec.unit_price_per_m2)) * quantity;
-    const controlTemplate = includedCharges.find((charge) =>
-      charge.kind === (spec.motor_control_type === 'motorized' ? 'motorized' : 'manual')
-    );
-    const controlPrice = parseFloat(String(controlTemplate?.price ?? 0)) || 0;
-    const controlTotal = !controlTemplate
-      ? 0
-      : controlTemplate.unit === 'flat'
-        ? controlPrice
-        : controlTemplate.unit === 'm'
-          ? controlPrice * (widthCm / 100)
-          : controlPrice * areaM2;
-    const motorTotal =
-      spec.motor_control_type === 'motorized'
-        ? parseFloat(String(spec.motor_price_per_unit))
-        : 0;
-    const alexaTotal = spec.smart_integration
-      ? parseFloat(String(spec.alexa_unit_price)) * spec.alexa_quantity
-      : 0;
-    const pelmetTotal = spec.pelmet_enabled
-      ? parseFloat(String(spec.pelmet_price_per_metre)) *
-      (parseFloat(String(spec.pelmet_width_cm)) / 100)
-      : 0;
-    const addonTotal = parseFloat(String(spec.addon_amount));
-
-    return (fabricTotal + controlTotal + motorTotal + alexaTotal + pelmetTotal + addonTotal).toFixed(2);
+    return calculateCatalogSurfaceTotal(
+      spec,
+      widthCm,
+      heightCm,
+      selectedWorkType?.pricing_unit,
+      includedCharges,
+    ).toFixed(2);
   };
 
   return (
@@ -628,6 +628,30 @@ export default function QuotationBuilderPage() {
                 }))}
                 onChange={(val) => {
                   setQuotationSettings({ ...quotationSettings, work_type: Number(val) });
+                  setAreas((currentAreas) => currentAreas.map((area) => ({
+                    ...area,
+                    surfaces: area.surfaces.map((surface) => ({
+                      ...surface,
+                      spec: {
+                        ...surface.spec,
+                        fabric_type: 0,
+                        model: 0,
+                        catalog_item: 0,
+                        unit_price_per_m2: 0,
+                        motor_type: null,
+                        motor_price_per_unit: 0,
+                        selected_charge_ids: [],
+                        smart_integration: false,
+                        alexa_quantity: 0,
+                        alexa_unit_price: 0,
+                        pelmet_enabled: false,
+                        pelmet_width_cm: 0,
+                        pelmet_price_per_metre: 0,
+                        addon_label: '',
+                        addon_amount: 0,
+                      },
+                    })),
+                  })));
                   setSurfaceFieldErrors({});
                   setConfigurationError(null);
                 }}
@@ -817,7 +841,7 @@ export default function QuotationBuilderPage() {
                                 <BuilderSurfaceCard
                                   key={surface.tempId}
                                   surface={surface}
-                                  fabricTypes={fabricTypes}
+                                  fabricTypes={availableFabricTypes}
                                   models={models}
                                   items={items}
                                   motors={motors}
@@ -894,10 +918,6 @@ export default function QuotationBuilderPage() {
         onWidthChange={(width_cm) => setNewSurfaceData({ ...newSurfaceData, width_cm })}
         onHeightChange={(height_cm) => setNewSurfaceData({ ...newSurfaceData, height_cm })}
         typeOptions={surfaceTypes.options}
-        onAddType={surfaceTypes.add}
-        onRenameType={surfaceTypes.rename}
-        onRemoveType={surfaceTypes.remove}
-        isCustomType={surfaceTypes.isCustom}
         widthPlaceholder="240"
         heightPlaceholder="310"
         widthMin={0}

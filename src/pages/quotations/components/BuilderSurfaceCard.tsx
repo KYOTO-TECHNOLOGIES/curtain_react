@@ -23,6 +23,12 @@ import type {
   WorkTypeFeatures,
 } from '../../../api/catalog';
 import type { SurfaceSpec } from '../../../api/quotations';
+import {
+  chargeAmount,
+  replaceChargeKind,
+  resolvedChargeIds,
+  selectedChargeIds,
+} from '../../../lib/quotationPricing';
 
 export interface BuilderSurface {
   tempId: string;
@@ -385,30 +391,36 @@ export default function BuilderSurfaceCard({
     : '0.00';
 
   // Catalog charge templates (set up in Catalog > Charges)
-  const chargeFor = (kind: string) => charges.find((charge) => charge.kind === kind);
+  const selectedIds = resolvedChargeIds(surface.spec, charges);
+  const selectedCharges = selectedIds
+    .map((id) => charges.find((charge) => charge.id === id))
+    .filter((charge): charge is ChargeTemplate => Boolean(charge));
+  const chargeOptions = (kind: string): SelectOption[] => charges
+    .filter((charge) => charge.kind === kind)
+    .map((charge) => ({
+      value: String(charge.id),
+      label: charge.name,
+      suffix: `AED ${Number(charge.price).toFixed(2)} ${charge.unit === 'flat' ? 'flat' : charge.unit === 'm' ? '/ m' : '/ m²'}`,
+    }));
+  const chargeFor = (kind: string) => selectedCharges.find((charge) => charge.kind === kind);
   const manualCharge = chargeFor('manual');
   const motorizedCharge = chargeFor('motorized');
   const alexaCharge = chargeFor('alexa');
   const pelmetCharge = chargeFor('pelmet');
-  const chargeAmount = (charge: ChargeTemplate | undefined, widthCm: number) => {
-    if (!charge) return 0;
-    const price = Number(charge.price) || 0;
-    if (charge.unit === 'flat') return price;
-    if (charge.unit === 'm') return price * (widthCm / 100);
-    return price * areaM2;
-  };
+  const extraCharges = charges.filter((charge) => charge.kind === 'other');
   const chargeUnitText = (charge: ChargeTemplate) =>
     charge.unit === 'flat' ? 'flat' : charge.unit === 'm' ? 'per m' : 'per m²';
   const isMotorized = surface.spec.motor_control_type === 'motorized';
-  const motorQuantity = Math.max(1, Number(surface.spec.motor_quantity) || 1);
   const motorUnitTotal = selectedMotor ? areaM2 * Number(selectedMotor.price_per_m2 || 0) : 0;
   const controlCharge = isMotorized ? motorizedCharge : manualCharge;
-  const controlChargeTotal = chargeAmount(controlCharge, surface.width_cm);
+  const controlChargeTotal = controlCharge
+    ? chargeAmount(controlCharge, surface.width_cm, surface.height_cm)
+    : 0;
   const alexaTotal = surface.spec.smart_integration
-    ? (Number(surface.spec.alexa_unit_price) || 0) * (Number(surface.spec.alexa_quantity) || 0)
+    ? (Number(alexaCharge?.price) || 0) * (Number(surface.spec.alexa_quantity) || 0)
     : 0;
   const pelmetTotal = surface.spec.pelmet_enabled
-    ? (Number(surface.spec.pelmet_price_per_metre) || 0) * ((Number(surface.spec.pelmet_width_cm) || 0) / 100)
+    ? (Number(pelmetCharge?.price) || 0) * ((Number(surface.spec.pelmet_width_cm) || 0) / 100)
     : 0;
   const money = (value: number) => value.toFixed(2);
 
@@ -422,6 +434,15 @@ export default function BuilderSurfaceCard({
   const fabricFormula = isFlat
     ? 'Flat rate'
     : `${Number(fabricQuantity.toFixed(2))} ${isPerMetre ? 'm' : 'm²'} × AED ${catalogUnitPrice.toFixed(2)}`;
+
+  const setSingleCharge = (kind: 'manual' | 'motorized' | 'alexa' | 'pelmet', chargeId: number | null) => {
+    const charge = chargeId ? charges.find((item) => item.id === chargeId) : undefined;
+    onUpdateSpec({
+      selected_charge_ids: replaceChargeKind(surface.spec, charges, kind, chargeId),
+      ...(kind === 'alexa' ? { alexa_unit_price: charge?.price ?? 0 } : {}),
+      ...(kind === 'pelmet' ? { pelmet_price_per_metre: charge?.price ?? 0 } : {}),
+    });
+  };
 
   return (
     <article className="qbc-surface-card">
@@ -670,14 +691,52 @@ export default function BuilderSurfaceCard({
                   options={controlOptions}
                   onChange={(value) => {
                     const next = value as 'manual' | 'motorized';
+                    const nextControl = charges.find((charge) => charge.kind === next);
+                    const withoutControls = selectedChargeIds(surface.spec).filter((id) => {
+                      const kind = charges.find((charge) => charge.id === id)?.kind;
+                      return kind !== 'manual' && kind !== 'motorized';
+                    });
                     // Alexa / smart integration only applies to motorized control
                     onUpdateSpec(
                       next === 'manual'
-                        ? { motor_control_type: next, smart_integration: false, alexa_quantity: 0, motor_quantity: 1 }
-                        : { motor_control_type: next }
+                        ? {
+                          motor_control_type: next,
+                          motor_type: null,
+                          motor_price_per_unit: 0,
+                          smart_integration: false,
+                          alexa_quantity: 0,
+                          selected_charge_ids: [
+                            ...withoutControls.filter((id) => charges.find((charge) => charge.id === id)?.kind !== 'alexa'),
+                            ...(nextControl ? [nextControl.id] : []),
+                          ],
+                        }
+                        : {
+                          motor_control_type: next,
+                          selected_charge_ids: [
+                            ...withoutControls,
+                            ...(nextControl ? [nextControl.id] : []),
+                          ],
+                        }
                     );
                   }}
                   ariaLabel="Control"
+                />
+              </Field>
+
+              <Field id={`control-charge-${safeId}`} label="Control Charge">
+                <SelectMenu
+                  id={`control-charge-${safeId}`}
+                  value={controlCharge ? String(controlCharge.id) : ''}
+                  options={[
+                    { value: '', label: 'No catalog charge' },
+                    ...chargeOptions(isMotorized ? 'motorized' : 'manual'),
+                  ]}
+                  onChange={(value) => setSingleCharge(
+                    isMotorized ? 'motorized' : 'manual',
+                    value ? Number(value) : null,
+                  )}
+                  ariaLabel="Control Charge"
+                  showOptionSuffix
                 />
               </Field>
 
@@ -695,10 +754,19 @@ export default function BuilderSurfaceCard({
                           ? {
                             smart_integration: true,
                             alexa_quantity: Math.max(1, Number(surface.spec.alexa_quantity) || 1),
-                            alexa_unit_price:
-                              Number(surface.spec.alexa_unit_price) > 0 ? surface.spec.alexa_unit_price : alexaCharge?.price ?? '0',
+                            alexa_unit_price: alexaCharge?.price ?? charges.find((charge) => charge.kind === 'alexa')?.price ?? '0',
+                            selected_charge_ids: replaceChargeKind(
+                              surface.spec,
+                              charges,
+                              'alexa',
+                              alexaCharge?.id ?? charges.find((charge) => charge.kind === 'alexa')?.id ?? null,
+                            ),
                           }
-                          : { smart_integration: false, alexa_quantity: 0 }
+                          : {
+                            smart_integration: false,
+                            alexa_quantity: 0,
+                            selected_charge_ids: replaceChargeKind(surface.spec, charges, 'alexa', null),
+                          }
                       )
                     }
                     label="Smart Integration (Alexa)"
@@ -710,7 +778,22 @@ export default function BuilderSurfaceCard({
                   checked={surface.spec.pelmet_enabled}
                   disabled={!allowPelmet}
                   tooltip={!allowPelmet ? `Pelmet isn't enabled for ${workTypeName || 'this work type'}` : undefined}
-                  onChange={(checked) => onUpdateSpec({ pelmet_enabled: checked })}
+                  onChange={(checked) => {
+                    const fallback = pelmetCharge ?? charges.find((charge) => charge.kind === 'pelmet');
+                    onUpdateSpec({
+                      pelmet_enabled: checked,
+                      pelmet_width_cm: checked && !Number(surface.spec.pelmet_width_cm)
+                        ? surface.width_cm
+                        : surface.spec.pelmet_width_cm,
+                      pelmet_price_per_metre: checked ? fallback?.price ?? 0 : 0,
+                      selected_charge_ids: replaceChargeKind(
+                        surface.spec,
+                        charges,
+                        'pelmet',
+                        checked ? fallback?.id ?? null : null,
+                      ),
+                    });
+                  }}
                   label="Add Pelmet"
                   icon={PanelTop}
                 />
@@ -749,12 +832,9 @@ export default function BuilderSurfaceCard({
                           onChange={(value) => {
                             const motorId = value ? Number(value) : null;
                             const chosenMotor = motorId ? motors.find((m) => m.id === motorId) : null;
-                            const calculatedMotorPrice = chosenMotor
-                              ? (areaM2 * Number(chosenMotor.price_per_m2 || 0) * motorQuantity).toFixed(2)
-                              : '0';
                             onUpdateSpec({
                               motor_type: motorId,
-                              motor_price_per_unit: calculatedMotorPrice,
+                              motor_price_per_unit: chosenMotor?.price_per_m2 ?? '0',
                             });
                           }}
                           ariaLabel="Motor Type"
@@ -764,27 +844,6 @@ export default function BuilderSurfaceCard({
                         />
                       )}
                     </Field>
-                    {selectedMotor && (
-                      <div className="mt-3">
-                        <Field id={`motor-quantity-${safeId}`} label="Motor Quantity" hint={`AED ${money(motorUnitTotal)} each`}>
-                          <input
-                            id={`motor-quantity-${safeId}`}
-                            type="number"
-                            min="1"
-                            step="1"
-                            value={motorQuantity}
-                            onChange={(event) => {
-                              const qty = Math.max(1, Math.floor(Number(event.target.value) || 1));
-                              onUpdateSpec({
-                                motor_quantity: qty,
-                                motor_price_per_unit: (motorUnitTotal * qty).toFixed(2),
-                              });
-                            }}
-                            className="qbc-input"
-                          />
-                        </Field>
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -801,14 +860,16 @@ export default function BuilderSurfaceCard({
                         className="qbc-input"
                       />
                     </Field>
-                    <PriceField
-                      id={`alexa-price-${safeId}`}
-                      label="Unit Price (AED)"
-                      value={surface.spec.alexa_unit_price}
-                      onChange={(value) => onUpdateSpec({ alexa_unit_price: value })}
-                      step="0.01"
-                      error={fieldErrors.alexa_unit_price}
-                    />
+                    <Field id={`alexa-price-${safeId}`} label="Alexa Option" error={fieldErrors.alexa_unit_price}>
+                      <SelectMenu
+                        id={`alexa-price-${safeId}`}
+                        value={alexaCharge ? String(alexaCharge.id) : ''}
+                        options={chargeOptions('alexa')}
+                        onChange={(value) => setSingleCharge('alexa', Number(value))}
+                        ariaLabel="Alexa Option"
+                        showOptionSuffix
+                      />
+                    </Field>
                   </>
                 )}
 
@@ -825,14 +886,16 @@ export default function BuilderSurfaceCard({
                         className="qbc-input"
                       />
                     </Field>
-                    <PriceField
-                      id={`pelmet-price-${safeId}`}
-                      label="Price/m (AED)"
-                      value={surface.spec.pelmet_price_per_metre}
-                      onChange={(value) => onUpdateSpec({ pelmet_price_per_metre: value })}
-                      step="0.01"
-                      error={fieldErrors.pelmet_price_per_metre}
-                    />
+                    <Field id={`pelmet-price-${safeId}`} label="Pelmet Option" error={fieldErrors.pelmet_price_per_metre}>
+                      <SelectMenu
+                        id={`pelmet-price-${safeId}`}
+                        value={pelmetCharge ? String(pelmetCharge.id) : ''}
+                        options={chargeOptions('pelmet')}
+                        onChange={(value) => setSingleCharge('pelmet', Number(value))}
+                        ariaLabel="Pelmet Option"
+                        showOptionSuffix
+                      />
+                    </Field>
                   </>
                 )}
               </div>
@@ -849,8 +912,8 @@ export default function BuilderSurfaceCard({
               </div>
               {isMotorized && (
                 <div className="flex justify-between">
-                  <dt className="text-slate-600">Motor{selectedMotor ? ` (${selectedMotor.name} × ${motorQuantity})` : ''}</dt>
-                  <dd className="font-semibold">AED {money(motorUnitTotal * motorQuantity)}</dd>
+                  <dt className="text-slate-600">Motor{selectedMotor ? ` (${selectedMotor.name})` : ''}</dt>
+                  <dd className="font-semibold">AED {money(motorUnitTotal)}</dd>
                 </div>
               )}
               {isMotorized && surface.spec.smart_integration && (
@@ -882,11 +945,7 @@ export default function BuilderSurfaceCard({
                 id={`surface-price-${safeId}`}
                 label="Surface Price (AED)"
                 value={fabricTotal.toFixed(2)}
-                onChange={(value) => {
-                  const newSurfacePrice = parseFloat(value) || 0;
-                  const newUnitPrice = fabricQuantity > 0 ? (newSurfacePrice / fabricQuantity).toFixed(4) : '0';
-                  onUpdateSpec({ unit_price_per_m2: newUnitPrice });
-                }}
+                readOnly
                 step="0.01"
                 error={fieldErrors.unit_price_per_m2}
               />
@@ -904,7 +963,7 @@ export default function BuilderSurfaceCard({
                     id={`motor-price-${safeId}`}
                     type="text"
                     readOnly
-                    value={surface.spec.motor_price_per_unit || '0.00'}
+                    value={estimatedMotorTotal}
                     className="qbc-price-input bg-transparent cursor-not-allowed font-semibold text-slate-600"
                     title="Calculated from the motor price on save"
                   />
@@ -925,26 +984,40 @@ export default function BuilderSurfaceCard({
               <span>Add-on</span>
             </h3>
             <div className="qbc-addon-grid">
-              <Field id={`addon-label-${safeId}`} label="Addon Label">
-                <span className="qbc-leading-input">
-                  <Tag size={15} aria-hidden="true" />
-                  <input
-                    id={`addon-label-${safeId}`}
-                    type="text"
-                    value={surface.spec.addon_label || ''}
-                    onChange={(event) => onUpdateSpec({ addon_label: event.target.value })}
-                    placeholder="e.g., Install"
-                    className="qbc-input qbc-input--with-icon"
-                  />
-                </span>
-              </Field>
-              <PriceField
-                id={`addon-amount-${safeId}`}
-                label="Addon Amount (AED)"
-                value={surface.spec.addon_amount}
-                onChange={(value) => onUpdateSpec({ addon_amount: value })}
-                step="0.01"
-              />
+              {extraCharges.length === 0 ? (
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500">
+                  No additional charges selected for this work type.
+                </div>
+              ) : extraCharges.map((charge) => {
+                const checked = selectedIds.includes(charge.id);
+                return (
+                  <label
+                    key={charge.id}
+                    className="flex items-center justify-between gap-3 p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-slate-300 transition-colors"
+                  >
+                    <span className="flex items-center gap-2.5 min-w-0">
+                      <Tag size={15} aria-hidden="true" className="text-slate-500" />
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(event) => {
+                          const ids = selectedChargeIds(surface.spec);
+                          onUpdateSpec({
+                            selected_charge_ids: event.target.checked
+                              ? Array.from(new Set([...ids, charge.id]))
+                              : ids.filter((id) => id !== charge.id),
+                          });
+                        }}
+                        className="w-4 h-4 rounded border-slate-300 text-[#2F5D8F] focus:ring-[#2F5D8F]"
+                      />
+                      <span className="text-sm font-semibold text-slate-700 truncate">{charge.name}</span>
+                    </span>
+                    <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">
+                      AED {Number(charge.price).toFixed(2)} {chargeUnitText(charge)}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </section>
 

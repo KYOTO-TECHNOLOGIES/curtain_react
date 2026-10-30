@@ -16,10 +16,16 @@ export interface SurfaceSpec {
   motor_type?: number | null;
   motor_type_name?: string;
   motor_price_per_unit: string | number;
-  /** UI-only; folded into motor_price_per_unit and stripped before saving. */
-  motor_quantity?: number;
   motor_charge_total?: string;
   manual_control_total?: string;
+  selected_charge_ids?: number[];
+  selected_charges?: Array<{
+    id: number;
+    name: string;
+    kind: string;
+    unit: string;
+    price: string;
+  }>;
   smart_integration: boolean;
   alexa_quantity: number;
   alexa_unit_price: string | number;

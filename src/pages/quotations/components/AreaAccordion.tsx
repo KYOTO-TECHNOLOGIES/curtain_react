@@ -33,6 +33,8 @@ interface Props {
   models?: any[];
   items?: any[];
   motors?: any[];
+  charges?: any[];
+  pricingUnit?: string;
   className?: string;
 }
 
@@ -50,6 +52,8 @@ export default function AreaAccordion({
   models = [],
   items = [],
   motors = [],
+  charges = [],
+  pricingUnit,
   className = '',
 }: Props) {
   // All areas open by default for effortless overview, toggleable individually
@@ -269,6 +273,8 @@ export default function AreaAccordion({
                         models={models}
                         items={items}
                         motors={motors}
+                        charges={charges}
+                        pricingUnit={pricingUnit}
                       />
                     ))
                   )}

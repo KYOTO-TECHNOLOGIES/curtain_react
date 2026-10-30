@@ -9,6 +9,12 @@ import {
 import { formatAreaM2, formatDimensions, sentenceCase, formatMoney } from './helpers';
 import { SelectMenu } from '../../../components/ui/SelectMenu';
 import type { SurfaceSpec } from '../../../api/quotations';
+import type { ChargeTemplate } from '../../../api/catalog';
+import {
+  replaceChargeKind,
+  resolvedChargeIds,
+  selectedChargeIds,
+} from '../../../lib/quotationPricing';
 
 export interface Surface {
   surface_name?: string;
@@ -54,6 +60,8 @@ interface Props {
   models?: any[];
   items?: any[];
   motors?: any[];
+  charges?: ChargeTemplate[];
+  pricingUnit?: string;
   className?: string;
 }
 
@@ -81,13 +89,15 @@ export default function SurfaceCard({
   models = [],
   items = [],
   motors = [],
+  charges = [],
+  pricingUnit,
   className = '',
 }: Props) {
   const dims = formatDimensions(surface.width_cm, surface.height_cm);
   const area = formatAreaM2(surface.width_cm, surface.height_cm);
-  const opening = sentenceCase(surface.opening_direction || 'left_to_right');
-  const isLeftToRight = (surface.opening_direction || '').toLowerCase().includes('left_to_right');
-  const isCenter = (surface.opening_direction || '').toLowerCase().includes('center');
+  const opening = sentenceCase(surface.opening_direction || 'one_way');
+  const isLeftToRight = (surface.opening_direction || 'one_way') === 'one_way';
+  const isCenter = surface.opening_direction === 'two_way';
 
   // Compute area in m² for price calculations
   const w = Number(surface.width_cm) || 0;
@@ -106,6 +116,32 @@ export default function SurfaceCard({
     : [];
   const activeItem = filteredItems.find((i: any) => Number(i.id) === Number(spec.catalog_item));
   const selectedItemId = activeItem ? Number(activeItem.id) : 0;
+  const selectedIds = resolvedChargeIds(spec as SurfaceSpec, charges);
+  const selectedCharges = selectedIds
+    .map((chargeId) => charges.find((charge) => charge.id === chargeId))
+    .filter((charge): charge is ChargeTemplate => Boolean(charge));
+  const selectedCharge = (kind: string) => selectedCharges.find((charge) => charge.kind === kind);
+  const controlKind = spec.motor_control_type === 'motorized' ? 'motorized' : 'manual';
+  const controlCharge = selectedCharge(controlKind);
+  const alexaCharge = selectedCharge('alexa');
+  const pelmetCharge = selectedCharge('pelmet');
+  const extraCharges = charges.filter((charge) => charge.kind === 'other');
+  const chargeOptions = (kind: string) => charges
+    .filter((charge) => charge.kind === kind)
+    .map((charge) => ({
+      value: String(charge.id),
+      label: charge.name,
+      suffix: `AED ${Number(charge.price).toFixed(2)} ${charge.unit === 'flat' ? 'flat' : charge.unit === 'm' ? '/ m' : '/ m²'}`,
+    }));
+
+  const setSingleCharge = (kind: 'manual' | 'motorized' | 'alexa' | 'pelmet', chargeId: number | null) => {
+    const charge = chargeId ? charges.find((item) => item.id === chargeId) : undefined;
+    onUpdateSpec?.({
+      selected_charge_ids: replaceChargeKind(spec as SurfaceSpec, charges, kind, chargeId),
+      ...(kind === 'alexa' ? { alexa_unit_price: charge?.price ?? 0 } : {}),
+      ...(kind === 'pelmet' ? { pelmet_price_per_metre: charge?.price ?? 0 } : {}),
+    });
+  };
 
   useEffect(() => {
     if (!isEditing || !onUpdateSpec || !selectedFabricId || models.length === 0) return;
@@ -187,17 +223,15 @@ export default function SurfaceCard({
     ];
 
     const surfaceTypeOptions = [
-      { value: 'window', label: 'Window' },
-      { value: 'door', label: 'Door' },
-      { value: 'wall', label: 'Wall' },
-      { value: 'other', label: 'Other' },
+      { value: 'window_curtain_path', label: 'Window (Curtain Path)' },
+      { value: 'wall_to_wall_track', label: 'Wall-to-Wall Track' },
+      { value: 'bay_window', label: 'Bay Window' },
+      { value: 'sliding_door', label: 'Sliding Door' },
     ];
 
     const openingOptions = [
-      { value: 'left_to_right', label: 'Left to Right' },
-      { value: 'right_to_left', label: 'Right to Left' },
-      { value: 'center_open', label: 'Center Open' },
-      { value: 'fixed', label: 'Fixed' },
+      { value: 'one_way', label: '1 Way (One-way draw)' },
+      { value: 'two_way', label: '2 Way (Split draw)' },
     ];
 
     return (
@@ -233,7 +267,7 @@ export default function SurfaceCard({
             <div>
               <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Surface Type</label>
               <SelectMenu
-                value={surface.surface_type || 'window'}
+                value={surface.surface_type || 'window_curtain_path'}
                 options={surfaceTypeOptions}
                 onChange={(val) => onChangeSurface('surface_type', val)}
                 ariaLabel="Surface Type"
@@ -242,7 +276,7 @@ export default function SurfaceCard({
             <div>
               <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Opening Direction</label>
               <SelectMenu
-                value={surface.opening_direction || 'left_to_right'}
+                value={surface.opening_direction || 'one_way'}
                 options={openingOptions}
                 onChange={(val) => onChangeSurface('opening_direction', val)}
                 ariaLabel="Opening Direction"
@@ -389,7 +423,24 @@ export default function SurfaceCard({
                 <SelectMenu
                   value={spec.motor_control_type || 'manual'}
                   options={controlOptions}
-                  onChange={(val) => onUpdateSpec({ motor_control_type: val as 'manual' | 'motorized' })}
+                  onChange={(val) => {
+                    const next = val as 'manual' | 'motorized';
+                    const nextCharge = charges.find((charge) => charge.kind === next);
+                    const ids = selectedChargeIds(spec as SurfaceSpec).filter((id) => {
+                      const kind = charges.find((charge) => charge.id === id)?.kind;
+                      return kind !== 'manual' && kind !== 'motorized' && (next === 'motorized' || kind !== 'alexa');
+                    });
+                    onUpdateSpec({
+                      motor_control_type: next,
+                      ...(next === 'manual' ? {
+                        motor_type: null,
+                        motor_price_per_unit: 0,
+                        smart_integration: false,
+                        alexa_quantity: 0,
+                      } : {}),
+                      selected_charge_ids: [...ids, ...(nextCharge ? [nextCharge.id] : [])],
+                    });
+                  }}
                   ariaLabel="Control Type"
                 />
               </div>
@@ -402,12 +453,9 @@ export default function SurfaceCard({
                     onChange={(val) => {
                       const motorId = val ? Number(val) : null;
                       const chosenMotor = motorId ? motors.find((m: any) => m.id === motorId) : null;
-                      const calculatedMotorPrice = chosenMotor
-                        ? (areaM2 * Number(chosenMotor.price_per_m2 || 0)).toFixed(2)
-                        : '0';
                       onUpdateSpec({
                         motor_type: motorId,
-                        motor_price_per_unit: calculatedMotorPrice,
+                        motor_price_per_unit: chosenMotor?.price_per_m2 ?? '0',
                       });
                     }}
                     ariaLabel="Motor Type"
@@ -419,13 +467,42 @@ export default function SurfaceCard({
               )}
             </div>
 
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Control Charge</label>
+                <SelectMenu
+                  value={controlCharge ? String(controlCharge.id) : ''}
+                  options={[
+                    { value: '', label: 'No catalog charge' },
+                    ...chargeOptions(controlKind),
+                  ]}
+                  onChange={(val) => setSingleCharge(controlKind, val ? Number(val) : null)}
+                  ariaLabel="Control Charge"
+                  showOptionSuffix
+                />
+              </div>
+            </div>
+
             {/* Toggles */}
             <div className="grid grid-cols-2 gap-3 mt-3">
               <label className="flex items-center gap-2.5 p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-slate-300 transition-colors">
                 <input
                   type="checkbox"
                   checked={spec.smart_integration || false}
-                  onChange={(e) => onUpdateSpec({ smart_integration: e.target.checked })}
+                  onChange={(e) => {
+                    const fallback = alexaCharge ?? charges.find((charge) => charge.kind === 'alexa');
+                    onUpdateSpec({
+                      smart_integration: e.target.checked,
+                      alexa_quantity: e.target.checked ? Math.max(1, Number(spec.alexa_quantity) || 1) : 0,
+                      alexa_unit_price: e.target.checked ? fallback?.price ?? 0 : 0,
+                      selected_charge_ids: replaceChargeKind(
+                        spec as SurfaceSpec,
+                        charges,
+                        'alexa',
+                        e.target.checked ? fallback?.id ?? null : null,
+                      ),
+                    });
+                  }}
                   className="w-4 h-4 rounded border-slate-300 text-[#2F5D8F] focus:ring-[#2F5D8F]"
                 />
                 <span className="text-xs font-semibold text-slate-700">Smart (Alexa)</span>
@@ -434,7 +511,20 @@ export default function SurfaceCard({
                 <input
                   type="checkbox"
                   checked={spec.pelmet_enabled || false}
-                  onChange={(e) => onUpdateSpec({ pelmet_enabled: e.target.checked })}
+                  onChange={(e) => {
+                    const fallback = pelmetCharge ?? charges.find((charge) => charge.kind === 'pelmet');
+                    onUpdateSpec({
+                      pelmet_enabled: e.target.checked,
+                      pelmet_width_cm: e.target.checked && !Number(spec.pelmet_width_cm) ? w : spec.pelmet_width_cm,
+                      pelmet_price_per_metre: e.target.checked ? fallback?.price ?? 0 : 0,
+                      selected_charge_ids: replaceChargeKind(
+                        spec as SurfaceSpec,
+                        charges,
+                        'pelmet',
+                        e.target.checked ? fallback?.id ?? null : null,
+                      ),
+                    });
+                  }}
                   className="w-4 h-4 rounded border-slate-300 text-[#2F5D8F] focus:ring-[#2F5D8F]"
                 />
                 <span className="text-xs font-semibold text-slate-700">Add Pelmet</span>
@@ -455,13 +545,13 @@ export default function SurfaceCard({
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Alexa Unit Price (AED)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={spec.alexa_unit_price || 0}
-                    onChange={(e) => onUpdateSpec({ alexa_unit_price: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 text-sm font-medium"
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Alexa Option</label>
+                  <SelectMenu
+                    value={alexaCharge ? String(alexaCharge.id) : ''}
+                    options={chargeOptions('alexa')}
+                    onChange={(val) => setSingleCharge('alexa', Number(val))}
+                    ariaLabel="Alexa Option"
+                    showOptionSuffix
                   />
                 </div>
               </div>
@@ -481,13 +571,13 @@ export default function SurfaceCard({
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Pelmet Price/m (AED)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={spec.pelmet_price_per_metre || 0}
-                    onChange={(e) => onUpdateSpec({ pelmet_price_per_metre: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 text-sm font-medium"
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Pelmet Option</label>
+                  <SelectMenu
+                    value={pelmetCharge ? String(pelmetCharge.id) : ''}
+                    options={chargeOptions('pelmet')}
+                    onChange={(val) => setSingleCharge('pelmet', Number(val))}
+                    ariaLabel="Pelmet Option"
+                    showOptionSuffix
                   />
                 </div>
               </div>
@@ -502,13 +592,13 @@ export default function SurfaceCard({
             </h4>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Unit Price / m² (AED)</label>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Unit Price {pricingUnit === 'm' ? '/ m' : '/ m²'} (AED)</label>
                 <input
                   type="number"
                   step="0.01"
                   value={spec.unit_price_per_m2 || ''}
-                  onChange={(e) => onUpdateSpec({ unit_price_per_m2: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 text-sm font-medium"
+                  readOnly
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-600 cursor-not-allowed"
                 />
               </div>
               <div>
@@ -525,26 +615,31 @@ export default function SurfaceCard({
 
             {/* Add-on */}
             <div className="grid grid-cols-2 gap-3 mt-3">
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Add-on Label</label>
-                <input
-                  type="text"
-                  value={spec.addon_label || ''}
-                  onChange={(e) => onUpdateSpec({ addon_label: e.target.value })}
-                  placeholder="e.g., Install"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 text-sm font-medium placeholder:text-slate-400"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Add-on Amount (AED)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={spec.addon_amount || ''}
-                  onChange={(e) => onUpdateSpec({ addon_amount: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 text-sm font-medium"
-                />
-              </div>
+              {extraCharges.length === 0 ? (
+                <div className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-500">
+                  No additional catalog charges.
+                </div>
+              ) : extraCharges.map((charge) => (
+                <label key={charge.id} className="flex items-center justify-between gap-2.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white cursor-pointer">
+                  <span className="flex items-center gap-2 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(charge.id)}
+                      onChange={(event) => {
+                        const ids = selectedChargeIds(spec as SurfaceSpec);
+                        onUpdateSpec({
+                          selected_charge_ids: event.target.checked
+                            ? Array.from(new Set([...ids, charge.id]))
+                            : ids.filter((id) => id !== charge.id),
+                        });
+                      }}
+                      className="w-4 h-4 rounded border-slate-300 text-[#2F5D8F] focus:ring-[#2F5D8F]"
+                    />
+                    <span className="text-xs font-semibold text-slate-700 truncate">{charge.name}</span>
+                  </span>
+                  <span className="text-[11px] font-medium text-slate-500 whitespace-nowrap">AED {Number(charge.price).toFixed(2)}</span>
+                </label>
+              ))}
             </div>
           </div>
 

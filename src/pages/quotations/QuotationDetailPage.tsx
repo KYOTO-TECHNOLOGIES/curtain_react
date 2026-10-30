@@ -18,7 +18,10 @@ import {
   type CatalogModel,
   type CatalogItem,
   type MotorType,
+  type ChargeTemplate,
+  type WorkType,
 } from '../../api/catalog';
+import { resolvedChargeIds } from '../../lib/quotationPricing';
 import { quotationsApi } from '../../api/quotations';
 import { useToast } from '../../components/ui/Toast';
 import Modal from '../../components/ui/Modal';
@@ -45,10 +48,10 @@ export default function QuotationDetailPage() {
   const [newAreaData, setNewAreaData] = useState({ type: '', display_name: '' });
   const [newSurfaceData, setNewSurfaceData] = useState({
     surface_name: '',
-    surface_type: 'window',
+    surface_type: 'window_curtain_path',
     width_cm: '',
     height_cm: '',
-    opening_direction: 'left_to_right',
+    opening_direction: 'one_way',
     special_requirements: '',
   });
 
@@ -75,11 +78,22 @@ export default function QuotationDetailPage() {
 
   const workTypeId = res?.data?.work_type;
 
+  const { data: workTypesRes } = useQuery({
+    queryKey: ['work_types'],
+    queryFn: () => catalogApi.workTypes(),
+  });
+
 
 
   const { data: motorsRes } = useQuery({
     queryKey: ['motors', workTypeId],
     queryFn: () => catalogApi.motors(workTypeId ? { work_type: workTypeId } : undefined),
+    enabled: !!workTypeId,
+  });
+
+  const { data: chargesRes } = useQuery({
+    queryKey: ['charges', workTypeId],
+    queryFn: () => catalogApi.charges(workTypeId ? { work_type: workTypeId } : undefined),
     enabled: !!workTypeId,
   });
 
@@ -96,6 +110,12 @@ export default function QuotationDetailPage() {
   const models = toArray<CatalogModel>(modelsRes);
   const items = toArray<CatalogItem>(itemsRes);
   const motors = toArray<MotorType>(motorsRes);
+  const charges = toArray<ChargeTemplate>(chargesRes);
+  const workTypes = toArray<WorkType>(workTypesRes);
+  const selectedWorkType = workTypes.find((workType) => workType.id === Number(workTypeId));
+  const availableFabricTypes = fabricTypes.filter(
+    (fabricType) => Number(fabricType.work_type) === Number(workTypeId),
+  );
 
   const [formData, setFormData] = useState<Partial<QuotationDetail>>({});
 
@@ -217,7 +237,7 @@ export default function QuotationDetailPage() {
       return;
     }
 
-    const defaultFabricId = fabricTypes[0]?.id || 0;
+    const defaultFabricId = availableFabricTypes[0]?.id || 0;
     const defaultModels = models.filter(
       (m: any) => Number(m.fabric_type?.id ?? m.fabric_type ?? m.fabric_type_id ?? 0) === Number(defaultFabricId)
     );
@@ -226,6 +246,7 @@ export default function QuotationDetailPage() {
       (i: any) => Number(i.model?.id ?? i.model ?? i.model_id ?? 0) === Number(defaultModelId)
     );
     const defaultItem = defaultItems[0] as any;
+    const defaultControlCharge = charges.find((charge) => charge.kind === 'manual');
     setFormData((prev) => {
       const areas = [...(prev.areas || [])];
       const area = areas[selectedAreaIndex];
@@ -248,6 +269,7 @@ export default function QuotationDetailPage() {
           motor_control_type: 'manual' as const,
           motor_type: null,
           motor_price_per_unit: '0',
+          selected_charge_ids: defaultControlCharge ? [defaultControlCharge.id] : [],
           smart_integration: false,
           alexa_quantity: 0,
           alexa_unit_price: '0',
@@ -269,10 +291,10 @@ export default function QuotationDetailPage() {
 
     setNewSurfaceData({
       surface_name: '',
-      surface_type: 'window',
+      surface_type: 'window_curtain_path',
       width_cm: '',
       height_cm: '',
-      opening_direction: 'left_to_right',
+      opening_direction: 'one_way',
       special_requirements: '',
     });
     setShowAddSurfaceModal(false);
@@ -321,26 +343,39 @@ export default function QuotationDetailPage() {
             surface_type: surface.surface_type,
             width_cm: surface.width_cm,
             height_cm: surface.height_cm,
-            opening_direction: surface.opening_direction || 'left_to_right',
+            opening_direction: surface.opening_direction || 'one_way',
             special_requirements: surface.special_requirements || '',
             sort_order: surface.sort_order,
             spec: {
+              ...(() => {
+                const spec = surface.spec as SurfaceSpec;
+                const selectedItem = items.find((item) => item.id === Number(spec?.catalog_item));
+                const selectedMotor = motors.find((motor) => motor.id === Number(spec?.motor_type));
+                const selectedIds = resolvedChargeIds(spec, charges);
+                const selectedCharges = selectedIds
+                  .map((chargeId) => charges.find((charge) => charge.id === chargeId))
+                  .filter((charge): charge is ChargeTemplate => Boolean(charge));
+                const extras = selectedCharges.filter((charge) => charge.kind === 'other');
+                return {
+                  selected_charge_ids: selectedIds,
+                  fabric_code: selectedItem?.name ?? spec?.fabric_code ?? '',
+                  unit_price_per_m2: selectedItem?.price_per_unit ?? spec?.unit_price_per_m2 ?? 0,
+                  motor_price_per_unit: selectedMotor?.price_per_m2 ?? 0,
+                  alexa_unit_price: selectedCharges.find((charge) => charge.kind === 'alexa')?.price ?? 0,
+                  pelmet_price_per_metre: selectedCharges.find((charge) => charge.kind === 'pelmet')?.price ?? 0,
+                  addon_label: extras.map((charge) => charge.name).join(', '),
+                  addon_amount: 0,
+                };
+              })(),
               fabric_type: surface.spec?.fabric_type,
               model: surface.spec?.model,
               catalog_item: surface.spec?.catalog_item,
-              fabric_code: surface.spec?.fabric_code || '',
-              unit_price_per_m2: surface.spec?.unit_price_per_m2 || 0,
               motor_control_type: surface.spec?.motor_control_type || 'manual',
               motor_type: surface.spec?.motor_type || null,
-              motor_price_per_unit: surface.spec?.motor_price_per_unit || 0,
               smart_integration: surface.spec?.smart_integration || false,
               alexa_quantity: surface.spec?.alexa_quantity || 0,
-              alexa_unit_price: surface.spec?.alexa_unit_price || 0,
               pelmet_enabled: surface.spec?.pelmet_enabled || false,
               pelmet_width_cm: surface.spec?.pelmet_width_cm || 0,
-              pelmet_price_per_metre: surface.spec?.pelmet_price_per_metre || 0,
-              addon_label: surface.spec?.addon_label || '',
-              addon_amount: surface.spec?.addon_amount || 0,
             },
           })),
         })),
@@ -613,10 +648,12 @@ export default function QuotationDetailPage() {
               onChangeArea={handleAreaChange}
               onChangeSurface={handleSurfaceChange}
               onUpdateSpec={handleUpdateSurfaceSpec}
-              fabricTypes={fabricTypes}
+              fabricTypes={availableFabricTypes}
               models={models}
               items={items}
               motors={motors}
+              charges={charges}
+              pricingUnit={selectedWorkType?.pricing_unit}
             />
           </div>
         </div>
@@ -694,18 +731,12 @@ export default function QuotationDetailPage() {
         onTypeChange={(surface_type) => setNewSurfaceData({ ...newSurfaceData, surface_type })}
         onWidthChange={(width_cm) => setNewSurfaceData({ ...newSurfaceData, width_cm })}
         onHeightChange={(height_cm) => setNewSurfaceData({ ...newSurfaceData, height_cm })}
-        typeOptions={surfaceTypes.options.some((o) => o.value === 'other') ? surfaceTypes.options : [...surfaceTypes.options, { value: 'other', label: 'Other' }]}
-        onAddType={surfaceTypes.add}
-        onRenameType={surfaceTypes.rename}
-        onRemoveType={surfaceTypes.remove}
-        isCustomType={surfaceTypes.isCustom}
+        typeOptions={surfaceTypes.options}
         openingDirection={newSurfaceData.opening_direction}
         onOpeningDirectionChange={(opening_direction) => setNewSurfaceData({ ...newSurfaceData, opening_direction })}
         openingDirectionOptions={[
-          { value: 'left_to_right', label: 'Left to Right' },
-          { value: 'right_to_left', label: 'Right to Left' },
-          { value: 'center_open', label: 'Center Open' },
-          { value: 'fixed', label: 'Fixed' },
+          { value: 'one_way', label: 'One Way' },
+          { value: 'two_way', label: 'Two Way' },
         ]}
         specialRequirements={newSurfaceData.special_requirements}
         onSpecialRequirementsChange={(special_requirements) => setNewSurfaceData({ ...newSurfaceData, special_requirements })}
