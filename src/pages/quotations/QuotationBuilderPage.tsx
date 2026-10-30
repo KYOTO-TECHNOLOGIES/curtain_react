@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   CalendarDays,
@@ -87,8 +87,11 @@ function getValidityMessage(value: string) {
 
 export default function QuotationBuilderPage() {
   const navigate = useNavigate();
+  const { id: editId } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const { showToast } = useToast();
+  const isEditing = Boolean(editId);
+  const initializedEditRef = useRef(false);
 
   const appointmentParam = searchParams.get('appointment') || '';
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string>(appointmentParam);
@@ -137,6 +140,12 @@ export default function QuotationBuilderPage() {
     queryKey: ['appointment', selectedAppointmentId],
     queryFn: () => appointmentsApi.get(selectedAppointmentId),
     enabled: !!selectedAppointmentId,
+  });
+
+  const { data: editQuotationRes, isLoading: editQuotationLoading, isError: editQuotationError } = useQuery({
+    queryKey: ['quotation', editId, 'edit'],
+    queryFn: () => quotationsApi.get(editId!),
+    enabled: isEditing,
   });
 
   const { data: workTypesRes } = useQuery({
@@ -203,15 +212,46 @@ export default function QuotationBuilderPage() {
     }
   }, [workTypes, quotationSettings.work_type]);
 
+  useEffect(() => {
+    const quotation = editQuotationRes?.data;
+    if (!quotation || initializedEditRef.current) return;
+    initializedEditRef.current = true;
+    setSelectedAppointmentId(String(quotation.appointment_id ?? quotation.appointment ?? ''));
+    setQuotationSettings({
+      quote_type: quotation.quote_type,
+      work_type: Number(quotation.work_type),
+      valid_until: quotation.valid_until.slice(0, 10),
+      discount_percentage: Number(quotation.discount_percentage) || 0,
+    });
+    setAreas((quotation.areas || []).map((area, areaIndex) => ({
+      tempId: String(area.id ?? `edit-area-${areaIndex}`),
+      area_type: area.area_type,
+      display_name: area.display_name,
+      sort_order: area.sort_order ?? areaIndex,
+      surfaces: (area.surfaces || []).map((surface, surfaceIndex) => ({
+        tempId: String(surface.id ?? `edit-surface-${areaIndex}-${surfaceIndex}`),
+        surface_name: surface.surface_name,
+        surface_type: surface.surface_type,
+        width_cm: Number(surface.width_cm) || 0,
+        height_cm: Number(surface.height_cm) || 0,
+        opening_direction: surface.opening_direction || 'one_way',
+        special_requirements: surface.special_requirements || '',
+        sort_order: surface.sort_order ?? surfaceIndex,
+        spec: { ...surface.spec },
+      })),
+    })));
+  }, [editQuotationRes]);
+
   const quotedAppointmentIds = useMemo(() => {
     const ids = new Set<string>();
     toArray<any>(quotationsRes).forEach((q) => {
+      if (editId && String(q?.id) === String(editId)) return;
       if (q?.status === 'cancelled') return;
       const apptId = q?.appointment_id ?? q?.appointment;
       if (apptId !== undefined && apptId !== null && apptId !== '') ids.add(String(apptId));
     });
     return ids;
-  }, [quotationsRes]);
+  }, [quotationsRes, editId]);
   const isAppointmentQuoted = (a?: { id: number | string; status?: string; has_quotation?: boolean; quotation_id?: number | string | null } | null) =>
     !!a && (!!a.has_quotation || !!a.quotation_id || a.status === 'quoted' || quotedAppointmentIds.has(String(a.id)));
 
@@ -252,17 +292,18 @@ export default function QuotationBuilderPage() {
   const selectableAppointments = appointments.filter(
     (appointment) => appointment.status !== 'cancelled' && !isAppointmentQuoted(appointment)
   );
-  const selectedAlreadyQuoted =
+  const selectedAlreadyQuoted = !isEditing &&
     !!selectedAppointmentId && (isAppointmentQuoted(selectedAppointment) || isAppointmentQuoted(selectedAppointmentSummary));
   const pickerAppointments = appointments.filter(
     (appointment) => String(appointment.id) === selectedAppointmentId || selectableAppointments.includes(appointment)
   );
-  const selectedCustomerId = selectedAppointment?.customer?.id ?? selectedAppointmentSummary?.customer;
+  const editQuotation = editQuotationRes?.data;
+  const selectedCustomerId = selectedAppointment?.customer?.id ?? selectedAppointmentSummary?.customer ?? editQuotation?.customer;
   const selectedCustomerName =
-    selectedAppointment?.customer?.full_name || selectedAppointmentSummary?.customer_name || '';
-  const selectedCustomerEmail = selectedAppointment?.customer?.email || '';
+    selectedAppointment?.customer?.full_name || selectedAppointmentSummary?.customer_name || editQuotation?.customer_name || '';
+  const selectedCustomerEmail = selectedAppointment?.customer?.email || editQuotation?.customer_email || '';
   const selectedCustomerPhone =
-    selectedAppointment?.customer?.phone || selectedAppointmentSummary?.customer_phone || '';
+    selectedAppointment?.customer?.phone || selectedAppointmentSummary?.customer_phone || editQuotation?.customer_phone || '';
   const validityMessage = getValidityMessage(quotationSettings.valid_until);
   const surfaceCount = areas.reduce((count, area) => count + area.surfaces.length, 0);
 
@@ -413,7 +454,7 @@ export default function QuotationBuilderPage() {
   };
 
   const handleSaveQuotation = async () => {
-    if (!selectedAppointmentId) {
+    if (!selectedAppointmentId && !isEditing) {
       showToast('Please select an appointment', 'error');
       return;
     }
@@ -445,8 +486,8 @@ export default function QuotationBuilderPage() {
     try {
       const payload = {
         customer: selectedCustomerId,
-        appointment: selectedAppointment?.id ?? selectedAppointmentId,
-        status: 'draft',
+        appointment: selectedAppointment?.id ?? (selectedAppointmentId || editQuotation?.appointment || null),
+        status: editQuotation?.status ?? 'draft',
         quote_type: quotationSettings.quote_type,
         work_type: quotationSettings.work_type,
         valid_until: quotationSettings.valid_until,
@@ -491,9 +532,11 @@ export default function QuotationBuilderPage() {
         })),
       };
 
-      const res = await quotationsApi.create(payload);
+      const res = isEditing && editId
+        ? await quotationsApi.update(editId, payload)
+        : await quotationsApi.create(payload);
 
-      if (selectedAppointmentId) {
+      if (!isEditing && selectedAppointmentId) {
         try {
           if (selectedAppointment?.status !== 'cancelled') {
             await appointmentsApi.update(selectedAppointmentId, { status: 'quoted' as any });
@@ -503,7 +546,7 @@ export default function QuotationBuilderPage() {
         }
       }
 
-      showToast('Quotation created successfully', 'success');
+      showToast(isEditing ? 'Quotation updated successfully' : 'Quotation created successfully', 'success');
       navigate(`/quotations/${res.data.id}`);
     } catch (err: any) {
       const data = err?.response?.data;
@@ -548,7 +591,7 @@ export default function QuotationBuilderPage() {
       setSurfaceFieldErrors(mappedSurfaceErrors);
       setConfigurationError(unmappedError || null);
       showToast(unmappedError || 'Validation error on one or more surfaces. Please review the highlighted fields.', 'error');
-      console.error('Quotation creation error:', err);
+      console.error('Quotation save error:', err);
     } finally {
       setIsSaving(false);
     }
@@ -564,10 +607,36 @@ export default function QuotationBuilderPage() {
     ).toFixed(2);
   };
 
+  if (isEditing && editQuotationError) {
+    return (
+      <div className="text-center py-24">
+        <p className="text-slate-600 mb-4">Could not load this quotation for editing.</p>
+        <button
+          type="button"
+          onClick={() => navigate(`/quotations/${editId}`)}
+          className="px-4 py-2 rounded-xl bg-[#2F5D8F] text-white text-sm font-semibold"
+        >
+          Back to quotation
+        </button>
+      </div>
+    );
+  }
+
+  if (isEditing && (editQuotationLoading || !initializedEditRef.current)) {
+    return (
+      <div className="flex items-center justify-center py-32">
+        <Loader2 className="w-8 h-8 animate-spin text-[#2b5c8f]" />
+      </div>
+    );
+  }
+
   return (
     <div className="quotation-builder-page">
       <main className="quotation-builder-content">
-        <QuotationHeader title="Create New Quotation" subtitle="Configure your bespoke atelier request by defining areas, surfaces, and product specifics." />
+        <QuotationHeader
+          title={isEditing ? `Edit Quotation ${editId}` : 'Create New Quotation'}
+          subtitle="Configure your bespoke atelier request by defining areas, surfaces, and product specifics."
+        />
 
       <section className="qb-card qb-general-card">
         <header className="qb-card-header">
@@ -712,7 +781,7 @@ export default function QuotationBuilderPage() {
       </section>
 
       {/* Step 2: Areas and Surfaces */}
-      {selectedAppointmentId && (
+      {(selectedAppointmentId || isEditing) && (
         <>
           {configurationError && (
             <div className="mb-4 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm flex items-start justify-between gap-3 shadow-sm">
@@ -882,8 +951,8 @@ export default function QuotationBuilderPage() {
           {/* Save Button */}
           <StickyActionBar
             isSaving={isSaving}
-            canSave={!isSaving && !selectedAlreadyQuoted && !!selectedAppointmentId && !!selectedCustomerId && areas.length > 0}
-            onCancel={() => navigate('/quotations')}
+            canSave={!isSaving && !selectedAlreadyQuoted && (!!selectedAppointmentId || isEditing) && !!selectedCustomerId && areas.length > 0}
+            onCancel={() => navigate(isEditing && editId ? `/quotations/${editId}` : '/quotations')}
             onSave={handleSaveQuotation}
           />
         </>

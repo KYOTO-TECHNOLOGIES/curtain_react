@@ -51,6 +51,7 @@ function App() {
               <Route path="/appointments/:id" element={<AppointmentDetailsPage />} />
               <Route path="/quotations" element={<QuotationsPage />} />
               <Route path="/quotations/create" element={<QuotationBuilderPage />} />
+              <Route path="/quotations/:id/edit" element={<QuotationBuilderPage />} />
               <Route path="/quotations/:id" element={<QuotationDetailPage />} />
               <Route path="/catalog" element={<CatalogPage />} />
               <Route path="/pricing" element={<PricingBuilderPage />} />

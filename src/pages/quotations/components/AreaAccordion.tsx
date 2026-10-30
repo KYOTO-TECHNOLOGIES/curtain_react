@@ -251,7 +251,7 @@ export default function AreaAccordion({
                   ) : (
                     surfaces.map((surface, surfIdx) => (
                       <SurfaceCard
-                        key={surfIdx}
+                        key={surface.id ?? surfIdx}
                         surface={surface}
                         isEditing={isEditing}
                         onDelete={

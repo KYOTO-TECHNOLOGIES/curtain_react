@@ -64,16 +64,19 @@ export default function QuotationDetailPage() {
   const { data: fabricTypesRes } = useQuery({
     queryKey: ['fabric_types'],
     queryFn: () => catalogApi.fabricTypes(),
+    enabled: isEditing,
   });
 
   const { data: modelsRes } = useQuery({
     queryKey: ['models'],
     queryFn: () => catalogApi.models(),
+    enabled: isEditing,
   });
 
   const { data: itemsRes } = useQuery({
     queryKey: ['items'],
     queryFn: () => catalogApi.items(),
+    enabled: isEditing,
   });
 
   const workTypeId = res?.data?.work_type;
@@ -81,6 +84,7 @@ export default function QuotationDetailPage() {
   const { data: workTypesRes } = useQuery({
     queryKey: ['work_types'],
     queryFn: () => catalogApi.workTypes(),
+    enabled: isEditing,
   });
 
 
@@ -88,13 +92,13 @@ export default function QuotationDetailPage() {
   const { data: motorsRes } = useQuery({
     queryKey: ['motors', workTypeId],
     queryFn: () => catalogApi.motors(workTypeId ? { work_type: workTypeId } : undefined),
-    enabled: !!workTypeId,
+    enabled: isEditing && !!workTypeId,
   });
 
   const { data: chargesRes } = useQuery({
     queryKey: ['charges', workTypeId],
     queryFn: () => catalogApi.charges(workTypeId ? { work_type: workTypeId } : undefined),
-    enabled: !!workTypeId,
+    enabled: isEditing && !!workTypeId,
   });
 
   const toArray = <T,>(res: any): T[] => {
@@ -496,7 +500,7 @@ export default function QuotationDetailPage() {
         customer={quotation.customer_name}
         project={quotation.work_type_name}
         onBack={() => navigate('/quotations')}
-        onEdit={() => setIsEditing(true)}
+        onEdit={() => navigate(`/quotations/${quotation.id}/edit`)}
         isEditing={isEditing}
         onSave={handleSave}
         onCancelEdit={() => setIsEditing(false)}
