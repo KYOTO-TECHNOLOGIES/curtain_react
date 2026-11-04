@@ -338,6 +338,7 @@ export default function QuotationDetailPage() {
         quote_type: formData.quote_type,
         valid_until: formData.valid_until,
         discount_percentage: formData.discount_percentage || 0,
+        show_price_breakdown: formData.show_price_breakdown !== false,
         areas_data: areas.map((area) => ({
           area_type: area.area_type,
           display_name: area.display_name,
@@ -371,6 +372,10 @@ export default function QuotationDetailPage() {
                   addon_amount: 0,
                 };
               })(),
+              motor_quantity: surface.spec?.motor_quantity ?? 1,
+              motor_pricing_unit: surface.spec?.motor_pricing_unit ?? 'm2',
+              price_overrides: formData.quote_type === 'b2b' ? surface.spec?.price_overrides || {} : {},
+              charge_lines: surface.spec?.charge_lines?.map((line) => ({ id: line.id, quantity: Math.max(1, line.quantity) })) || [],
               fabric_type: surface.spec?.fabric_type,
               model: surface.spec?.model,
               catalog_item: surface.spec?.catalog_item,
@@ -641,6 +646,7 @@ export default function QuotationDetailPage() {
           <div className="qd-stagger qd-stagger-4">
             <AreaAccordion
               areas={displayAreas}
+              showTotals={quotation.show_price_breakdown !== false}
               isEditing={isEditing}
               onAddArea={() => setShowAddAreaModal(true)}
               onAddSurface={(areaIndex) => {
@@ -684,6 +690,7 @@ export default function QuotationDetailPage() {
             className="qd-stagger qd-stagger-5"
           >
             <div className="space-y-3.5">
+              <KeyValue label="Assigned To" value={quotation.assigned_to_name || 'Unassigned'} />
               <KeyValue
                 label="Prepared By"
                 value={quotation.prepared_by_name || 'System'}

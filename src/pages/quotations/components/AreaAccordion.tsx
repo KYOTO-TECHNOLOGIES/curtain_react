@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, Plus, Layers, Trash2 } from 'lucide-react';
 import SurfaceCard from './SurfaceCard';
-import { sentenceCase } from './helpers';
+import { sentenceCase, formatMoney } from './helpers';
 
 interface Surface {
   [key: string]: any;
@@ -16,6 +16,7 @@ export interface Area {
 
 interface Props {
   areas: Area[];
+  showTotals?: boolean;
   isEditing?: boolean;
   onAddArea?: () => void;
   onAddSurface?: (areaIndex: number) => void;
@@ -40,6 +41,7 @@ interface Props {
 
 export default function AreaAccordion({
   areas,
+  showTotals = true,
   isEditing = false,
   onAddArea,
   onAddSurface,
@@ -190,6 +192,7 @@ export default function AreaAccordion({
                     </div>
 
                     <div className="qd-area-right">
+                      {showTotals && <span className="qd-area-subtotal">AED {formatMoney(area.subtotal ?? surfaces.reduce((sum, surface) => sum + Number(surface.spec?.line_item_total || 0), 0))}</span>}
                       <ChevronDown
                         className={`qd-area-chevron ${
                           isOpen ? 'qd-area-chevron--open' : ''
@@ -253,6 +256,7 @@ export default function AreaAccordion({
                       <SurfaceCard
                         key={surface.id ?? surfIdx}
                         surface={surface}
+                        showTotal={showTotals}
                         isEditing={isEditing}
                         onDelete={
                           onDeleteSurface

@@ -24,7 +24,9 @@ import type {
 } from '../../../api/catalog';
 import type { SurfaceSpec } from '../../../api/quotations';
 import {
-  chargeAmount,
+  calculateSurfacePricing,
+  pricingRate,
+  chargeQuantity,
   replaceChargeKind,
   resolvedChargeIds,
   selectedChargeIds,
@@ -43,6 +45,8 @@ export interface BuilderSurface {
 
 interface Props {
   surface: BuilderSurface;
+  isB2B?: boolean;
+  showTotal?: boolean;
   fabricTypes: FabricType[];
   models: CatalogModel[];
   items: CatalogItem[];
@@ -127,11 +131,13 @@ function PriceField({
         <input
           id={id}
           type="number"
+          min="0"
           step={step}
           inputMode="decimal"
           autoComplete="off"
           value={value == null ? '' : value}
           readOnly={readOnly}
+          aria-invalid={Boolean(error)}
           onChange={(event) => onChange?.(event.target.value)}
           className={`qbc-price-input${readOnly ? ' bg-transparent cursor-not-allowed font-semibold text-slate-600' : ''}`}
         />
@@ -211,6 +217,8 @@ function SurfaceSketch({ surface }: { surface: BuilderSurface }) {
 
 export default function BuilderSurfaceCard({
   surface,
+  isB2B = false,
+  showTotal = true,
   fabricTypes,
   models,
   items,
@@ -240,7 +248,9 @@ export default function BuilderSurfaceCard({
   });
 
   useEffect(() => {
-    if (prevTotalRef.current !== null && prevTotalRef.current !== total) {
+    const previousTotal = prevTotalRef.current;
+    prevTotalRef.current = total;
+    if (previousTotal !== null && previousTotal !== total) {
       setIsPulsing(true);
       const pulseTimer = setTimeout(() => setIsPulsing(false), 240);
       const announceTimer = setTimeout(() => {
@@ -251,12 +261,15 @@ export default function BuilderSurfaceCard({
         clearTimeout(announceTimer);
       };
     }
-    prevTotalRef.current = total;
   }, [total, totalDisplay]);
 
-  const surfaceLabel = surface.surface_name
-    ? `${surface.surface_name} (${capitalizeDisplay(surface.surface_type)})`
-    : capitalizeDisplay(surface.surface_type);
+  const surfaceTypeLabel = {
+    window_curtain_path: 'Window (Curtain Path)',
+    wall_to_wall_track: 'Wall-to-Wall Track',
+    bay_window: 'Bay Window',
+    sliding_door: 'Sliding Door',
+  }[surface.surface_type] || capitalizeDisplay(surface.surface_type.replace(/_/g, ' '));
+  const surfaceLabel = surface.surface_name ? `${surface.surface_name} · ${surfaceTypeLabel}` : surfaceTypeLabel;
 
   const selectedFabricId = Number(surface.spec.fabric_type) || 0;
   const selectedFabric = fabricTypes.find((f) => Number(f.id) === selectedFabricId);
@@ -385,11 +398,6 @@ export default function BuilderSurfaceCard({
     },
   ];
 
-  // Estimated Motor Total
-  const estimatedMotorTotal = selectedMotor
-    ? (areaM2 * Number(selectedMotor.price_per_m2 || 0)).toFixed(2)
-    : '0.00';
-
   // Catalog charge templates (set up in Catalog > Charges)
   const selectedIds = resolvedChargeIds(surface.spec, charges);
   const selectedCharges = selectedIds
@@ -411,29 +419,31 @@ export default function BuilderSurfaceCard({
   const chargeUnitText = (charge: ChargeTemplate) =>
     charge.unit === 'flat' ? 'flat' : charge.unit === 'm' ? 'per m' : 'per m²';
   const isMotorized = surface.spec.motor_control_type === 'motorized';
-  const motorUnitTotal = selectedMotor ? areaM2 * Number(selectedMotor.price_per_m2 || 0) : 0;
+  const effectiveSpec = {
+    ...surface.spec,
+    unit_price_per_m2: selectedItem?.price_per_unit ?? surface.spec.unit_price_per_m2,
+    motor_price_per_unit: selectedMotor?.price_per_m2 ?? surface.spec.motor_price_per_unit,
+  };
+  const pricing = calculateSurfacePricing(effectiveSpec, surface.width_cm, surface.height_cm, pricingUnit, charges, isB2B);
+  const motorUnitTotal = pricing.motor;
   const controlCharge = isMotorized ? motorizedCharge : manualCharge;
-  const controlChargeTotal = controlCharge
-    ? chargeAmount(controlCharge, surface.width_cm, surface.height_cm)
-    : 0;
-  const alexaTotal = surface.spec.smart_integration
-    ? (Number(alexaCharge?.price) || 0) * (Number(surface.spec.alexa_quantity) || 0)
-    : 0;
-  const pelmetTotal = surface.spec.pelmet_enabled
-    ? (Number(pelmetCharge?.price) || 0) * ((Number(surface.spec.pelmet_width_cm) || 0) / 100)
-    : 0;
+  const controlChargeTotal = pricing.control;
+  const alexaTotal = pricing.alexa;
+  const pelmetTotal = pricing.pelmet;
   const money = (value: number) => value.toFixed(2);
-
-  // Catalog fabric pricing (respects the work type's pricing unit)
-  const catalogUnitPrice = parseFloat(String(surface.spec.unit_price_per_m2)) || 0;
   const isFlat = pricingUnit === 'flat';
   const isPerMetre = pricingUnit === 'm';
   const unitLabel = isFlat ? 'flat' : isPerMetre ? 'per m' : 'per m²';
-  const fabricQuantity = isFlat ? 1 : isPerMetre ? surface.width_cm / 100 : areaM2;
-  const fabricTotal = catalogUnitPrice * fabricQuantity;
-  const fabricFormula = isFlat
-    ? 'Flat rate'
-    : `${Number(fabricQuantity.toFixed(2))} ${isPerMetre ? 'm' : 'm²'} × AED ${catalogUnitPrice.toFixed(2)}`;
+  const baseFabricRate = selectedItem?.price_per_unit ?? surface.spec.unit_price_per_m2;
+  const catalogUnitPrice = pricingRate(surface.spec, 'fabric', baseFabricRate, isB2B);
+  const fabricQuantity = isFlat ? 1 : isPerMetre ? surface.width_cm / 100 : (surface.width_cm * surface.height_cm / 10000);
+  const fabricTotal = pricing.fabric;
+  const fabricFormula = `${Number(fabricQuantity.toFixed(4))} ${isPerMetre ? 'm' : isFlat ? '' : 'm²'} × AED ${catalogUnitPrice.toFixed(2)}`;
+  const rateValue = (key: string, fallback: string | number) => isB2B ? surface.spec.price_overrides?.[key] ?? fallback : fallback;
+  const updateRate = (key: string, value: string) => onUpdateSpec({ price_overrides: { ...surface.spec.price_overrides, [key]: value } });
+  const updateQuantity = (id: number, quantity: number) => onUpdateSpec({
+    charge_lines: [...(surface.spec.charge_lines || []).filter((line) => line.id !== id), { id, quantity }],
+  });
 
   const setSingleCharge = (kind: 'manual' | 'motorized' | 'alexa' | 'pelmet', chargeId: number | null) => {
     const charge = chargeId ? charges.find((item) => item.id === chargeId) : undefined;
@@ -483,7 +493,7 @@ export default function BuilderSurfaceCard({
             <ChevronDown size={18} aria-hidden="true" />
           </button>
         </div>
-        {!isExpanded && (
+        {!isExpanded && showTotal && (
           <div className="qbc-collapsed-total">
             <span>Line total</span>
             <strong>AED {Number(calculateTotal(surface.spec, surface.width_cm, surface.height_cm)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
@@ -610,18 +620,7 @@ export default function BuilderSurfaceCard({
                   className="qbc-input"
                 />
               </Field>
-              <Field id={`catalog-unit-price-${safeId}`} label={`Unit Price (${unitLabel})`} hint="From catalog">
-                <div className="qbc-price-control bg-slate-50 border-slate-200">
-                  <span className="qbc-currency" aria-hidden="true">AED</span>
-                  <input
-                    id={`catalog-unit-price-${safeId}`}
-                    type="text"
-                    readOnly
-                    value={catalogUnitPrice.toFixed(2)}
-                    className="qbc-price-input bg-transparent font-semibold text-slate-600"
-                  />
-                </div>
-              </Field>
+              <PriceField id={`catalog-unit-price-${safeId}`} label={`Unit Rate (${unitLabel})`} hint={isB2B ? 'B2B quotation rate' : 'From catalog'} value={rateValue('fabric', baseFabricRate)} readOnly={!isB2B} onChange={(value) => updateRate('fabric', value)} error={fieldErrors.price_overrides || fieldErrors.unit_price_per_m2} />
               <Field id={`fabric-total-${safeId}`} label="Fabric Total" hint={fabricFormula}>
                 <div className="qbc-price-control bg-slate-50 border-slate-200">
                   <span className="qbc-currency" aria-hidden="true">AED</span>
@@ -844,6 +843,14 @@ export default function BuilderSurfaceCard({
                         />
                       )}
                     </Field>
+                    <div className="qbc-addon-controls mt-3">
+                      <Field id={`motor-quantity-${safeId}`} label="Motor Qty" error={fieldErrors.motor_quantity}>
+                        <input id={`motor-quantity-${safeId}`} type="number" min="1" max="9999" step="1" value={surface.spec.motor_quantity ?? 1} onChange={(event) => onUpdateSpec({ motor_quantity: Number(event.target.value) })} className="qbc-input" />
+                      </Field>
+                      <Field id={`motor-basis-${safeId}`} label="Motor Price Basis" error={fieldErrors.motor_pricing_unit}>
+                        <SelectMenu id={`motor-basis-${safeId}`} value={surface.spec.motor_pricing_unit ?? 'm2'} options={[{ value: 'm2', label: 'Per m² × quantity' }, { value: 'unit', label: 'Per motor × quantity' }]} onChange={(value) => onUpdateSpec({ motor_pricing_unit: value as 'm2' | 'unit' })} ariaLabel="Motor Price Basis" />
+                      </Field>
+                    </div>
                   </div>
                 )}
 
@@ -854,7 +861,8 @@ export default function BuilderSurfaceCard({
                       <input
                         id={`alexa-quantity-${safeId}`}
                         type="number"
-                        min="0"
+                        min="1"
+                        step="1"
                         value={surface.spec.alexa_quantity}
                         onChange={(event) => onUpdateSpec({ alexa_quantity: Number(event.target.value) })}
                         className="qbc-input"
@@ -881,6 +889,7 @@ export default function BuilderSurfaceCard({
                         id={`pelmet-width-${safeId}`}
                         type="number"
                         step="0.01"
+                        min="0"
                         value={surface.spec.pelmet_width_cm}
                         onChange={(event) => onUpdateSpec({ pelmet_width_cm: event.target.value })}
                         className="qbc-input"
@@ -906,7 +915,7 @@ export default function BuilderSurfaceCard({
               <div className="flex justify-between">
                 <dt className="text-slate-600">
                   {isMotorized ? 'Motorized control charge' : 'Manual control charge'}
-                  {controlCharge && <span className="text-slate-400"> (AED {Number(controlCharge.price).toFixed(2)} {chargeUnitText(controlCharge)})</span>}
+                  {controlCharge && <span className="text-slate-400"> (AED {pricingRate(surface.spec, `charge:${controlCharge.id}`, controlCharge.price, isB2B).toFixed(2)} {chargeUnitText(controlCharge)})</span>}
                 </dt>
                 <dd className="font-semibold">{controlCharge ? `AED ${money(controlChargeTotal)}` : 'Not set in catalog'}</dd>
               </div>
@@ -926,7 +935,7 @@ export default function BuilderSurfaceCard({
                 <div className="flex justify-between">
                   <dt className="text-slate-600">
                     Pelmet charge
-                    {pelmetCharge && <span className="text-slate-400"> (AED {Number(pelmetCharge.price).toFixed(2)} per m)</span>}
+                    {pelmetCharge && <span className="text-slate-400"> (AED {pricingRate(surface.spec, `charge:${pelmetCharge.id}`, pelmetCharge.price, isB2B).toFixed(2)} per m)</span>}
                   </dt>
                   <dd className="font-semibold">AED {money(pelmetTotal)}</dd>
                 </div>
@@ -940,41 +949,17 @@ export default function BuilderSurfaceCard({
               <span className="qbc-section-icon"><Banknote size={14} aria-hidden="true" /></span>
               <span>Pricing</span>
             </h3>
+            {isB2B && <p className="qbc-b2b-hint">Edit rates for this quotation. Catalog prices stay the same.</p>}
             <div className="qbc-pricing-grid">
-              <PriceField
-                id={`surface-price-${safeId}`}
-                label="Surface Price (AED)"
-                value={fabricTotal.toFixed(2)}
-                readOnly
-                step="0.01"
-                error={fieldErrors.unit_price_per_m2}
-              />
-
-              {/* Motor Price (Read-only, calculated on save from motor_type.price_per_m2) */}
-              <Field
-                id={`motor-price-${safeId}`}
-                label="Motor Price (AED)"
-                hint="Calculated on save"
-                error={fieldErrors.motor_price_per_unit}
-              >
-                <div className="qbc-price-control bg-slate-50 border-slate-200 cursor-not-allowed">
-                  <span className="qbc-currency" aria-hidden="true">AED</span>
-                  <input
-                    id={`motor-price-${safeId}`}
-                    type="text"
-                    readOnly
-                    value={estimatedMotorTotal}
-                    className="qbc-price-input bg-transparent cursor-not-allowed font-semibold text-slate-600"
-                    title="Calculated from the motor price on save"
-                  />
-                </div>
-                {selectedMotor && (
-                  <span className="text-[11px] text-slate-500 mt-1 block">
-                    Estimate: AED {estimatedMotorTotal} ({areaM2} m² × AED {selectedMotor.price_per_m2})
-                  </span>
-                )}
-              </Field>
+              <PriceField id={`surface-price-${safeId}`} label="Fabric Amount" value={fabricTotal.toFixed(2)} readOnly />
+              {isMotorized && <PriceField id={`motor-price-${safeId}`} label={`Motor Rate (${surface.spec.motor_pricing_unit === 'unit' ? 'per motor' : 'per m²'})`} value={rateValue('motor', selectedMotor?.price_per_m2 ?? surface.spec.motor_price_per_unit)} readOnly={!isB2B} onChange={(value) => updateRate('motor', value)} error={fieldErrors.price_overrides || fieldErrors.motor_price_per_unit} />}
+              {isB2B && pricing.lines.filter((line) => line.kind !== 'other').map((line) => (
+                <PriceField key={line.id} id={`charge-rate-${safeId}-${line.id}`} label={`${line.name} Rate`} value={rateValue(`charge:${line.id}`, charges.find((charge) => charge.id === line.id)?.price ?? line.price ?? 0)} onChange={(value) => updateRate(`charge:${line.id}`, value)} error={fieldErrors.price_overrides} />
+              ))}
+              {isB2B && surface.spec.smart_integration && !alexaCharge && <PriceField id={`legacy-alexa-${safeId}`} label="Alexa Unit Rate" value={rateValue('alexa', surface.spec.alexa_unit_price)} onChange={(value) => updateRate('alexa', value)} />}
+              {isB2B && surface.spec.pelmet_enabled && !pelmetCharge && <PriceField id={`legacy-pelmet-${safeId}`} label="Pelmet Rate (per m)" value={rateValue('pelmet', surface.spec.pelmet_price_per_metre)} onChange={(value) => updateRate('pelmet', value)} />}
             </div>
+            {isB2B && Object.keys(surface.spec.price_overrides || {}).length > 0 && <button type="button" className="qbc-rate-reset" onClick={() => onUpdateSpec({ price_overrides: {} })}>Reset to catalog rates</button>}
           </section>
 
           {/* Section: Add-on */}
@@ -990,45 +975,43 @@ export default function BuilderSurfaceCard({
                 </div>
               ) : extraCharges.map((charge) => {
                 const checked = selectedIds.includes(charge.id);
+                const line = pricing.lines.find((item) => item.id === charge.id);
                 return (
-                  <label
-                    key={charge.id}
-                    className="flex items-center justify-between gap-3 p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-slate-300 transition-colors"
-                  >
-                    <span className="flex items-center gap-2.5 min-w-0">
-                      <Tag size={15} aria-hidden="true" className="text-slate-500" />
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(event) => {
+                  <div key={charge.id} className={`qbc-addon-item${checked ? ' is-selected' : ''}`}>
+                    <label>
+                      <span className="flex items-center gap-2 min-w-0">
+                        <Tag size={15} aria-hidden="true" />
+                        <input type="checkbox" checked={checked} onChange={(event) => {
                           const ids = selectedChargeIds(surface.spec);
-                          onUpdateSpec({
-                            selected_charge_ids: event.target.checked
-                              ? Array.from(new Set([...ids, charge.id]))
-                              : ids.filter((id) => id !== charge.id),
-                          });
-                        }}
-                        className="w-4 h-4 rounded border-slate-300 text-[#2F5D8F] focus:ring-[#2F5D8F]"
-                      />
-                      <span className="text-sm font-semibold text-slate-700 truncate">{charge.name}</span>
-                    </span>
-                    <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">
-                      AED {Number(charge.price).toFixed(2)} {chargeUnitText(charge)}
-                    </span>
-                  </label>
+                          onUpdateSpec({ selected_charge_ids: event.target.checked ? Array.from(new Set([...ids, charge.id])) : ids.filter((id) => id !== charge.id), charge_lines: event.target.checked ? surface.spec.charge_lines : (surface.spec.charge_lines || []).filter((item) => item.id !== charge.id), addon_amount: 0, addon_label: '' });
+                        }} className="w-4 h-4 rounded border-slate-300" />
+                        <span className="text-sm font-semibold text-slate-700">{charge.name}</span>
+                      </span>
+                      <span className="text-xs text-slate-500">{chargeUnitText(charge)}</span>
+                    </label>
+                    {checked && <>
+                      <div className="qbc-addon-controls">
+                        <Field id={`addon-qty-${safeId}-${charge.id}`} label="Qty" error={fieldErrors.charge_lines}>
+                          <input id={`addon-qty-${safeId}-${charge.id}`} type="number" min="1" max="9999" step="1" value={chargeQuantity(surface.spec, charge.id)} onChange={(event) => updateQuantity(charge.id, Number(event.target.value))} className="qbc-input" />
+                        </Field>
+                        <PriceField id={`addon-rate-${safeId}-${charge.id}`} label="Unit Rate" hint={chargeUnitText(charge)} value={rateValue(`charge:${charge.id}`, charge.price)} readOnly={!isB2B} onChange={(value) => updateRate(`charge:${charge.id}`, value)} error={fieldErrors.price_overrides} />
+                      </div>
+                      <div className="qbc-addon-amount"><span>{Number(line?.billable_quantity ?? 0).toFixed(2)} {charge.unit === 'flat' ? 'units' : charge.unit === 'm2' ? 'm²' : 'm'}</span><strong>AED {Number(line?.total ?? 0).toFixed(2)}</strong></div>
+                    </>}
+                  </div>
                 );
               })}
             </div>
           </section>
 
           {/* Total Row */}
-          <div className={`qbc-total-row${isPulsing ? ' is-pulsing' : ''}`} aria-live="off">
+          {showTotal && <div className={`qbc-total-row${isPulsing ? ' is-pulsing' : ''}`} aria-live="off">
             <span className="qbc-total-label"><Receipt size={17} aria-hidden="true" />Line total</span>
             <span className={`qbc-total-value${total === 0 ? ' is-zero' : ''}`}>
               <span>AED</span>
               <strong>{totalDisplay}</strong>
             </span>
-          </div>
+          </div>}
           <span className="qbc-visually-hidden" aria-live="polite">{announcedTotal}</span>
         </div>
       </div>

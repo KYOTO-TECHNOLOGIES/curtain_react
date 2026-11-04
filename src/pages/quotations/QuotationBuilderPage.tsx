@@ -17,6 +17,7 @@ import { SelectMenu } from '../../components/ui/SelectMenu';
 import { normalizeFeatures } from '../../lib/catalogHelpers';
 import {
   calculateCatalogSurfaceTotal,
+  calculateQuotationTotals,
   resolvedChargeIds,
 } from '../../lib/quotationPricing';
 import { appointmentsApi } from '../../api/appointments';
@@ -40,6 +41,7 @@ import {
   StickyActionBar,
 } from './components/QuotationBuilderComponents';
 import AddAreaModal from './components/AddAreaModal';
+import DraftPricingSummary from './components/DraftPricingSummary';
 import AddSurfaceModal from './components/AddSurfaceModal';
 import { useSurfaceTypes } from './hooks/useSurfaceTypes';
 import QuotationHeader from './components/QuotationHeader';
@@ -66,6 +68,12 @@ interface BuilderArea {
   display_name: string;
   sort_order: number;
   surfaces: BuilderSurface[];
+}
+
+function validationMessage(value: unknown): string {
+  if (Array.isArray(value)) return value.map(validationMessage).filter(Boolean).join(' ');
+  if (value && typeof value === 'object') return Object.values(value).map(validationMessage).filter(Boolean).join(' ');
+  return value == null ? '' : String(value);
 }
 
 function capitalizeDisplay(value: string) {
@@ -98,9 +106,7 @@ export default function QuotationBuilderPage() {
 
   useEffect(() => {
     const param = searchParams.get('appointment');
-    if (param && param !== selectedAppointmentId) {
-      setSelectedAppointmentId(param);
-    }
+    if (param) setSelectedAppointmentId((current) => current === param ? current : param);
   }, [searchParams]);
 
   const [quotationSettings, setQuotationSettings] = useState({
@@ -110,6 +116,7 @@ export default function QuotationBuilderPage() {
       .toISOString()
       .split('T')[0],
     discount_percentage: 0,
+    show_price_breakdown: true,
   });
 
   const [areas, setAreas] = useState<BuilderArea[]>([]);
@@ -148,7 +155,7 @@ export default function QuotationBuilderPage() {
     enabled: isEditing,
   });
 
-  const { data: workTypesRes } = useQuery({
+  const { data: workTypesRes, isLoading: workTypesLoading, isError: workTypesError } = useQuery({
     queryKey: ['work_types'],
     queryFn: () => catalogApi.workTypes(),
   });
@@ -163,18 +170,18 @@ export default function QuotationBuilderPage() {
     queryFn: () => catalogApi.models(),
   });
 
-  const { data: itemsRes } = useQuery({
+  const { data: itemsRes, isLoading: itemsLoading, isError: itemsError } = useQuery({
     queryKey: ['items'],
     queryFn: () => catalogApi.items(),
   });
 
-  const { data: motorsRes } = useQuery({
+  const { data: motorsRes, isLoading: motorsLoading, isError: motorsError } = useQuery({
     queryKey: ['motors', quotationSettings.work_type],
     queryFn: () => catalogApi.motors({ work_type: quotationSettings.work_type }),
     enabled: !!quotationSettings.work_type,
   });
 
-  const { data: chargesRes } = useQuery({
+  const { data: chargesRes, isLoading: chargesLoading, isError: chargesError } = useQuery({
     queryKey: ['charges', quotationSettings.work_type],
     queryFn: () => catalogApi.charges({ work_type: quotationSettings.work_type }),
     enabled: !!quotationSettings.work_type,
@@ -222,6 +229,7 @@ export default function QuotationBuilderPage() {
       work_type: Number(quotation.work_type),
       valid_until: quotation.valid_until.slice(0, 10),
       discount_percentage: Number(quotation.discount_percentage) || 0,
+      show_price_breakdown: quotation.show_price_breakdown !== false,
     });
     setAreas((quotation.areas || []).map((area, areaIndex) => ({
       tempId: String(area.id ?? `edit-area-${areaIndex}`),
@@ -367,6 +375,10 @@ export default function QuotationBuilderPage() {
         motor_control_type: 'manual',
         motor_type: null,
         motor_price_per_unit: '0',
+        motor_quantity: 1,
+        motor_pricing_unit: 'm2',
+        price_overrides: {},
+        charge_lines: [],
         selected_charge_ids: defaultControlCharge ? [defaultControlCharge.id] : [],
         smart_integration: false,
         alexa_quantity: 0,
@@ -416,20 +428,19 @@ export default function QuotationBuilderPage() {
     surfaceId: string,
     specUpdates: Partial<SurfaceSpec>
   ) => {
-    setAreas(
-      areas.map((a) =>
-        a.tempId === areaId
-          ? {
-            ...a,
-            surfaces: a.surfaces.map((s) =>
-              s.tempId === surfaceId
-                ? { ...s, spec: { ...s.spec, ...specUpdates } }
-                : s
-            ),
-          }
-          : a
-      )
-    );
+    setAreas((current) => current.map((area) => {
+      if (area.tempId !== areaId) return area;
+      return {
+        ...area,
+        surfaces: area.surfaces.map((surface) => {
+          if (surface.tempId !== surfaceId) return surface;
+          const overrides = { ...(specUpdates.price_overrides ?? surface.spec.price_overrides) };
+          if (specUpdates.catalog_item !== undefined && specUpdates.catalog_item !== surface.spec.catalog_item) delete overrides.fabric;
+          if (specUpdates.motor_type !== undefined && specUpdates.motor_type !== surface.spec.motor_type) delete overrides.motor;
+          return { ...surface, spec: { ...surface.spec, ...specUpdates, price_overrides: overrides } };
+        }),
+      };
+    }));
   };
 
   const handleUpdateSurface = (
@@ -480,6 +491,22 @@ export default function QuotationBuilderPage() {
       return;
     }
 
+    if (quotationSettings.discount_percentage < 0 || quotationSettings.discount_percentage > 100) {
+      showToast('Discount must be between 0 and 100%.', 'error');
+      return;
+    }
+    const invalidQuantity = areas.some((area) => area.surfaces.some(({ spec }) =>
+      !Number.isInteger(spec.motor_quantity ?? 1) || (spec.motor_quantity ?? 1) < 1 || (spec.motor_quantity ?? 1) > 9999 ||
+      (spec.charge_lines || []).some((line) => !Number.isInteger(line.quantity) || line.quantity < 1 || line.quantity > 9999)
+    ));
+    if (invalidQuantity) {
+      showToast('Quantities must be whole numbers between 1 and 9,999.', 'error');
+      return;
+    }
+    if (pricingLoading || pricingError) {
+      showToast('Wait for catalog prices to load before saving.', 'error');
+      return;
+    }
     setIsSaving(true);
     setSurfaceFieldErrors({});
     setConfigurationError(null);
@@ -492,6 +519,7 @@ export default function QuotationBuilderPage() {
         work_type: quotationSettings.work_type,
         valid_until: quotationSettings.valid_until,
         discount_percentage: quotationSettings.discount_percentage,
+        show_price_breakdown: quotationSettings.show_price_breakdown,
         areas_data: areas.map((area) => ({
           area_type: area.area_type,
           display_name: area.display_name,
@@ -501,9 +529,13 @@ export default function QuotationBuilderPage() {
             const selectedItem = items.find((item) => item.id === Number(spec.catalog_item));
             const selectedMotor = motors.find((motor) => motor.id === Number(spec.motor_type));
             spec.unit_price_per_m2 = selectedItem?.price_per_unit ?? spec.unit_price_per_m2;
-            spec.fabric_code = selectedItem?.name ?? spec.fabric_code;
+            spec.fabric_code = spec.fabric_code || selectedItem?.name || '';
             spec.motor_price_per_unit = selectedMotor?.price_per_m2 ?? 0;
+            spec.price_overrides = quotationSettings.quote_type === 'b2b' ? spec.price_overrides || {} : {};
+            spec.motor_quantity = spec.motor_quantity ?? 1;
+            spec.motor_pricing_unit = spec.motor_pricing_unit ?? 'm2';
             spec.selected_charge_ids = resolvedChargeIds(spec, includedCharges);
+            spec.charge_lines = (spec.charge_lines || []).filter((line) => spec.selected_charge_ids!.includes(line.id)).map((line) => ({ id: line.id, quantity: Math.max(1, line.quantity) }));
             if (spec.motor_control_type !== 'motorized') {
               spec.motor_type = null;
               spec.motor_price_per_unit = 0;
@@ -513,8 +545,8 @@ export default function QuotationBuilderPage() {
             const selectedCharges = resolvedChargeIds(spec, includedCharges)
               .map((chargeId) => includedCharges.find((charge) => charge.id === chargeId))
               .filter((charge): charge is ChargeTemplate => Boolean(charge));
-            spec.alexa_unit_price = selectedCharges.find((charge) => charge.kind === 'alexa')?.price ?? 0;
-            spec.pelmet_price_per_metre = selectedCharges.find((charge) => charge.kind === 'pelmet')?.price ?? 0;
+            spec.alexa_unit_price = selectedCharges.find((charge) => charge.kind === 'alexa')?.price ?? spec.alexa_unit_price;
+            spec.pelmet_price_per_metre = selectedCharges.find((charge) => charge.kind === 'pelmet')?.price ?? spec.pelmet_price_per_metre;
             const extras = selectedCharges.filter((charge) => charge.kind === 'other');
             spec.addon_label = extras.map((charge) => charge.name).join(', ');
             spec.addon_amount = 0;
@@ -567,7 +599,7 @@ export default function QuotationBuilderPage() {
                   }
                   if (surfErr.spec && typeof surfErr.spec === 'object') {
                     Object.entries(surfErr.spec).forEach(([k, v]) => {
-                      errorsForSurface[k] = Array.isArray(v) ? (v as string[]).join(' ') : String(v);
+                      errorsForSurface[k] = validationMessage(v);
                     });
                   }
                   mappedSurfaceErrors[surfaceObj.tempId] = errorsForSurface;
@@ -582,7 +614,7 @@ export default function QuotationBuilderPage() {
         } else if (data.non_field_errors) {
           unmappedError = Array.isArray(data.non_field_errors) ? data.non_field_errors.join(' ') : String(data.non_field_errors);
         } else if (Object.keys(mappedSurfaceErrors).length === 0) {
-          unmappedError = typeof data === 'string' ? data : JSON.stringify(data);
+          unmappedError = validationMessage(data);
         }
       } else {
         unmappedError = err?.message || 'Failed to create quotation';
@@ -599,13 +631,26 @@ export default function QuotationBuilderPage() {
 
   const calculateSurfaceTotal = (spec: SurfaceSpec, widthCm: number, heightCm: number) => {
     return calculateCatalogSurfaceTotal(
-      spec,
+      { ...spec, unit_price_per_m2: items.find((item) => item.id === Number(spec.catalog_item))?.price_per_unit ?? spec.unit_price_per_m2, motor_price_per_unit: motors.find((motor) => motor.id === Number(spec.motor_type))?.price_per_m2 ?? spec.motor_price_per_unit },
       widthCm,
       heightCm,
       selectedWorkType?.pricing_unit,
       includedCharges,
+      quotationSettings.quote_type === 'b2b',
     ).toFixed(2);
   };
+
+  const pricingLoading = workTypesLoading || itemsLoading || motorsLoading || chargesLoading;
+  const pricingError = workTypesError || itemsError || motorsError || chargesError;
+  const draftTotals = calculateQuotationTotals(
+    areas.reduce((sum, area) => sum + area.surfaces.reduce((areaSum, surface) => areaSum + Number(calculateSurfaceTotal(surface.spec, surface.width_cm, surface.height_cm)), 0), 0),
+    quotationSettings.discount_percentage,
+  );
+  const assigneeName = selectedAppointment
+    ? selectedAppointment.assigned_to_name || selectedAppointment.assignee_name || 'Unassigned'
+    : selectedAppointmentSummary
+      ? selectedAppointmentSummary.assigned_to_name || 'Unassigned'
+      : editQuotation?.assigned_to_name || 'Unassigned';
 
   if (isEditing && editQuotationError) {
     return (
@@ -635,7 +680,7 @@ export default function QuotationBuilderPage() {
       <main className="quotation-builder-content">
         <QuotationHeader
           title={isEditing ? `Edit Quotation ${editId}` : 'Create New Quotation'}
-          subtitle="Configure your bespoke atelier request by defining areas, surfaces, and product specifics."
+          subtitle="Prepare your quotation with clear room totals, itemised charges, and live pricing."
         />
 
       <section className="qb-card qb-general-card">
@@ -680,6 +725,7 @@ export default function QuotationBuilderPage() {
                 isLoading={selectedAppointmentLoading}
               />
             )}
+            <div className="qb-assignee"><span>Assigned to</span><strong>{assigneeName}</strong></div>
           </div>
 
           <div className="qb-general-column">
@@ -710,6 +756,9 @@ export default function QuotationBuilderPage() {
                         motor_type: null,
                         motor_price_per_unit: 0,
                         selected_charge_ids: [],
+                        charge_lines: [],
+                        price_overrides: {},
+                        motor_quantity: 1,
                         smart_integration: false,
                         alexa_quantity: 0,
                         alexa_unit_price: 0,
@@ -732,7 +781,10 @@ export default function QuotationBuilderPage() {
               <span className="qb-field-label block text-[15px] font-bold text-slate-700 mb-2">Quotation Type</span>
               <QuotationTypeCards
                 value={quotationSettings.quote_type}
-                onChange={(quote_type) => setQuotationSettings({ ...quotationSettings, quote_type })}
+                onChange={(quote_type) => {
+                  setQuotationSettings({ ...quotationSettings, quote_type });
+                  if (quote_type === 'b2c') setAreas((current) => current.map((area) => ({ ...area, surfaces: area.surfaces.map((surface) => ({ ...surface, spec: { ...surface.spec, price_overrides: {} } })) })));
+                }}
               />
             </div>
 
@@ -762,6 +814,8 @@ export default function QuotationBuilderPage() {
                 <div className="qb-discount-control">
                   <input
                     id="quotation-discount"
+                    aria-invalid={quotationSettings.discount_percentage < 0 || quotationSettings.discount_percentage > 100}
+                    aria-describedby="quotation-discount-hint"
                     type="number"
                     min="0"
                     max="100"
@@ -774,6 +828,7 @@ export default function QuotationBuilderPage() {
                   />
                   <span className="qb-discount-suffix">%</span>
                 </div>
+                <p id="quotation-discount-hint" className={quotationSettings.discount_percentage < 0 || quotationSettings.discount_percentage > 100 ? 'text-xs text-rose-600 mt-2' : 'text-xs text-slate-500 mt-2'}>Enter a percentage from 0 to 100. The summary updates instantly.</p>
               </div>
             </div>
           </div>
@@ -803,6 +858,7 @@ export default function QuotationBuilderPage() {
             </div>
           )}
 
+          <div className="qb-drafting-layout">
           <section className="qb-card qb-configuration-card qbc-configuration">
             <header className="qbc-configuration-header">
               <span className="qbc-configuration-icon"><Layers3 size={18} aria-hidden="true" /></span>
@@ -811,6 +867,7 @@ export default function QuotationBuilderPage() {
                 <p>Define the areas and surfaces for this quotation</p>
               </div>
               <div className="qbc-configuration-tools">
+                <label className="qb-breakdown-toggle"><input type="checkbox" checked={quotationSettings.show_price_breakdown} onChange={(event) => setQuotationSettings({ ...quotationSettings, show_price_breakdown: event.target.checked })} />Show area & surface totals</label>
                 <span className="qbc-count-chip">
                   {areas.length} {areas.length === 1 ? 'area' : 'areas'} · {surfaceCount} {surfaceCount === 1 ? 'surface' : 'surfaces'}
                 </span>
@@ -852,6 +909,7 @@ export default function QuotationBuilderPage() {
                           <span className="qbc-area-surface-count">
                             {area.surfaces.length} {area.surfaces.length === 1 ? 'surface' : 'surfaces'}
                           </span>
+                          {quotationSettings.show_price_breakdown && <span className="qb-area-amount">AED {area.surfaces.reduce((sum, surface) => sum + Number(calculateSurfaceTotal(surface.spec, surface.width_cm, surface.height_cm)), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
                           <ChevronRight className={`qbc-area-chevron${isAreaExpanded ? ' is-open' : ''}`} aria-hidden="true" />
                         </button>
                         <div className="qbc-area-actions">
@@ -910,6 +968,8 @@ export default function QuotationBuilderPage() {
                                 <BuilderSurfaceCard
                                   key={surface.tempId}
                                   surface={surface}
+                                  isB2B={quotationSettings.quote_type === 'b2b'}
+                                  showTotal={quotationSettings.show_price_breakdown}
                                   fabricTypes={availableFabricTypes}
                                   models={models}
                                   items={items}
@@ -948,10 +1008,13 @@ export default function QuotationBuilderPage() {
             )}
           </section>
 
+          <DraftPricingSummary totals={draftTotals} discountPercentage={quotationSettings.discount_percentage} areaCount={areas.length} surfaceCount={surfaceCount} loading={pricingLoading} error={pricingError} />
+          </div>
+
           {/* Save Button */}
           <StickyActionBar
             isSaving={isSaving}
-            canSave={!isSaving && !selectedAlreadyQuoted && (!!selectedAppointmentId || isEditing) && !!selectedCustomerId && areas.length > 0}
+            canSave={!isSaving && !pricingLoading && !pricingError && quotationSettings.discount_percentage >= 0 && quotationSettings.discount_percentage <= 100 && !selectedAlreadyQuoted && (!!selectedAppointmentId || isEditing) && !!selectedCustomerId && areas.length > 0}
             onCancel={() => navigate(isEditing && editId ? `/quotations/${editId}` : '/quotations')}
             onSave={handleSaveQuotation}
           />

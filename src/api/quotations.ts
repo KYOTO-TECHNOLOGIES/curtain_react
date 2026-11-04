@@ -1,6 +1,17 @@
 import { api } from './client';
 import type { QuotationListItem, QuotationStats } from '../types';
 
+export interface ChargeLine {
+  id: number;
+  name?: string;
+  kind?: string;
+  unit?: string;
+  price?: string | number;
+  quantity: number;
+  billable_quantity?: string | number;
+  total?: string | number;
+}
+
 export interface SurfaceSpec {
   id?: number;
   fabric_type: number;
@@ -16,6 +27,10 @@ export interface SurfaceSpec {
   motor_type?: number | null;
   motor_type_name?: string;
   motor_price_per_unit: string | number;
+  motor_quantity?: number;
+  motor_pricing_unit?: 'm2' | 'unit';
+  price_overrides?: Record<string, string | number>;
+  charge_lines?: ChargeLine[];
   motor_charge_total?: string;
   manual_control_total?: string;
   selected_charge_ids?: number[];
@@ -59,6 +74,8 @@ export interface QuotationArea {
   display_name: string;
   sort_order: number;
   surfaces: Surface[];
+  subtotal?: string;
+  total_area_m2?: string;
 }
 
 export interface QuotationDetail {
@@ -71,6 +88,9 @@ export interface QuotationDetail {
   appointment_id?: string;
   status: 'draft' | 'pending' | 'sent' | 'accepted' | 'cancelled';
   quote_type: 'b2c' | 'b2b';
+  show_price_breakdown?: boolean;
+  assigned_to?: number | null;
+  assigned_to_name?: string | null;
   work_type: number;
   work_type_name?: string;
   subtotal?: string;

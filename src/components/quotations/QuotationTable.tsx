@@ -150,6 +150,12 @@ export const QuotationTable: React.FC<QuotationTableProps> = ({
       ),
     },
     {
+      key: 'assignee',
+      label: 'Assignee',
+      size: 'fit',
+      render: (q) => <span className="text-sm text-slate-600">{q.assigned_to_name || 'Unassigned'}</span>,
+    },
+    {
       key: 'amount',
       label: 'Amount',
       sortable: true,

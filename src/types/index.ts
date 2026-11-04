@@ -385,6 +385,9 @@ export interface AppointmentStats {
 export type QuotationStatus = 'draft' | 'pending' | 'sent' | 'accepted' | 'cancelled';
 
 export interface QuotationListItem {
+  assigned_to?: number | null;
+  assigned_to_name?: string | null;
+  show_price_breakdown?: boolean;
   id: string;
   customer: number;
   customer_name: string;

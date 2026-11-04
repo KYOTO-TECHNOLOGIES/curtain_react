@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import SavedSurfacePricing from './SavedSurfacePricing';
 import {
   ArrowRight,
   ArrowLeft,
@@ -49,6 +50,7 @@ export interface Surface {
 
 interface Props {
   surface: Surface;
+  showTotal?: boolean;
   isEditing?: boolean;
   onDelete?: () => void;
   onChangeSurface?: (
@@ -81,6 +83,7 @@ function getItemModelId(item: any): number {
 
 export default function SurfaceCard({
   surface,
+  showTotal = true,
   isEditing = false,
   onDelete,
   onChangeSurface,
@@ -795,14 +798,15 @@ export default function SurfaceCard({
               </div>
             </div>
 
-            <div className="qd-surface-total-row">
+            {showTotal && <div className="qd-surface-total-row">
               <span className="qd-surface-total-label">Line Total</span>
               <span className="qd-surface-total-value">
                 <span className="qd-surface-total-prefix">AED</span>
                 {formatMoney(surface.spec?.line_item_total)}
               </span>
-            </div>
+            </div>}
           </div>
+          <SavedSurfacePricing spec={spec as Partial<SurfaceSpec>} />
         </div>
       </div>
     </div>
