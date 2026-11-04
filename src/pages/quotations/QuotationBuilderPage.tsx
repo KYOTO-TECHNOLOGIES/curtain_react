@@ -320,6 +320,7 @@ export default function QuotationBuilderPage() {
         motor_control_type: 'manual',
         motor_type: null,
         motor_price_per_unit: '0',
+        motor_quantity: 1,
         smart_integration: false,
         alexa_quantity: 0,
         alexa_unit_price: '0',
@@ -328,6 +329,7 @@ export default function QuotationBuilderPage() {
         pelmet_price_per_metre: '0',
         addon_label: '',
         addon_amount: '0',
+        other_charges: [],
       },
     };
 
@@ -427,7 +429,11 @@ export default function QuotationBuilderPage() {
               spec.smart_integration && alexaChargeTemplate ? alexaChargeTemplate.price : spec.alexa_unit_price,
             pelmet_price_per_metre:
               spec.pelmet_enabled && pelmetChargeTemplate ? pelmetChargeTemplate.price : spec.pelmet_price_per_metre,
-            other_charges: (spec.other_charges || []).map(({ id, name }) => ({ id, name })),
+            other_charges: (spec.other_charges || []).map(({ id, name, quantity }) => ({
+              id,
+              name,
+              quantity: quantity ?? 1,
+            })),
           },
         };
       }),
@@ -516,6 +522,14 @@ export default function QuotationBuilderPage() {
           sort_order: area.sort_order,
           surfaces: area.surfaces.map((surface) => {
             const spec = { ...surface.spec } as SurfaceSpec & { motor_quantity?: number };
+            const motorQty = Math.max(1, Number(spec.motor_quantity) || 1);
+            if (spec.motor_control_type === 'motorized' && spec.motor_type && !isB2B) {
+              const motor = motors.find((m) => m.id === spec.motor_type);
+              if (motor) {
+                const areaM2 = (surface.width_cm * surface.height_cm) / 10000;
+                spec.motor_price_per_unit = (areaM2 * toNum(motor.price_per_m2) * motorQty).toFixed(2);
+              }
+            }
             delete spec.motor_quantity; // UI-only; already folded into motor_price_per_unit
             // UI-only other charges are folded into the add-on fields the API stores
             const otherCharges = resolveOtherCharges(
@@ -529,7 +543,10 @@ export default function QuotationBuilderPage() {
             if (otherCharges.length > 0) {
               const otherTotal = otherCharges.reduce((sum, charge) => sum + charge.amount, 0);
               spec.addon_amount = (toNum(spec.addon_amount) + otherTotal).toFixed(2);
-              spec.addon_label = [...otherCharges.map((charge) => charge.name), spec.addon_label]
+              const chargeLabels = otherCharges.map((charge) =>
+                charge.quantity > 1 ? `${charge.name} (×${charge.quantity})` : charge.name
+              );
+              spec.addon_label = [...chargeLabels, spec.addon_label]
                 .filter(Boolean)
                 .join(', ')
                 .slice(0, 255);
@@ -643,7 +660,13 @@ export default function QuotationBuilderPage() {
           : controlPrice * areaM2;
     const motorTotal =
       spec.motor_control_type === 'motorized'
-        ? toNum(spec.motor_price_per_unit)
+        ? toNum(spec.motor_price_per_unit) > 0
+          ? toNum(spec.motor_price_per_unit)
+          : (() => {
+              const motor = motors.find((m) => m.id === spec.motor_type);
+              const motorQty = Math.max(1, Number(spec.motor_quantity) || 1);
+              return motor ? areaM2 * toNum(motor.price_per_m2) * motorQty : 0;
+            })()
         : 0;
     const alexaTotal = spec.smart_integration
       ? toNum(spec.alexa_unit_price) * toNum(spec.alexa_quantity)

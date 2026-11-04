@@ -462,13 +462,21 @@ export default function BuilderSurfaceCard({
   const toggleOtherCharge = (template: ChargeTemplate, checked: boolean) => {
     const rest = selectedOtherCharges.filter((charge) => Number(charge.id) !== Number(template.id));
     onUpdateSpec({
-      other_charges: checked ? [...rest, { id: Number(template.id), name: template.name }] : rest,
+      other_charges: checked ? [...rest, { id: Number(template.id), name: template.name, quantity: 1 }] : rest,
     });
   };
   const setOtherChargeAmount = (id: number, amount: string) => {
     onUpdateSpec({
       other_charges: selectedOtherCharges.map((charge) =>
         Number(charge.id) === id ? { ...charge, amount } : charge
+      ),
+    });
+  };
+  const setOtherChargeQuantity = (id: number, quantity: number) => {
+    const qty = Math.max(1, Math.floor(quantity || 1));
+    onUpdateSpec({
+      other_charges: selectedOtherCharges.map((charge) =>
+        Number(charge.id) === id ? { ...charge, quantity: qty } : charge
       ),
     });
   };
@@ -845,22 +853,58 @@ export default function BuilderSurfaceCard({
                     </Field>
                     {selectedMotor && (
                       <div className="mt-3">
-                        <Field id={`motor-quantity-${safeId}`} label="Motor Quantity" hint={`AED ${money(motorUnitTotal)} each`}>
-                          <input
-                            id={`motor-quantity-${safeId}`}
-                            type="number"
-                            min="1"
-                            step="1"
-                            value={motorQuantity}
-                            onChange={(event) => {
-                              const qty = Math.max(1, Math.floor(Number(event.target.value) || 1));
-                              onUpdateSpec({
-                                motor_quantity: qty,
-                                motor_price_per_unit: (motorUnitTotal * qty).toFixed(2),
-                              });
-                            }}
-                            className="qbc-input"
-                          />
+                        <Field
+                          id={`motor-quantity-${safeId}`}
+                          label="Motor Quantity"
+                          hint={`AED ${money(motorUnitTotal * motorQuantity)} (${motorQuantity > 1 ? `AED ${money(motorUnitTotal)} ea` : 'Calculated'})`}
+                        >
+                          <div className="qbc-qty-control">
+                            <button
+                              type="button"
+                              className="qbc-qty-btn"
+                              disabled={motorQuantity <= 1}
+                              onClick={() => {
+                                const qty = Math.max(1, motorQuantity - 1);
+                                onUpdateSpec({
+                                  motor_quantity: qty,
+                                  motor_price_per_unit: (motorUnitTotal * qty).toFixed(2),
+                                });
+                              }}
+                              aria-label="Decrease motor quantity"
+                            >
+                              −
+                            </button>
+                            <input
+                              id={`motor-quantity-${safeId}`}
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={motorQuantity}
+                              onChange={(event) => {
+                                const qty = Math.max(1, Math.floor(Number(event.target.value) || 1));
+                                onUpdateSpec({
+                                  motor_quantity: qty,
+                                  motor_price_per_unit: (motorUnitTotal * qty).toFixed(2),
+                                });
+                              }}
+                              className="qbc-qty-input"
+                              aria-label="Motor Quantity"
+                            />
+                            <button
+                              type="button"
+                              className="qbc-qty-btn"
+                              onClick={() => {
+                                const qty = motorQuantity + 1;
+                                onUpdateSpec({
+                                  motor_quantity: qty,
+                                  motor_price_per_unit: (motorUnitTotal * qty).toFixed(2),
+                                });
+                              }}
+                              aria-label="Increase motor quantity"
+                            >
+                              +
+                            </button>
+                          </div>
                         </Field>
                       </div>
                     )}
@@ -1026,22 +1070,80 @@ export default function BuilderSurfaceCard({
                             </span>
                           </span>
                         </label>
-                        {selection && isB2B ? (
-                          <MoneyInput
-                            id={`${checkboxId}-amount`}
-                            ariaLabel={`${template.name} amount`}
-                            className="qbc-charge-amount"
-                            editable
-                            value={
-                              selection.amount !== undefined && selection.amount !== ''
-                                ? selection.amount
-                                : catalogAmount.toFixed(2)
-                            }
-                            onChange={(value) => setOtherChargeAmount(templateId, value)}
-                          />
+                        {selection ? (
+                          <div className="qbc-charge-controls">
+                            <div className="qbc-charge-qty-wrap">
+                              <span className="qbc-charge-control-label">Qty</span>
+                              <div className="qbc-qty-control qbc-qty-control--sm">
+                                <button
+                                  type="button"
+                                  className="qbc-qty-btn"
+                                  disabled={(selection.quantity ?? 1) <= 1}
+                                  onClick={() => setOtherChargeQuantity(templateId, (selection.quantity ?? 1) - 1)}
+                                  aria-label={`Decrease ${template.name} quantity`}
+                                >
+                                  −
+                                </button>
+                                <input
+                                  id={`${checkboxId}-qty`}
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  value={selection.quantity ?? 1}
+                                  onChange={(event) => {
+                                    const val = parseInt(event.target.value, 10);
+                                    setOtherChargeQuantity(templateId, Number.isNaN(val) ? 1 : Math.max(1, val));
+                                  }}
+                                  className="qbc-qty-input"
+                                  aria-label={`${template.name} quantity`}
+                                />
+                                <button
+                                  type="button"
+                                  className="qbc-qty-btn"
+                                  onClick={() => setOtherChargeQuantity(templateId, (selection.quantity ?? 1) + 1)}
+                                  aria-label={`Increase ${template.name} quantity`}
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+                            {isB2B ? (
+                              <div className="qbc-charge-rate-wrap">
+                                <span className="qbc-charge-control-label">Unit rate</span>
+                                <MoneyInput
+                                  id={`${checkboxId}-amount`}
+                                  ariaLabel={`${template.name} unit amount`}
+                                  className="qbc-charge-amount"
+                                  editable
+                                  value={
+                                    selection.amount !== undefined && selection.amount !== ''
+                                      ? selection.amount
+                                      : catalogAmount.toFixed(2)
+                                  }
+                                  onChange={(value) => setOtherChargeAmount(templateId, value)}
+                                />
+                                {(selection.quantity ?? 1) > 1 && (
+                                  <span className="qbc-charge-total-badge">
+                                    Total: AED {money(resolved?.amount ?? catalogAmount * (selection.quantity ?? 1))}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="qbc-charge-price-wrap">
+                                <span className="qbc-charge-value">
+                                  AED {money(resolved?.amount ?? catalogAmount * (selection.quantity ?? 1))}
+                                </span>
+                                {(selection.quantity ?? 1) > 1 && (
+                                  <span className="qbc-charge-unit-hint">
+                                    AED {money(resolved?.unitAmount ?? catalogAmount)} ea
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         ) : (
                           <span className={`qbc-charge-value${selection ? '' : ' is-muted'}`}>
-                            AED {money(selection ? resolved?.amount ?? catalogAmount : catalogAmount)}
+                            AED {money(catalogAmount)}
                           </span>
                         )}
                       </li>
@@ -1126,7 +1228,11 @@ export default function BuilderSurfaceCard({
                 )}
                 {resolvedOtherCharges.map((charge) => (
                   <div key={`breakdown-other-${charge.id}`}>
-                    <dt>{charge.name}{charge.overridden && <span>Custom price</span>}</dt>
+                    <dt>
+                      {charge.name}
+                      {charge.quantity > 1 && <span>× {charge.quantity} (@ AED {money(charge.unitAmount)})</span>}
+                      {charge.overridden && <span>Custom rate</span>}
+                    </dt>
                     <dd>AED {money(charge.amount)}</dd>
                   </div>
                 ))}

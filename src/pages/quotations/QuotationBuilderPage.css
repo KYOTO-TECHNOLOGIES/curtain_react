@@ -2652,6 +2652,143 @@
   font-size: 13.5px;
 }
 
+/* Quantity Stepper Control */
+.qbc-qty-control {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--qbc-border);
+  border-radius: 9px;
+  background: #FFFFFF;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color var(--qbc-fast) ease, box-shadow var(--qbc-fast) ease;
+}
+
+.qbc-qty-control:focus-within {
+  border-color: var(--qbc-primary);
+  box-shadow: 0 0 0 3px rgba(47, 93, 143, 0.12);
+}
+
+.qbc-qty-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  background: #F8FAFC;
+  color: var(--qbc-ink);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--qbc-fast) ease, color var(--qbc-fast) ease;
+}
+
+.qbc-qty-btn:hover:not(:disabled) {
+  background: #EDF2F7;
+  color: var(--qbc-primary);
+}
+
+.qbc-qty-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background: #F8FAFC;
+}
+
+.qbc-qty-input {
+  width: 48px;
+  height: 36px;
+  padding: 0 4px;
+  border: none;
+  border-left: 1px solid var(--qbc-border);
+  border-right: 1px solid var(--qbc-border);
+  background: #FFFFFF;
+  color: var(--qbc-ink);
+  font-size: 13.5px;
+  font-weight: 650;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.qbc-qty-input::-webkit-outer-spin-button,
+.qbc-qty-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Small quantity stepper (used inside rows) */
+.qbc-qty-control--sm {
+  border-radius: 7px;
+}
+
+.qbc-qty-control--sm .qbc-qty-btn {
+  width: 26px;
+  height: 30px;
+  font-size: 13px;
+}
+
+.qbc-qty-control--sm .qbc-qty-input {
+  width: 38px;
+  height: 30px;
+  font-size: 12.5px;
+}
+
+/* Charge row controls container */
+.qbc-charge-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+}
+
+.qbc-charge-qty-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qbc-charge-control-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--qbc-slate-400);
+  user-select: none;
+}
+
+.qbc-charge-rate-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.qbc-charge-total-badge {
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--qbc-amber);
+  font-variant-numeric: tabular-nums;
+}
+
+.qbc-charge-price-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  min-width: 90px;
+}
+
+.qbc-charge-unit-hint {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--qbc-slate-400);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Line item breakdown */
 .qbc-breakdown {
   display: grid;
@@ -2981,6 +3118,13 @@
 
   .qbc-charge-row {
     flex-wrap: wrap;
+  }
+
+  .qbc-charge-controls {
+    width: 100%;
+    justify-content: space-between;
+    padding-top: 8px;
+    border-top: 1px dashed var(--qbc-border);
   }
 
   .qbc-charge-amount {

@@ -40,6 +40,8 @@ export interface OtherChargeSelection {
   name?: string;
   /** Custom amount (B2B only). Empty/undefined means use the catalog rate. */
   amount?: string | number;
+  /** Quantity (defaults to 1). Final amount = resolved_unit_amount x quantity. */
+  quantity?: number;
 }
 
 export interface Surface {

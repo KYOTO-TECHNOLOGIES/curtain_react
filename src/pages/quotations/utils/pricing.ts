@@ -37,6 +37,11 @@ export function isOtherCharge(charge: ChargeTemplate): boolean {
 export interface ResolvedOtherCharge {
   id: number;
   name: string;
+  /** Amount for a single unit (before quantity multiplication). */
+  unitAmount: number;
+  /** Quantity chosen by the user (defaults to 1). */
+  quantity: number;
+  /** Final amount = unitAmount × quantity. */
   amount: number;
   catalogAmount: number;
   overridden: boolean;
@@ -61,10 +66,14 @@ export function resolveOtherCharges(
       const catalogAmount = chargeAmount(template, widthCm, heightCm);
       const overridden =
         allowOverride && selection.amount !== undefined && selection.amount !== null && selection.amount !== '';
+      const unitAmount = overridden ? toNum(selection.amount) : catalogAmount;
+      const quantity = Math.max(1, Math.floor(Number(selection.quantity) || 1));
       return {
         id: Number(template.id),
         name: template.name,
-        amount: overridden ? toNum(selection.amount) : catalogAmount,
+        unitAmount,
+        quantity,
+        amount: unitAmount * quantity,
         catalogAmount,
         overridden,
       };
