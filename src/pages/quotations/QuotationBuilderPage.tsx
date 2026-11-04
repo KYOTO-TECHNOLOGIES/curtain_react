@@ -31,14 +31,18 @@ import { DatePicker } from '../../components/ui/DatePicker';
 import { AppointmentPicker } from '../../components/quotations/AppointmentPicker';
 import BuilderSurfaceCard from './components/BuilderSurfaceCard';
 import {
+  BuilderProgress,
   CustomerSummary,
+  QuotationSummaryCard,
   QuotationTypeCards,
   StickyActionBar,
+  type SummaryLine,
 } from './components/QuotationBuilderComponents';
 import AddAreaModal from './components/AddAreaModal';
 import AddSurfaceModal from './components/AddSurfaceModal';
 import { useSurfaceTypes } from './hooks/useSurfaceTypes';
 import QuotationHeader from './components/QuotationHeader';
+import { VAT_RATE, formatAED, resolveOtherCharges, toNum } from './utils/pricing';
 import './QuotationBuilderPage.css';
 
 import type { SurfaceSpec } from '../../api/quotations';
@@ -104,6 +108,7 @@ export default function QuotationBuilderPage() {
       .split('T')[0],
     discount_percentage: 0,
   });
+  const [discountInput, setDiscountInput] = useState('0');
 
   const [areas, setAreas] = useState<BuilderArea[]>([]);
   const [expandedAreaId, setExpandedAreaId] = useState<string | null>(null);
@@ -189,6 +194,9 @@ export default function QuotationBuilderPage() {
   const includedCharges = toArray<ChargeTemplate>(chargesRes);
   const selectedWorkType = workTypes.find((workType) => workType.id === quotationSettings.work_type) || workTypes[0];
   const workTypeFeatures = selectedWorkType ? normalizeFeatures(selectedWorkType.features) : undefined;
+  const isB2B = quotationSettings.quote_type === 'b2b';
+  const alexaChargeTemplate = includedCharges.find((charge) => charge.kind === 'alexa');
+  const pelmetChargeTemplate = includedCharges.find((charge) => charge.kind === 'pelmet');
 
   const quotedAppointmentIds = useMemo(() => {
     const ids = new Set<string>();
@@ -397,9 +405,75 @@ export default function QuotationBuilderPage() {
     );
   };
 
+  /** B2C quotations always use catalog rates, so drop any custom B2B prices. */
+  const resetPricesToCatalog = (list: BuilderArea[]): BuilderArea[] =>
+    list.map((area) => ({
+      ...area,
+      surfaces: area.surfaces.map((surface) => {
+        const spec = surface.spec;
+        const item = items.find((i) => Number(i.id) === Number(spec.catalog_item));
+        const motor = spec.motor_type ? motors.find((m) => m.id === spec.motor_type) : null;
+        const areaM2 = (surface.width_cm * surface.height_cm) / 10000;
+        const motorQty = Math.max(1, Number(spec.motor_quantity) || 1);
+        return {
+          ...surface,
+          spec: {
+            ...spec,
+            unit_price_per_m2: item ? String(item.price_per_unit ?? '0') : spec.unit_price_per_m2,
+            motor_price_per_unit: motor
+              ? (areaM2 * toNum(motor.price_per_m2) * motorQty).toFixed(2)
+              : spec.motor_price_per_unit,
+            alexa_unit_price:
+              spec.smart_integration && alexaChargeTemplate ? alexaChargeTemplate.price : spec.alexa_unit_price,
+            pelmet_price_per_metre:
+              spec.pelmet_enabled && pelmetChargeTemplate ? pelmetChargeTemplate.price : spec.pelmet_price_per_metre,
+            other_charges: (spec.other_charges || []).map(({ id, name }) => ({ id, name })),
+          },
+        };
+      }),
+    }));
+
+  const handleQuoteTypeChange = (quote_type: 'b2c' | 'b2b') => {
+    if (quote_type === quotationSettings.quote_type) return;
+    setQuotationSettings({ ...quotationSettings, quote_type });
+    if (quote_type === 'b2c' && surfaceCount > 0) {
+      setAreas((current) => resetPricesToCatalog(current));
+      showToast('Switched to B2C — prices reset to catalog rates', 'success');
+    } else if (quote_type === 'b2b' && surfaceCount > 0) {
+      showToast('B2B pricing enabled — prices are now editable', 'success');
+    }
+  };
+
+  const discountRaw = discountInput.trim();
+  const discountParsed = discountRaw === '' ? 0 : Number(discountRaw);
+  const discountError =
+    !Number.isFinite(discountParsed)
+      ? 'Enter a valid discount percentage'
+      : discountParsed < 0 || discountParsed > 100
+        ? 'Discount must be between 0 and 100%'
+        : null;
+
+  const handleDiscountChange = (raw: string) => {
+    setDiscountInput(raw);
+    const n = raw.trim() === '' ? 0 : Number(raw);
+    if (Number.isFinite(n) && n >= 0 && n <= 100) {
+      setQuotationSettings((prev) => ({ ...prev, discount_percentage: Math.round(n * 100) / 100 }));
+    }
+  };
+
+  const handleDiscountBlur = () => {
+    if (discountError) return;
+    setDiscountInput(String(quotationSettings.discount_percentage));
+  };
+
   const handleSaveQuotation = async () => {
     if (!selectedAppointmentId) {
       showToast('Please select an appointment', 'error');
+      return;
+    }
+
+    if (discountError) {
+      showToast(discountError, 'error');
       return;
     }
 
@@ -443,6 +517,25 @@ export default function QuotationBuilderPage() {
           surfaces: area.surfaces.map((surface) => {
             const spec = { ...surface.spec } as SurfaceSpec & { motor_quantity?: number };
             delete spec.motor_quantity; // UI-only; already folded into motor_price_per_unit
+            // UI-only other charges are folded into the add-on fields the API stores
+            const otherCharges = resolveOtherCharges(
+              surface.spec,
+              includedCharges,
+              surface.width_cm,
+              surface.height_cm,
+              isB2B
+            );
+            delete spec.other_charges;
+            if (otherCharges.length > 0) {
+              const otherTotal = otherCharges.reduce((sum, charge) => sum + charge.amount, 0);
+              spec.addon_amount = (toNum(spec.addon_amount) + otherTotal).toFixed(2);
+              spec.addon_label = [...otherCharges.map((charge) => charge.name), spec.addon_label]
+                .filter(Boolean)
+                .join(', ')
+                .slice(0, 255);
+            } else {
+              spec.addon_amount = toNum(spec.addon_amount).toFixed(2);
+            }
             if (spec.motor_control_type !== 'motorized') {
               spec.smart_integration = false;
               spec.alexa_quantity = 0;
@@ -536,7 +629,7 @@ export default function QuotationBuilderPage() {
     const areaM2 = (widthCm * heightCm) / 10000;
     const pricingUnit = selectedWorkType?.pricing_unit;
     const quantity = pricingUnit === 'flat' ? 1 : pricingUnit === 'm' ? widthCm / 100 : areaM2;
-    const fabricTotal = parseFloat(String(spec.unit_price_per_m2)) * quantity;
+    const fabricTotal = toNum(spec.unit_price_per_m2) * quantity;
     const controlTemplate = includedCharges.find((charge) =>
       charge.kind === (spec.motor_control_type === 'motorized' ? 'motorized' : 'manual')
     );
@@ -550,30 +643,72 @@ export default function QuotationBuilderPage() {
           : controlPrice * areaM2;
     const motorTotal =
       spec.motor_control_type === 'motorized'
-        ? parseFloat(String(spec.motor_price_per_unit))
+        ? toNum(spec.motor_price_per_unit)
         : 0;
     const alexaTotal = spec.smart_integration
-      ? parseFloat(String(spec.alexa_unit_price)) * spec.alexa_quantity
+      ? toNum(spec.alexa_unit_price) * toNum(spec.alexa_quantity)
       : 0;
     const pelmetTotal = spec.pelmet_enabled
-      ? parseFloat(String(spec.pelmet_price_per_metre)) *
-      (parseFloat(String(spec.pelmet_width_cm)) / 100)
+      ? toNum(spec.pelmet_price_per_metre) * (toNum(spec.pelmet_width_cm) / 100)
       : 0;
-    const addonTotal = parseFloat(String(spec.addon_amount));
+    const addonTotal = toNum(spec.addon_amount);
+    const otherChargesTotal = resolveOtherCharges(spec, includedCharges, widthCm, heightCm, isB2B)
+      .reduce((sum, charge) => sum + charge.amount, 0);
 
-    return (fabricTotal + controlTotal + motorTotal + alexaTotal + pelmetTotal + addonTotal).toFixed(2);
+    return (fabricTotal + controlTotal + motorTotal + alexaTotal + pelmetTotal + addonTotal + otherChargesTotal).toFixed(2);
   };
+
+  // Quotation-level totals (shown in the summary card and sticky action bar)
+  const summaryLines: SummaryLine[] = areas.flatMap((area) =>
+    area.surfaces.map((surface) => ({
+      key: `${area.tempId}-${surface.tempId}`,
+      areaName: capitalizeDisplay(area.display_name),
+      surfaceName: surface.surface_name || capitalizeDisplay(surface.surface_type),
+      dimensions: `${surface.width_cm} × ${surface.height_cm} cm`,
+      total: toNum(calculateSurfaceTotal(surface.spec, surface.width_cm, surface.height_cm)),
+    }))
+  );
+  const quotationSubtotal = summaryLines.reduce((sum, line) => sum + line.total, 0);
+  const effectiveDiscount = discountError ? 0 : quotationSettings.discount_percentage;
+  const quotationDiscountAmount = (quotationSubtotal * effectiveDiscount) / 100;
+  const quotationVat = (quotationSubtotal - quotationDiscountAmount) * VAT_RATE;
+  const quotationGrandTotal = quotationSubtotal - quotationDiscountAmount + quotationVat;
+  const generalStepDone =
+    !!selectedAppointmentId && !selectedAlreadyQuoted && !!quotationSettings.valid_until && !discountError;
+  const configStepDone = areas.length > 0 && areas.every((area) => area.surfaces.length > 0);
 
   return (
     <div className="quotation-builder-page">
       <main className="quotation-builder-content">
         <QuotationHeader title="Create New Quotation" subtitle="Configure your bespoke atelier request by defining areas, surfaces, and product specifics." />
 
+        <BuilderProgress
+          quoteType={quotationSettings.quote_type}
+          steps={[
+            {
+              label: 'General details',
+              description: 'Appointment & terms',
+              state: generalStepDone ? 'done' : 'active',
+            },
+            {
+              label: 'Configuration',
+              description: surfaceCount > 0 ? `${surfaceCount} ${surfaceCount === 1 ? 'surface' : 'surfaces'}` : 'Areas & surfaces',
+              state: configStepDone ? 'done' : generalStepDone ? 'active' : 'upcoming',
+            },
+            {
+              label: 'Review & save',
+              description: surfaceCount > 0 ? `AED ${formatAED(quotationGrandTotal)}` : 'Totals & discount',
+              state: generalStepDone && configStepDone ? 'active' : 'upcoming',
+            },
+          ]}
+        />
+
       <section className="qb-card qb-general-card">
         <header className="qb-card-header">
           <span className="qb-card-icon qb-card-icon--brand"><Info size={18} /></span>
           <div className="qb-card-heading">
             <h2>General Information</h2>
+            <p className="qb-card-subtitle">Appointment, customer and commercial terms</p>
           </div>
         </header>
 
@@ -639,8 +774,13 @@ export default function QuotationBuilderPage() {
               <span className="qb-field-label block text-[15px] font-bold text-slate-700 mb-2">Quotation Type</span>
               <QuotationTypeCards
                 value={quotationSettings.quote_type}
-                onChange={(quote_type) => setQuotationSettings({ ...quotationSettings, quote_type })}
+                onChange={handleQuoteTypeChange}
               />
+              <p className={`qb-type-hint${isB2B ? ' is-b2b' : ''}`}>
+                {isB2B
+                  ? 'Business pricing — unit, motor, Alexa, pelmet and other charge prices can be edited per surface.'
+                  : 'Retail pricing — catalog rates are applied automatically.'}
+              </p>
             </div>
 
             <div className="qb-date-discount-grid">
@@ -666,7 +806,7 @@ export default function QuotationBuilderPage() {
                   <span>Discount (%)</span>
                   <span className="qb-optional-tag">Optional</span>
                 </label>
-                <div className="qb-discount-control">
+                <div className={`qb-discount-control${discountError ? ' has-error' : ''}`}>
                   <input
                     id="quotation-discount"
                     type="number"
@@ -675,12 +815,27 @@ export default function QuotationBuilderPage() {
                     step="0.01"
                     inputMode="decimal"
                     autoComplete="off"
-                    value={quotationSettings.discount_percentage}
-                    onChange={(e) => setQuotationSettings({ ...quotationSettings, discount_percentage: parseFloat(e.target.value) || 0 })}
+                    value={discountInput}
+                    onChange={(e) => handleDiscountChange(e.target.value)}
+                    onBlur={handleDiscountBlur}
+                    aria-invalid={!!discountError}
+                    aria-describedby="quotation-discount-hint"
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-[#5442f6] focus:ring-2 focus:ring-[#5442f6]/20 transition-all font-medium text-slate-700"
                   />
                   <span className="qb-discount-suffix">%</span>
                 </div>
+                <p
+                  id="quotation-discount-hint"
+                  className={`qb-discount-hint${discountError ? ' is-error' : effectiveDiscount > 0 ? ' is-active' : ''}`}
+                >
+                  {discountError
+                    ? discountError
+                    : effectiveDiscount > 0
+                      ? quotationSubtotal > 0
+                        ? `− AED ${formatAED(quotationDiscountAmount)} off the subtotal`
+                        : `${effectiveDiscount}% will apply to the subtotal`
+                      : 'No discount applied'}
+                </p>
               </div>
             </div>
           </div>
@@ -825,6 +980,7 @@ export default function QuotationBuilderPage() {
                                   workTypeName={selectedWorkType?.name}
                                   pricingUnit={selectedWorkType?.pricing_unit}
                                   charges={includedCharges}
+                                  isB2B={isB2B}
                                   fieldErrors={surfaceFieldErrors[surface.tempId]}
                                   onDelete={() => handleDeleteSurface(area.tempId, surface.tempId)}
                                   onUpdateSpec={(updates) => handleUpdateSurfaceSpec(area.tempId, surface.tempId, updates)}
@@ -855,12 +1011,27 @@ export default function QuotationBuilderPage() {
             )}
           </section>
 
+          {surfaceCount > 0 && (
+            <QuotationSummaryCard
+              lines={summaryLines}
+              subtotal={quotationSubtotal}
+              discountPercentage={effectiveDiscount}
+              discountAmount={quotationDiscountAmount}
+              vatRate={VAT_RATE}
+              vatAmount={quotationVat}
+              grandTotal={quotationGrandTotal}
+              isB2B={isB2B}
+            />
+          )}
+
           {/* Save Button */}
           <StickyActionBar
             isSaving={isSaving}
-            canSave={!isSaving && !selectedAlreadyQuoted && !!selectedAppointmentId && !!selectedCustomerId && areas.length > 0}
+            canSave={!isSaving && !selectedAlreadyQuoted && !!selectedAppointmentId && !!selectedCustomerId && areas.length > 0 && !discountError}
             onCancel={() => navigate('/quotations')}
             onSave={handleSaveQuotation}
+            total={quotationGrandTotal}
+            surfaceCount={surfaceCount}
           />
         </>
       )}

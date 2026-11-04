@@ -302,6 +302,11 @@ export default function QuotationDetailPage() {
 
   const handleSave = async () => {
     if (!id || !quotation) return;
+    const discount = Number(formData.discount_percentage) || 0;
+    if (discount < 0 || discount > 100) {
+      showToast('Discount must be between 0 and 100%', 'error');
+      return;
+    }
     setSaving(true);
     try {
       // Build a clean payload matching the backend's expected PATCH schema.
@@ -555,7 +560,7 @@ export default function QuotationDetailPage() {
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        discount_percentage: parseFloat(e.target.value) || 0,
+                        discount_percentage: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)),
                       })
                     }
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#2F5D8F]/20 text-sm font-medium"
@@ -623,7 +628,10 @@ export default function QuotationDetailPage() {
 
         {/* Right Column - Summary, Actions, Timeline, Additional Info */}
         <div className="qd-aside">
-          <PricingSummary quotation={quotation} />
+          <PricingSummary
+            quotation={quotation}
+            previewDiscountPercentage={isEditing ? Number(formData.discount_percentage) || 0 : null}
+          />
 
           <ActionsCard
             quotation={quotation}

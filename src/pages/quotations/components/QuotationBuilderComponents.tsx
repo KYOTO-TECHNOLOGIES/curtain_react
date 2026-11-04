@@ -1,14 +1,19 @@
+import { useState } from 'react';
 import {
   ArrowLeft,
   Building2,
+  Check,
+  ChevronDown,
   Loader2,
   Mail,
   Phone,
+  Receipt,
   Save,
   UserRound,
   type LucideIcon,
 } from 'lucide-react';
 import CopyButton from './CopyButton';
+import { formatAED } from '../utils/pricing';
 
 interface CustomerSummaryProps {
   customerName: string;
@@ -123,16 +128,165 @@ export function QuotationTypeCards({
   );
 }
 
+export type BuilderStepState = 'done' | 'active' | 'upcoming';
+
+export function BuilderProgress({
+  steps,
+  quoteType,
+}: {
+  steps: { label: string; description: string; state: BuilderStepState }[];
+  quoteType: QuotationType;
+}) {
+  return (
+    <div className="qb-progress" aria-label="Quotation progress">
+      <ol className="qb-progress-steps">
+        {steps.map((step, index) => (
+          <li
+            key={step.label}
+            className={`qb-progress-step is-${step.state}`}
+            aria-current={step.state === 'active' ? 'step' : undefined}
+          >
+            <span className="qb-progress-marker" aria-hidden="true">
+              {step.state === 'done' ? <Check size={13} strokeWidth={3} /> : index + 1}
+            </span>
+            <span className="qb-progress-copy">
+              <span className="qb-progress-label">{step.label}</span>
+              <span className="qb-progress-desc">{step.description}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+      <div className="qb-progress-badges">
+        <span className="qb-badge qb-badge--draft">Draft</span>
+        <span className={`qb-badge ${quoteType === 'b2b' ? 'qb-badge--b2b' : 'qb-badge--b2c'}`}>
+          {quoteType === 'b2b' ? 'B2B' : 'B2C'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export interface SummaryLine {
+  key: string;
+  areaName: string;
+  surfaceName: string;
+  dimensions: string;
+  total: number;
+}
+
+export function QuotationSummaryCard({
+  lines,
+  subtotal,
+  discountPercentage,
+  discountAmount,
+  vatRate,
+  vatAmount,
+  grandTotal,
+  isB2B,
+}: {
+  lines: SummaryLine[];
+  subtotal: number;
+  discountPercentage: number;
+  discountAmount: number;
+  vatRate: number;
+  vatAmount: number;
+  grandTotal: number;
+  isB2B: boolean;
+}) {
+  const hasMultiple = lines.length > 1;
+  const [showBreakdown, setShowBreakdown] = useState(true);
+  const areaCount = new Set(lines.map((line) => line.areaName)).size;
+
+  return (
+    <section className="qb-card qb-summary-card" aria-labelledby="qb-summary-title">
+      <header className="qb-summary-header">
+        <span className="qb-card-icon qb-card-icon--brand"><Receipt size={18} aria-hidden="true" /></span>
+        <div className="qb-summary-heading">
+          <h2 id="qb-summary-title">Quotation Summary</h2>
+          <p>
+            {lines.length} {lines.length === 1 ? 'surface' : 'surfaces'} across {areaCount} {areaCount === 1 ? 'area' : 'areas'}
+            {' · '}
+            {isB2B ? 'B2B custom pricing' : 'Catalog pricing'}
+          </p>
+        </div>
+        {hasMultiple && (
+          <button
+            type="button"
+            className={`qb-summary-toggle${showBreakdown ? ' is-open' : ''}`}
+            onClick={() => setShowBreakdown((open) => !open)}
+            aria-expanded={showBreakdown}
+            aria-controls="qb-summary-lines"
+          >
+            {showBreakdown ? 'Hide breakdown' : 'Show breakdown'}
+            <ChevronDown size={15} aria-hidden="true" />
+          </button>
+        )}
+      </header>
+
+      <div className="qb-summary-body">
+        {hasMultiple && showBreakdown && (
+          <div className="qb-summary-lines" id="qb-summary-lines">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Area</th>
+                  <th scope="col">Surface</th>
+                  <th scope="col">Size</th>
+                  <th scope="col" className="is-num">Line total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lines.map((line) => (
+                  <tr key={line.key}>
+                    <td>{line.areaName}</td>
+                    <td className="is-strong">{line.surfaceName}</td>
+                    <td className="is-muted">{line.dimensions}</td>
+                    <td className="is-num">AED {formatAED(line.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <dl className={`qb-summary-totals${hasMultiple && showBreakdown ? '' : ' is-full'}`}>
+          <div>
+            <dt>Subtotal</dt>
+            <dd>AED {formatAED(subtotal)}</dd>
+          </div>
+          <div className={discountAmount > 0 ? 'is-discount' : 'is-zero'}>
+            <dt>Discount{discountPercentage > 0 ? ` (${discountPercentage}%)` : ''}</dt>
+            <dd>{discountAmount > 0 ? '− ' : ''}AED {formatAED(discountAmount)}</dd>
+          </div>
+          <div>
+            <dt>VAT ({Math.round(vatRate * 100)}%)</dt>
+            <dd>AED {formatAED(vatAmount)}</dd>
+          </div>
+          <div className="is-grand">
+            <dt>Grand total</dt>
+            <dd>AED {formatAED(grandTotal)}</dd>
+          </div>
+          <p className="qb-summary-note">Estimate based on current selections. Final totals are confirmed on save.</p>
+        </dl>
+      </div>
+    </section>
+  );
+}
+
 export function StickyActionBar({
   isSaving,
   canSave,
   onCancel,
   onSave,
+  total,
+  surfaceCount = 0,
 }: {
   isSaving: boolean;
   canSave: boolean;
   onCancel: () => void;
   onSave: () => void;
+  total?: number;
+  surfaceCount?: number;
 }) {
   return (
     <div className="qb-sticky-action-bar">
@@ -140,6 +294,14 @@ export function StickyActionBar({
         <button type="button" onClick={onCancel} className="qb-cancel-button">
           <ArrowLeft size={16} /> Cancel
         </button>
+        {surfaceCount > 0 && total !== undefined && (
+          <div className="qb-sticky-total" aria-live="polite">
+            <span className="qb-sticky-total-label">
+              Grand total · {surfaceCount} {surfaceCount === 1 ? 'surface' : 'surfaces'}
+            </span>
+            <strong className="qb-sticky-total-value">AED {formatAED(total)}</strong>
+          </div>
+        )}
         <button
           type="button"
           onClick={onSave}

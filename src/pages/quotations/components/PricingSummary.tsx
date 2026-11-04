@@ -9,6 +9,8 @@ interface Props {
   vat?: string | number;
   total?: string | number;
   quotation?: QuotationDetail | null;
+  /** When set (edit mode), discount/VAT/total are previewed live from this percentage. */
+  previewDiscountPercentage?: number | null;
   className?: string;
 }
 
@@ -19,17 +21,33 @@ export default function PricingSummary({
   vat: propVat,
   total: propTotal,
   quotation,
+  previewDiscountPercentage = null,
   className = '',
 }: Props) {
   const subtotal = quotation ? quotation.subtotal : propSubtotal;
-  const discountPercentage = quotation
+  let discountPercentage = quotation
     ? quotation.discount_percentage
     : propDiscountPercentage;
-  const discountAmount = quotation
+  let discountAmount = quotation
     ? quotation.discount_amount
     : propDiscountAmount;
-  const vat = quotation ? quotation.vat : propVat;
-  const total = quotation ? quotation.total : propTotal;
+  let vat = quotation ? quotation.vat : propVat;
+  let total = quotation ? quotation.total : propTotal;
+
+  const isPreview =
+    previewDiscountPercentage !== null &&
+    Number.isFinite(previewDiscountPercentage) &&
+    Number(previewDiscountPercentage) !== Number(quotation?.discount_percentage || 0);
+  if (isPreview) {
+    const pct = Math.min(100, Math.max(0, Number(previewDiscountPercentage)));
+    const base = Number(subtotal || 0);
+    const disc = (base * pct) / 100;
+    const vatAmt = (base - disc) * 0.05;
+    discountPercentage = pct;
+    discountAmount = disc.toFixed(2);
+    vat = vatAmt.toFixed(2);
+    total = (base - disc + vatAmt).toFixed(2);
+  }
 
   const hasDiscount = Number(discountPercentage || 0) > 0 || Number(discountAmount || 0) > 0;
 
@@ -45,6 +63,7 @@ export default function PricingSummary({
           <Receipt />
         </div>
         <h3 className="qd-pricing-title">Pricing Summary</h3>
+        {isPreview && <span className="qd-pricing-preview">Preview · unsaved</span>}
       </div>
 
       <div className="qd-pricing-rows">

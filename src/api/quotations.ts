@@ -30,7 +30,16 @@ export interface SurfaceSpec {
   pelmet_total?: string;
   addon_label?: string;
   addon_amount: string | number;
+  /** UI-only; catalog "other" charges selected on the surface. Folded into addon_* before saving. */
+  other_charges?: OtherChargeSelection[];
   line_item_total?: string;
+}
+
+export interface OtherChargeSelection {
+  id: number;
+  name?: string;
+  /** Custom amount (B2B only). Empty/undefined means use the catalog rate. */
+  amount?: string | number;
 }
 
 export interface Surface {
