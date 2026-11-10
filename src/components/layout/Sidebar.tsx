@@ -7,7 +7,7 @@ import {
   FileText,
   Receipt,
   CreditCard,
-  Activity,
+  // Activity,
   Package,
   Users,
   UserCog,
@@ -15,8 +15,8 @@ import {
   LogOut,
   X,
   Settings,
-  Factory,
-  Wrench,
+  // Factory,
+  // Wrench,
   Warehouse,
   ChevronsLeft,
 } from 'lucide-react';
@@ -46,9 +46,10 @@ const navSections = [
   {
     label: 'OPERATIONS',
     items: [
-      { to: '/activities', label: 'Activities', icon: Activity },
-      { to: '/production', label: 'Production', icon: Factory },
-      { to: '/installation', label: 'Installation', icon: Wrench },
+      // Temporarily hidden; keep the routes and pages available for later use.
+      // { to: '/activities', label: 'Activities', icon: Activity },
+      // { to: '/production', label: 'Production', icon: Factory },
+      // { to: '/installation', label: 'Installation', icon: Wrench },
       { to: '/inventory', label: 'Inventory', icon: Warehouse },
       { to: '/customers', label: 'Customers', icon: Users },
       { to: '/catalog', label: 'Catalog & Pricing', icon: Tag },
