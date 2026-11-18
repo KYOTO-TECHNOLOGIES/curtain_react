@@ -3348,3 +3348,26 @@
     display: none;
   }
 }
+
+
+/* Standalone Alexa / Pelmet sections */
+.qbc-option-single {
+  display: grid;
+  max-width: 360px;
+}
+
+.qbc-section-heading--alexa .qbc-section-icon {
+  background: #E9F6FD;
+  color: #0EA5E9;
+}
+
+.qbc-section-heading--pelmet .qbc-section-icon {
+  background: #FDF2F8;
+  color: #DB2777;
+}
+
+@media (max-width: 640px) {
+  .qbc-option-single {
+    max-width: none;
+  }
+}

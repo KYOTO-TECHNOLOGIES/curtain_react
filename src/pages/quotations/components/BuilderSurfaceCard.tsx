@@ -702,11 +702,11 @@ export default function BuilderSurfaceCard({
             </div>
           </section>
 
-          {/* Section: Control & Options */}
+          {/* Section: Control (opening direction, control type, motor) */}
           <section className="qbc-section" role="group" aria-labelledby={`control-heading-${safeId}`}>
             <h3 className="qbc-section-heading qbc-section-heading--control" id={`control-heading-${safeId}`}>
               <span className="qbc-section-icon"><SlidersHorizontal size={14} aria-hidden="true" /></span>
-              <span>Control and options</span>
+              <span>Control</span>
             </h3>
 
             {/* Incompatible Existing Values Amber Warnings */}
@@ -716,18 +716,6 @@ export default function BuilderSurfaceCard({
                 <span>Motorized control is selected, but Motors are disabled for {workTypeName || 'this work type'}.</span>
               </div>
             )}
-            {surface.spec.smart_integration && !allowCharges && (
-              <div className="catalog-notice--amber mb-3">
-                <AlertTriangle size={15} />
-                <span>Smart Integration (Alexa) is selected, but Control &amp; Charges are disabled for {workTypeName || 'this work type'}.</span>
-              </div>
-            )}
-            {surface.spec.pelmet_enabled && !allowPelmet && (
-              <div className="catalog-notice--amber mb-3">
-                <AlertTriangle size={15} />
-                <span>Pelmet is enabled, but Pelmet feature is disabled for {workTypeName || 'this work type'}.</span>
-              </div>
-            )}
             {surface.opening_direction && surface.opening_direction !== 'one_way' && !allowDraw && (
               <div className="catalog-notice--amber mb-3">
                 <AlertTriangle size={15} />
@@ -735,77 +723,8 @@ export default function BuilderSurfaceCard({
               </div>
             )}
 
-            <div className="qbc-control-grid">
-              <Field id={`control-${safeId}`} label="Control" error={fieldErrors.motor_control_type}>
-                <SelectMenu
-                  id={`control-${safeId}`}
-                  value={surface.spec.motor_control_type}
-                  options={controlOptions}
-                  onChange={(value) => {
-                    const next = value as 'manual' | 'motorized';
-                    // Alexa / smart integration only applies to motorized control
-                    onUpdateSpec(
-                      next === 'manual'
-                        ? { motor_control_type: next, smart_integration: false, alexa_quantity: 0, motor_quantity: 1 }
-                        : { motor_control_type: next }
-                    );
-                  }}
-                  ariaLabel="Control"
-                />
-              </Field>
-
-              {/* Option Tiles (Alexa & Pelmet disabled with lock tooltip if feature is off) */}
-              <div className="qbc-option-grid">
-                {isMotorized && (
-                  <OptionTile
-                    id={`alexa-${safeId}`}
-                    checked={surface.spec.smart_integration}
-                    disabled={!allowCharges}
-                    tooltip={!allowCharges ? `Control & Charges aren't enabled for ${workTypeName || 'this work type'}` : undefined}
-                    onChange={(checked) =>
-                      onUpdateSpec(
-                        checked
-                          ? {
-                            smart_integration: true,
-                            alexa_quantity: Math.max(1, Number(surface.spec.alexa_quantity) || 1),
-                            alexa_unit_price:
-                              Number(surface.spec.alexa_unit_price) > 0 ? surface.spec.alexa_unit_price : alexaCharge?.price ?? '0',
-                          }
-                          : { smart_integration: false, alexa_quantity: 0 }
-                      )
-                    }
-                    label="Smart Integration (Alexa)"
-                    icon={Mic}
-                  />
-                )}
-                <OptionTile
-                  id={`pelmet-${safeId}`}
-                  checked={surface.spec.pelmet_enabled}
-                  disabled={!allowPelmet}
-                  tooltip={!allowPelmet ? `Pelmet isn't enabled for ${workTypeName || 'this work type'}` : undefined}
-                  onChange={(checked) =>
-                    onUpdateSpec(
-                      checked
-                        ? {
-                          pelmet_enabled: true,
-                          pelmet_width_cm:
-                            toNum(surface.spec.pelmet_width_cm) > 0 ? surface.spec.pelmet_width_cm : String(surface.width_cm),
-                          pelmet_price_per_metre:
-                            toNum(surface.spec.pelmet_price_per_metre) > 0
-                              ? surface.spec.pelmet_price_per_metre
-                              : pelmetCharge?.price ?? '0',
-                        }
-                        : { pelmet_enabled: false }
-                    )
-                  }
-                  label="Add Pelmet"
-                  icon={PanelTop}
-                />
-              </div>
-            </div>
-
             {/* Opening Direction (draw feature) */}
-            <div className="mt-3">
+            <div className="mb-3">
               <Field id={`draw-${safeId}`} label="Opening Direction" error={fieldErrors.opening_direction}>
                 <SelectMenu
                   id={`draw-${safeId}`}
@@ -817,8 +736,26 @@ export default function BuilderSurfaceCard({
               </Field>
             </div>
 
-            {/* Extra Fields for Motor, Alexa, Pelmet */}
-            {(surface.spec.motor_control_type === 'motorized' || surface.spec.smart_integration || surface.spec.pelmet_enabled) && (
+            <Field id={`control-${safeId}`} label="Control" error={fieldErrors.motor_control_type}>
+              <SelectMenu
+                id={`control-${safeId}`}
+                value={surface.spec.motor_control_type}
+                options={controlOptions}
+                onChange={(value) => {
+                  const next = value as 'manual' | 'motorized';
+                  // Alexa / smart integration only applies to motorized control
+                  onUpdateSpec(
+                    next === 'manual'
+                      ? { motor_control_type: next, smart_integration: false, alexa_quantity: 0, motor_quantity: 1 }
+                      : { motor_control_type: next }
+                  );
+                }}
+                ariaLabel="Control"
+              />
+            </Field>
+
+            {/* Motor type & quantity */}
+            {isMotorized && (
               <div className="qbc-extra-fields mt-3">
                 {/* Motor Type Selection */}
                 {surface.spec.motor_control_type === 'motorized' && (
@@ -910,63 +847,149 @@ export default function BuilderSurfaceCard({
                     )}
                   </div>
                 )}
-
-                {/* Alexa Controls */}
-                {surface.spec.smart_integration && (
-                  <>
-                    <Field id={`alexa-quantity-${safeId}`} label="Qty" error={fieldErrors.alexa_quantity}>
-                      <input
-                        id={`alexa-quantity-${safeId}`}
-                        type="number"
-                        min="0"
-                        value={surface.spec.alexa_quantity}
-                        onChange={(event) => onUpdateSpec({ alexa_quantity: Number(event.target.value) })}
-                        className="qbc-input"
-                      />
-                    </Field>
-                    <PriceField
-                      id={`alexa-price-${safeId}`}
-                      label="Unit Price (AED)"
-                      hint={isB2B ? 'Editable · B2B' : 'From catalog'}
-                      value={surface.spec.alexa_unit_price}
-                      onChange={(value) => onUpdateSpec({ alexa_unit_price: value })}
-                      readOnly={!isB2B}
-                      editable={isB2B}
-                      step="0.01"
-                      error={fieldErrors.alexa_unit_price}
-                    />
-                  </>
-                )}
-
-                {/* Pelmet Controls */}
-                {surface.spec.pelmet_enabled && (
-                  <>
-                    <Field id={`pelmet-width-${safeId}`} label="Width (cm)" error={fieldErrors.pelmet_width_cm}>
-                      <input
-                        id={`pelmet-width-${safeId}`}
-                        type="number"
-                        step="0.01"
-                        value={surface.spec.pelmet_width_cm}
-                        onChange={(event) => onUpdateSpec({ pelmet_width_cm: event.target.value })}
-                        className="qbc-input"
-                      />
-                    </Field>
-                    <PriceField
-                      id={`pelmet-price-${safeId}`}
-                      label="Price/m (AED)"
-                      hint={isB2B ? 'Editable · B2B' : 'From catalog'}
-                      value={surface.spec.pelmet_price_per_metre}
-                      onChange={(value) => onUpdateSpec({ pelmet_price_per_metre: value })}
-                      readOnly={!isB2B}
-                      editable={isB2B}
-                      step="0.01"
-                      error={fieldErrors.pelmet_price_per_metre}
-                    />
-                  </>
-                )}
               </div>
             )}
 
+          </section>
+
+          {/* Section: Alexa (Smart Integration) */}
+          <section className="qbc-section" role="group" aria-labelledby={`alexa-heading-${safeId}`}>
+            <h3 className="qbc-section-heading qbc-section-heading--alexa" id={`alexa-heading-${safeId}`}>
+              <span className="qbc-section-icon"><Mic size={14} aria-hidden="true" /></span>
+              <span>Alexa</span>
+            </h3>
+
+            {surface.spec.smart_integration && !allowCharges && (
+              <div className="catalog-notice--amber mb-3">
+                <AlertTriangle size={15} />
+                <span>Smart Integration (Alexa) is selected, but Control &amp; Charges are disabled for {workTypeName || 'this work type'}.</span>
+              </div>
+            )}
+
+            <div className="qbc-option-single">
+              <OptionTile
+                id={`alexa-${safeId}`}
+                checked={isMotorized && surface.spec.smart_integration}
+                disabled={!allowCharges || !isMotorized}
+                tooltip={
+                  !allowCharges
+                    ? `Control & Charges aren't enabled for ${workTypeName || 'this work type'}`
+                    : !isMotorized
+                      ? 'Alexa requires motorized control'
+                      : undefined
+                }
+                onChange={(checked) =>
+                  onUpdateSpec(
+                    checked
+                      ? {
+                        smart_integration: true,
+                        alexa_quantity: Math.max(1, Number(surface.spec.alexa_quantity) || 1),
+                        alexa_unit_price:
+                          Number(surface.spec.alexa_unit_price) > 0 ? surface.spec.alexa_unit_price : alexaCharge?.price ?? '0',
+                      }
+                      : { smart_integration: false, alexa_quantity: 0 }
+                  )
+                }
+                label="Smart Integration (Alexa)"
+                icon={Mic}
+              />
+            </div>
+            {!isMotorized && (
+              <p className="qbc-muted-note mt-2">Set Control to Motorized to add Alexa.</p>
+            )}
+
+            {isMotorized && surface.spec.smart_integration && (
+              <div className="qbc-extra-fields">
+                <Field id={`alexa-quantity-${safeId}`} label="Qty" error={fieldErrors.alexa_quantity}>
+                  <input
+                    id={`alexa-quantity-${safeId}`}
+                    type="number"
+                    min="0"
+                    value={surface.spec.alexa_quantity}
+                    onChange={(event) => onUpdateSpec({ alexa_quantity: Number(event.target.value) })}
+                    className="qbc-input"
+                  />
+                </Field>
+                <PriceField
+                  id={`alexa-price-${safeId}`}
+                  label="Unit Price (AED)"
+                  hint={isB2B ? 'Editable Â· B2B' : 'From catalog'}
+                  value={surface.spec.alexa_unit_price}
+                  onChange={(value) => onUpdateSpec({ alexa_unit_price: value })}
+                  readOnly={!isB2B}
+                  editable={isB2B}
+                  step="0.01"
+                  error={fieldErrors.alexa_unit_price}
+                />
+              </div>
+            )}
+          </section>
+
+          {/* Section: Pelmet */}
+          <section className="qbc-section" role="group" aria-labelledby={`pelmet-heading-${safeId}`}>
+            <h3 className="qbc-section-heading qbc-section-heading--pelmet" id={`pelmet-heading-${safeId}`}>
+              <span className="qbc-section-icon"><PanelTop size={14} aria-hidden="true" /></span>
+              <span>Pelmet</span>
+            </h3>
+
+            {surface.spec.pelmet_enabled && !allowPelmet && (
+              <div className="catalog-notice--amber mb-3">
+                <AlertTriangle size={15} />
+                <span>Pelmet is enabled, but Pelmet feature is disabled for {workTypeName || 'this work type'}.</span>
+              </div>
+            )}
+
+            <div className="qbc-option-single">
+              <OptionTile
+                id={`pelmet-${safeId}`}
+                checked={surface.spec.pelmet_enabled}
+                disabled={!allowPelmet}
+                tooltip={!allowPelmet ? `Pelmet isn't enabled for ${workTypeName || 'this work type'}` : undefined}
+                onChange={(checked) =>
+                  onUpdateSpec(
+                    checked
+                      ? {
+                        pelmet_enabled: true,
+                        pelmet_width_cm:
+                          toNum(surface.spec.pelmet_width_cm) > 0 ? surface.spec.pelmet_width_cm : String(surface.width_cm),
+                        pelmet_price_per_metre:
+                          toNum(surface.spec.pelmet_price_per_metre) > 0
+                            ? surface.spec.pelmet_price_per_metre
+                            : pelmetCharge?.price ?? '0',
+                      }
+                      : { pelmet_enabled: false }
+                  )
+                }
+                label="Add Pelmet"
+                icon={PanelTop}
+              />
+            </div>
+
+            {surface.spec.pelmet_enabled && (
+              <div className="qbc-extra-fields">
+                <Field id={`pelmet-width-${safeId}`} label="Width (cm)" error={fieldErrors.pelmet_width_cm}>
+                  <input
+                    id={`pelmet-width-${safeId}`}
+                    type="number"
+                    step="0.01"
+                    value={surface.spec.pelmet_width_cm}
+                    onChange={(event) => onUpdateSpec({ pelmet_width_cm: event.target.value })}
+                    className="qbc-input"
+                  />
+                </Field>
+                <PriceField
+                  id={`pelmet-price-${safeId}`}
+                  label="Price/m (AED)"
+                  hint={isB2B ? 'Editable Â· B2B' : 'From catalog'}
+                  value={surface.spec.pelmet_price_per_metre}
+                  onChange={(value) => onUpdateSpec({ pelmet_price_per_metre: value })}
+                  readOnly={!isB2B}
+                  editable={isB2B}
+                  step="0.01"
+                  error={fieldErrors.pelmet_price_per_metre}
+                />
+              </div>
+            )}
           </section>
 
           {/* Section: Pricing */}
